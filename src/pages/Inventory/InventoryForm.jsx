@@ -1,0 +1,389 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Plus, Edit2, ArrowLeft, Image, FileText, X } from 'lucide-react';
+import { useAppContext } from '../../context/AppContext';
+import { api, BASE_URL } from '../../api';
+
+const InventoryForm = () => {
+  const { assets, addAsset, updateAsset, refreshAssets, suppliers, assetCategoriesTree, organizationalTree, maintenancePlans, assetStatuses, hasPermission, setGlobalAlert } = useAppContext();
+  const navigate = useNavigate();
+  const { id } = useParams(); // to know if we are editing
+  const isEditMode = Boolean(id);
+
+  // Route guard — runs ONCE on mount only
+  useEffect(() => {
+    if (isEditMode && !hasPermission('inventory_edit')) {
+      setGlobalAlert({ isOpen: true, title: 'Acceso Denegado', message: 'No tienes permiso para editar activos.' });
+      navigate('/inventory');
+    }
+    if (!isEditMode && !hasPermission('inventory_create')) {
+      setGlobalAlert({ isOpen: true, title: 'Acceso Denegado', message: 'No tienes permiso para crear activos.' });
+      navigate('/inventory');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const initialFormState = {
+    id: '', name: '', categoryId: '', category: '', brand: '', model: '',
+    serial: '', loadedBy: '', entryDate: new Date().toISOString().split('T')[0],
+    observations: '', supplierId: '', supplier: '', description: '',
+    departmentId: '', department: '',
+    family: '', familyId: '', subFamily: '', area: '', acquisitionCost: '',
+    location: '', status: 'Activo', assignedTo: '',
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [invoiceFile, setInvoiceFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (isEditMode) {
+      const assetToEdit = assets.find(a => a.id === id);
+      if (assetToEdit) {
+        setFormData(assetToEdit);
+        if (assetToEdit.photoUrl) setPhotoPreview(`${BASE_URL}${assetToEdit.photoUrl}`);
+      } else {
+        navigate('/inventory');
+      }
+    }
+  }, [id, assets, isEditMode, navigate]);
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    let savedId;
+    if (isEditMode) {
+      await updateAsset(formData);
+      savedId = formData.id;
+    } else {
+      const result = await addAsset({
+        ...formData,
+        acquisitionDate: formData.entryDate,
+        currentValue: formData.acquisitionCost,
+        assignedTo: formData.assignedTo || null
+      });
+      savedId = result?.id;
+    }
+
+    // Upload files if selected
+    if ((photoFile || invoiceFile) && savedId) {
+      setUploading(true);
+      const fd = new FormData();
+      if (photoFile) fd.append('photo', photoFile);
+      if (invoiceFile) fd.append('invoice', invoiceFile);
+      await api.upload(`/api/assets/${savedId}/files`, fd);
+      setUploading(false);
+    }
+
+    // Refrescar contexto para que InventoryView vea photoUrl/invoiceUrl actualizados
+    await refreshAssets();
+    navigate('/inventory');
+  };
+
+  return (
+    <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
+      
+      {/* Header with back button */}
+      <div className="flex-between" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button 
+            className="btn-secondary" 
+            onClick={() => navigate('/inventory')}
+            style={{ padding: '8px', borderRadius: '50%' }}
+            title="Volver"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 style={{ marginBottom: '4px' }}>{isEditMode ? `Editar Activo: ${formData.id}` : 'Registrar Nuevo Activo'}</h1>
+            <p className="text-muted">Desarrolla la ficha técnica completa y la asignación del activo.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass-panel form-container" style={{ overflow: 'hidden' }}>
+        <form onSubmit={handleFormSubmit}>
+          <div style={{ padding: '32px 40px' }}>
+            
+            {/* Información Principal */}
+            <div className="form-section">
+              <h3 className="form-section-title">Información Principal</h3>
+              <div className="form-grid form-grid-2">
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Nombre del Activo *</label>
+                  <input required type="text" className="input-control" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ej. Laptop Dell XP 15" />
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Cargado Por</label>
+                  <input type="text" className="input-control" value={formData.loadedBy} onChange={e => setFormData({...formData, loadedBy: e.target.value})} placeholder="Usuario que registra" />
+                </div>
+              </div>
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label>Descripción del Activo</label>
+                <textarea className="input-control" rows="2" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Añadir descripción detallada..."></textarea>
+              </div>
+            </div>
+
+            {/* Clasificación */}
+            <div className="form-section">
+              <h3 className="form-section-title">Clasificación Estratégica (Módulo Ficheros)</h3>
+              
+              <div className="form-grid form-grid-3">
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Categoría *</label>
+                  <select
+                    required
+                    className="input-control"
+                    value={formData.categoryId || ''}
+                    onChange={e => {
+                      const cat = assetCategoriesTree.find(c => c.id === e.target.value);
+                      setFormData({...formData, categoryId: e.target.value, category: cat?.name || '', family: '', familyId: '', subFamily: ''});
+                    }}
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {assetCategoriesTree.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Familia</label>
+                  <select
+                    className="input-control"
+                    value={formData.familyId || ''}
+                    disabled={!formData.categoryId}
+                    onChange={e => {
+                      const fam = assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.find(f => f.id === e.target.value);
+                      setFormData({...formData, familyId: e.target.value, family: fam?.name || '', subFamily: ''});
+                    }}
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.map(fam => (
+                      <option key={fam.id} value={fam.id}>{fam.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Sublínea (Vincular a Plan)</label>
+                  <input 
+                    type="text"
+                    list="subfamilies"
+                    className="input-control" 
+                    value={formData.subFamily} 
+                    onChange={e => setFormData({...formData, subFamily: e.target.value})}
+                    placeholder="Ej. Aire Acondicionado"
+                  />
+                  <datalist id="subfamilies">
+                    {[...new Set(maintenancePlans.map(p => (p.SubFamily || '').toUpperCase()))].map(sf => (
+                      <option key={sf} value={sf} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+
+              {maintenancePlans.some(p => p.SubFamily && p.SubFamily.toLowerCase() === (formData.subFamily || '').toLowerCase()) && (
+                <div style={{ padding: '8px 12px', background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success)', borderRadius: '6px', fontSize: '0.85rem', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <strong>✓ Protocolo de Mantenimiento Detectado:</strong> 
+                  Será aplicable a este activo automáticamente.
+                </div>
+              )}
+
+              <div className="form-grid form-grid-3" style={{ marginTop: '16px' }}>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Proveedor Asignado</label>
+                  <select required className="input-control" value={formData.supplierId || ''} onChange={e => {
+                    const s = suppliers.find(s => s.id === e.target.value);
+                    setFormData({...formData, supplierId: e.target.value, supplier: s?.name || ''});
+                  }}>
+                    <option value="">-- Seleccionar Proveedor --</option>
+                    {suppliers.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Marca</label>
+                  <input required type="text" className="input-control" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} placeholder="Ej. Dell" />
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Modelo y Serial</label>
+                  <input required type="text" className="input-control" value={formData.serial} onChange={e => setFormData({...formData, serial: e.target.value})} placeholder="Serial de fábrica" />
+                </div>
+              </div>
+            </div>
+
+            {/* Adquisición */}
+            <div className="form-section">
+              <h3 className="form-section-title">Adquisición y Estado</h3>
+              <div className="form-grid form-grid-3">
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Valor (USD) *</label>
+                  <input required type="number" step="0.01" className="input-control" value={formData.acquisitionCost} onChange={e => setFormData({...formData, acquisitionCost: e.target.value})} placeholder="0.00" />
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Fecha de Ingreso</label>
+                  <input required type="date" className="input-control" value={formData.entryDate} onChange={e => setFormData({...formData, entryDate: e.target.value})} />
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Estado</label>
+                  <select className="input-control" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                    <option value="">-- Seleccionar --</option>
+                    {assetStatuses.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Ubicación */}
+            <div className="form-section">
+              <h3 className="form-section-title">Estructura Organizativa (Módulo Ficheros) y Asignación</h3>
+              <div className="form-grid form-grid-3">
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Sede Física (Ubicación) *</label>
+                  <select
+                    required
+                    className="input-control"
+                    value={formData.location}
+                    onChange={e => setFormData({...formData, location: e.target.value, departmentId: '', department: '', area: ''})}
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {organizationalTree.map(sede => (
+                      <option key={sede.id} value={sede.name}>{sede.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Departamento</label>
+                  <select
+                    className="input-control"
+                    value={formData.departmentId || ''}
+                    disabled={!formData.location}
+                    onChange={e => {
+                      const dept = organizationalTree.find(s => s.name === formData.location)?.children?.find(d => d.id === e.target.value);
+                      setFormData({...formData, departmentId: e.target.value, department: dept?.name || '', area: ''});
+                    }}
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {organizationalTree.find(s => s.name === formData.location)?.children?.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Área Receptora</label>
+                  <select
+                    className="input-control"
+                    value={formData.area}
+                    disabled={!formData.departmentId}
+                    onChange={e => setFormData({...formData, area: e.target.value})}
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {organizationalTree.find(s => s.name === formData.location)
+                      ?.children?.find(d => d.id === formData.departmentId)
+                      ?.children?.map(a => (
+                      <option key={a.id} value={a.name}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label>Custodio / Asignado A (Opcional)</label>
+                <input type="text" className="input-control" value={formData.assignedTo} onChange={e => setFormData({...formData, assignedTo: e.target.value})} placeholder="Ej. Juan Pérez" />
+              </div>
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label>Observaciones</label>
+                <textarea className="input-control" rows="2" value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})}></textarea>
+              </div>
+            </div>
+
+            {/* Archivos */}
+            <div className="form-section">
+              <h3 className="form-section-title">Archivos Adjuntos</h3>
+              <div className="form-grid form-grid-2">
+
+                {/* Foto del Activo */}
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Image size={14} /> Foto del Activo</label>
+                  {photoPreview ? (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img src={photoPreview} alt="Vista previa" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--glass-border)' }} />
+                      <button
+                        type="button"
+                        onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
+                        style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      ><X size={14} /></button>
+                    </div>
+                  ) : (
+                    <input type="file" accept="image/*" capture="environment" className="input-control" style={{ padding: '9px 14px' }} onChange={handlePhotoChange} />
+                  )}
+                  {photoPreview && !photoFile && (
+                    <button type="button" className="btn-secondary" style={{ marginTop: '8px', fontSize: '0.8rem', padding: '4px 10px' }}
+                      onClick={() => document.getElementById('photoInput').click()}>
+                      Cambiar foto
+                    </button>
+                  )}
+                  <input id="photoInput" type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handlePhotoChange} />
+                </div>
+
+                {/* Factura PDF */}
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FileText size={14} /> Factura de Compra (PDF)</label>
+                  {isEditMode && formData.invoiceUrl && !invoiceFile ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <a href={`${BASE_URL}${formData.invoiceUrl}`} target="_blank" rel="noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'rgba(37,99,235,0.06)', border: '1px solid var(--accent-light)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--accent-primary)', textDecoration: 'none' }}>
+                        <FileText size={16} /> Ver factura actual
+                      </a>
+                      <button type="button" className="btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 10px' }}
+                        onClick={() => document.getElementById('invoiceInput').click()}>
+                        Reemplazar factura
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      {invoiceFile && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'rgba(34,197,94,0.08)', border: '1px solid var(--success)', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '8px' }}>
+                          <FileText size={14} style={{ color: 'var(--success)' }} />
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invoiceFile.name}</span>
+                          <button type="button" onClick={() => setInvoiceFile(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}><X size={14} /></button>
+                        </div>
+                      )}
+                      <input id="invoiceInput" type="file" accept="application/pdf" className="input-control" style={{ padding: '9px 14px' }} onChange={e => setInvoiceFile(e.target.files[0] || null)} />
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div className="form-footer" style={{ 
+            padding: '24px 40px', background: 'var(--bg-primary)', 
+            borderTop: '1px solid var(--glass-border)', display: 'flex', 
+            justifyContent: 'flex-end', gap: '16px' 
+          }}>
+            <button type="button" className="btn-secondary" onClick={() => navigate('/inventory')}>
+              Cancelar
+            </button>
+            <button type="submit" className="btn-primary" disabled={uploading}>
+              {uploading ? 'Subiendo archivos...' : isEditMode ? <><Edit2 size={18} /> Actualizar Activo</> : <><Plus size={18} /> Guardar Activo</>}
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  );
+};
+
+export default InventoryForm;

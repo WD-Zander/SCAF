@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- ═══════════════════════════════════════════════
+         PWA — META TAGS ESENCIALES
+    ══════════════════════════════════════════════════ -->
+    <!-- Icono de la aplicación (favicon) -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Viewport responsivo obligatorio para móviles -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Título y descripción -->
+    <title>SCAF — Control de Activos</title>
+    <meta name="description" content="Sistema de Control de Activos Fijos. Gestión de inventario y mantenimientos." />
+
+    <!-- Color de la barra de estado del teléfono -->
+    <meta name="theme-color" content="#2563eb" />
+
+    <!-- Ocultar la barra de URL en modo standalone (Android) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- iOS Safari — comportamiento de app nativa -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SCAF" />
+
+    <!-- Íconos para iOS (se usan si no hay manifest) -->
+    <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-128x128.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+
+    <!-- iOS Splash Screens (iPhone + iPad todas las resoluciones) -->
+    <!-- iPhone SE / 8 / 7 / 6 -->
+    <link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2)" href="/splash/splash-750x1334.png" />
+    <!-- iPhone 12 / 13 / 14 -->
+    <link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3)" href="/splash/splash-1170x2532.png" />
+    <!-- iPhone 14 Plus / 13 Pro Max -->
+    <link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3)" href="/splash/splash-1284x2778.png" />
+    <!-- iPhone 15 Pro / 16 -->
+    <link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3)" href="/splash/splash-1179x2556.png" />
+    <!-- iPad Pro 11" -->
+    <link rel="apple-touch-startup-image" media="(device-width:834px) and (device-height:1194px) and (-webkit-device-pixel-ratio:2)" href="/splash/splash-1668x2388.png" />
+    <!-- iPad Pro 12.9" -->
+    <link rel="apple-touch-startup-image" media="(device-width:1024px) and (device-height:1366px) and (-webkit-device-pixel-ratio:2)" href="/splash/splash-2048x2732.png" />
+
+    <!-- Splash screen color iOS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+    <!-- Manifest PWA — le dice al navegador que es una app instalable -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Microsoft Tiles (Windows/Edge) -->
+    <meta name="msapplication-TileColor" content="#0f172a" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

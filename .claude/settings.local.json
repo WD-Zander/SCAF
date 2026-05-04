@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\zande\\\\Documents\\\\Proyectos\\\\SCAF_Test\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(head *)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(Get-ChildItem -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(dir C:\\\\Users\\\\zande\\\\Documents\\\\Proyectos\\\\SCAF_Test\\\\backend\\\\controllers *)",
+      "Bash(dir \"C:\\\\Users\\\\zande\\\\Documents\\\\Proyectos\\\\SCAF_Test\" /s /b)",
+      "Bash(findstr /i \"\\\\.env\")",
+      "Bash(npm install:*)",
+      "Bash(npx skills:*)",
+      "WebFetch(domain:skills.sh)",
+      "Bash(node backend/force_reset.js)",
+      "Bash(node backend/create-superadmin.js)"
+    ]
+  }
+}

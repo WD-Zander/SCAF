@@ -1,0 +1,640 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SCAF — Mobile & Tablet Stylesheet  ≤ 1024px
+   "Premium Industrial Interface" — Sora + DM Mono
+   Optimization for Modern Smartphones & Tablets
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+@media (max-width: 1024px) {
+
+  :root {
+    --m-bg:           #0d1117;
+    --m-surface:      #161b22;
+    --m-surface-2:    #21262d;
+    --m-border:       #30363d;
+    --m-blue:         #2f81f7;
+    --m-blue-glow:    rgba(47, 129, 247, 0.15);
+    --m-blue-dim:     rgba(47, 129, 247, 0.08);
+    --m-text:         #e6edf3;
+    --m-muted:        #8b949e;
+    --m-success:      #3fb950;
+    --m-warning:      #d29922;
+    --m-danger:       #f85149;
+    --m-tab-height:   68px;
+    --m-topbar-height: 56px;
+    --m-safe-bottom:  env(safe-area-inset-bottom, 0px);
+    
+    /* Compact Scales */
+    --m-pad-sm: 12px;
+    --m-pad-md: 16px;
+    --m-radius: 12px;
+
+    /* Override Global Variables for Mobile Dark Theme */
+    --bg-primary:     var(--m-bg);
+    --bg-secondary:   var(--m-surface);
+    --bg-tertiary:    var(--m-surface-2);
+    --text-main:      var(--m-text);
+    --text-muted:     var(--m-muted);
+    --glass-border:   var(--m-border);
+    --glass-panel:    var(--m-surface);
+  }
+
+  /* ── BASE & TYPOGRAPHY ── */
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--m-bg) !important;
+    color: var(--m-text) !important;
+    font-family: 'Sora', sans-serif !important;
+    font-size: 14px; /* Reduced base size */
+  }
+
+  h1 { font-size: 1.5rem !important; font-weight: 800 !important; letter-spacing: -0.02em !important; }
+  h2 { font-size: 1.25rem !important; }
+  h3 { font-size: 1.1rem !important; }
+  p { font-size: 0.9rem !important; }
+  .text-muted { font-size: 0.85rem !important; line-height: 1.4 !important; }
+
+  /* ── LAYOUT PRINCIPAL ── */
+  .layout-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+    background: var(--m-bg) !important;
+    position: relative !important;
+  }
+
+  /* Sidebar controlada por JS en MainLayout */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100dvh !important;
+    z-index: 1000 !important;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    width: 280px !important;
+  }
+  
+  /* En móvil ≤ 768px la ocultamos por defecto */
+  @media (max-width: 768px) {
+    .sidebar:not(.open) {
+      transform: translateX(-100%) !important;
+    }
+  }
+
+  .sidebar-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0,0,0,0.5) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 999 !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease !important;
+  }
+  
+  .sidebar-overlay.active {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    width: 100% !important;
+  }
+
+  .page-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding: var(--m-pad-sm) !important;
+    padding-bottom: calc(var(--m-tab-height) + var(--m-safe-bottom) + 16px) !important;
+    background: var(--m-bg) !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* ── COMPONENTS OVERRIDE ── */
+  .glass-panel {
+    background: var(--m-surface) !important;
+    border: 1px solid var(--m-border) !important;
+    border-radius: var(--m-radius) !important;
+    padding: var(--m-pad-md) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+  }
+
+  /* Flex Between Fix */
+  .flex-between {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+  }
+  
+  .flex-between > div:last-child {
+    width: 100% !important;
+  }
+
+  /* Buttons on Mobile */
+  .flex-center.gap-2 {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  
+  .btn-primary {
+    background: var(--m-blue) !important;
+    color: #ffffff !important;
+    border: none !important;
+  }
+
+  .btn-secondary {
+    background: var(--m-surface-2) !important;
+    color: var(--m-text) !important;
+    border: 1px solid var(--m-border) !important;
+  }
+
+  /* Inputs & Badges */
+  .input-control, input[type="text"], select {
+    background: var(--m-surface-2) !important;
+    color: var(--m-text) !important;
+    border: 1px solid var(--m-border) !important;
+  }
+  
+  .input-control::placeholder {
+    color: var(--m-muted) !important;
+  }
+
+  .badge {
+    background: var(--m-surface-2) !important;
+    color: var(--m-text) !important;
+    border: 1px solid var(--m-border) !important;
+  }
+
+  /* Fix for scrollable tabs */
+  .animate-fade-in > div[style*="borderBottom"] {
+    overflow-x: auto !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 16px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .animate-fade-in > div[style*="borderBottom"] button {
+    flex-shrink: 0 !important;
+    min-width: auto !important;
+    padding: 8px 16px !important;
+  }
+
+  /* ── DASHBOARD & AGENDA SPECIFIC ── */
+  /* Progress Card in Operator Dashboard */
+  .header-stats-panel {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 12px 16px !important;
+    width: 100% !important;
+    margin-top: 8px !important;
+  }
+
+  /* View Switcher (Scrollable) */
+  .view-switcher-container {
+    display: flex !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 4px !important;
+    margin-bottom: 24px !important;
+    gap: 8px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none;
+  }
+  .view-switcher-container::-webkit-scrollbar { display: none; }
+  
+  .view-switcher-container button {
+    flex-shrink: 0 !important;
+    padding: 8px 16px !important;
+    font-size: 0.8rem !important;
+    min-width: unset !important;
+  }
+
+  /* Checklist Items */
+  .checklist-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  
+  .checklist-item {
+    padding: 10px 14px !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* ── TABLE TO CARDS → CLEAN LIST ── */
+  .table-container table { display: block !important; }
+  .table-container thead { display: none !important; }
+  .table-container tbody { 
+    display: flex !important; 
+    flex-direction: column !important; 
+    gap: 0 !important; /* No gap for clean list */
+    background: transparent !important;
+  }
+  
+  .mobile-list-format {
+    display: flex !important;
+    flex-direction: column !important;
+    background: transparent !important; /* Transparent background */
+    border: none !important;
+    border-bottom: 1px solid var(--m-border) !important; /* Divider only */
+    border-radius: 0 !important;
+    padding: 16px 8px !important;
+    gap: 8px !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    transition: background 0.2s ease !important;
+  }
+
+  .mobile-list-format:active {
+    background: rgba(255,255,255,0.05) !important;
+  }
+
+  .mobile-list-format td {
+    display: none !important; /* Hide all by default */
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 0 !important;
+    border: none !important;
+    font-size: 0.9rem !important;
+    color: var(--m-text) !important;
+    background: transparent !important;
+  }
+
+  /* Show only the primary data label by default (e.g., ACTIVO, TÍTULO) */
+  .mobile-list-format td[data-label="ACTIVO"],
+  .mobile-list-format td[data-label="ACTIVO (ID)"],
+  .mobile-list-format td[data-label="TÍTULO"],
+  .mobile-list-format td[data-label="NOMBRE"],
+  .mobile-list-format td[data-label="TICKET"] {
+    display: flex !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+  }
+  
+  /* Remove data labels for the primary info to keep it clean */
+  .mobile-list-format td[data-label="ACTIVO"]::before,
+  .mobile-list-format td[data-label="ACTIVO (ID)"]::before,
+  .mobile-list-format td[data-label="TÍTULO"]::before,
+  .mobile-list-format td[data-label="NOMBRE"]::before,
+  .mobile-list-format td[data-label="TICKET"]::before {
+    display: none !important;
+  }
+
+  /* One-line enforcement: hide secondary paragraphs inside cells when collapsed */
+  .mobile-list-format:not(.is-expanded) td p:not(:first-child) {
+    display: none !important;
+  }
+  .mobile-list-format:not(.is-expanded) td div:not(:first-child) {
+    display: none !important;
+  }
+
+  /* When expanded, show everything */
+  .mobile-list-format.is-expanded td {
+    display: flex !important;
+    margin-top: 4px !important;
+    animation: slideDown 0.2s ease-out forwards;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .mobile-list-format td::before {
+    content: attr(data-label) !important;
+    font-weight: 600 !important;
+    color: var(--m-muted) !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  /* Special case for actions - always show if expanded */
+  .mobile-list-format td[data-label="ACCIONES"] {
+    justify-content: flex-end !important;
+    margin-top: 12px !important;
+    padding-top: 12px !important;
+    border-top: 1px dashed var(--m-border) !important;
+  }
+
+  /* ── CALENDAR RESPONSIVE ── */
+  .calendar-header {
+    padding: 12px 16px !important;
+  }
+  
+  .calendar-grid-wrapper {
+    overflow-x: auto !important;
+  }
+
+  .calendar-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    min-width: 600px !important; /* Minimum width to avoid squishing too much */
+    background: var(--m-border) !important;
+    gap: 1px !important;
+  }
+
+  .calendar-day-header {
+    background: var(--m-surface-2) !important;
+    color: var(--m-muted) !important;
+    padding: 8px !important;
+    font-size: 0.7rem !important;
+  }
+
+  .calendar-day-cell {
+    background: var(--m-surface) !important;
+    min-height: 80px !important;
+    padding: 6px !important;
+  }
+
+  .calendar-day-number {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .calendar-event {
+    padding: 2px 4px !important;
+    font-size: 0.65rem !important;
+    border-radius: 4px !important;
+    margin-bottom: 2px !important;
+  }
+
+  /* ── TOPBAR REFINEMENTS ── */
+  .topbar {
+    height: var(--m-topbar-height) !important;
+    padding: 0 16px !important;
+    background: var(--m-surface) !important;
+    border-bottom: 1px solid var(--m-border) !important;
+  }
+
+  .tenant-badge {
+    max-width: 100px !important;
+    font-size: 0.65rem !important;
+  }
+
+  /* ── BOTTOM NAV ── */
+  .mobile-bottom-nav {
+    height: calc(var(--m-tab-height) + var(--m-safe-bottom)) !important;
+    background: var(--m-surface) !important;
+    border-top: 1px solid var(--m-border) !important;
+  }
+
+  /* ── MODALS MÓVIL ── */
+  .modal-content {
+    width: 95% !important;
+    max-height: 95vh !important;
+    border-radius: 20px !important;
+    background: var(--m-surface) !important;
+  }
+  
+  .modal-body {
+    padding: 16px !important;
+    background: var(--m-bg) !important;
+  }
+  
+  .form-grid-2, .form-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Hide elements on small screens */
+  .hide-on-mobile { display: none !important; }
+
+  /* ── iOS ZOOM FIX ── */
+  /* iOS hace zoom automático en inputs/selects con font-size < 16px */
+  input, input[type="text"], input[type="number"], input[type="date"],
+  input[type="email"], input[type="password"], input[type="search"],
+  input[type="file"], select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* ── TOUCH TARGETS MÍNIMOS 44px (Apple HIG / Material) ── */
+  /* Botones de ícono en tablas (editar, eliminar, ver) */
+  button, .btn-primary, .btn-secondary, .btn-danger,
+  a[role="button"] {
+    min-height: 44px !important;
+  }
+  /* Excepción: botones pequeños de badges y pills */
+  .badge, .badge button {
+    min-height: unset !important;
+  }
+
+  /* ── LIGHTBOX MÓVIL ── */
+  /* La imagen ocupa todo el ancho disponible */
+  .pwa-lightbox-img {
+    max-width: 100vw !important;
+    max-height: 75vh !important;
+    border-radius: 8px !important;
+  }
+  /* El embed de PDF usa altura reducida en móvil */
+  .pwa-lightbox-pdf {
+    width: 98vw !important;
+    height: 72vh !important;
+  }
+
+  /* ── MOVEMENTFORM — Columnas apiladas en móvil ── */
+  /* Los selects de "actual vs nuevo" pasan de lado a lado → apilados */
+  .movement-compare-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* ── INVENTORYVIEW — Tabla de movimientos horizontal scrollable ── */
+  .movements-history-table {
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+  }
+  .movements-history-table th,
+  .movements-history-table td {
+    white-space: nowrap !important;
+    padding: 10px 12px !important;
+    font-size: 0.78rem !important;
+  }
+
+  /* ── DASHBOARD GRID ADAPTIVO ── */
+  .dashboard-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+  .dashboard-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+  .dashboard-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ── ANIMACIÓN DE PÁGINA (feel nativo) ── */
+  @keyframes page-slide-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .page-content > * {
+    animation: page-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* ── FORMULARIOS: secciones sin padding excesivo ── */
+  .form-section {
+    padding: 16px 0 !important;
+  }
+  .form-container {
+    padding: 0 !important;
+  }
+
+  /* ── GLASS PANEL en listas: sin doble borde ── */
+  .glass-panel + .glass-panel {
+    margin-top: 12px !important;
+  }
+
+} /* FIN @media (max-width: 1024px) */
+
+/* ── ANIMACIÓN slideUp — usada por InstallPrompt y MoreSheet ── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════════
+   WORK ORDERS — Card layout en móvil
+   ══════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+
+  /* Ocultar fila de encabezados de columna */
+  .wo-table-header { display: none !important; }
+
+  /* Cada fila se convierte en una card flex-wrap */
+  .wo-list-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px 12px !important;
+    padding: 14px 12px !important;
+    align-items: flex-start !important;
+  }
+
+  /* WO-ID y Status en la misma línea superior */
+  .wo-list-row .wo-id {
+    order: 1 !important;
+    flex: 1 !important;
+    font-size: 0.82rem !important;
+  }
+
+  .wo-list-row .wo-status {
+    order: 2 !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Plan y asset debajo, ancho completo */
+  .wo-list-row .wo-plan {
+    order: 3 !important;
+    width: 100% !important;
+  }
+
+  .wo-list-row .wo-plan > div:first-child {
+    font-size: 0.95rem !important;
+  }
+
+  /* Fechas en una línea */
+  .wo-list-row .wo-dates {
+    order: 4 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .wo-list-row .wo-dates > div { display: inline !important; }
+  .wo-list-row .wo-dates > div:last-child { padding-left: 0 !important; }
+
+  /* Asignado */
+  .wo-list-row .wo-assigned {
+    order: 5 !important;
+    width: 100% !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* Barra de progreso */
+  .wo-list-row .wo-progress {
+    order: 6 !important;
+    width: 100% !important;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     MOVEMENTS — Fix scroll horizontal + DiffCell mejorado
+     ══════════════════════════════════════════════════════ */
+
+  /* El panel principal no debe clipear overflow */
+  .movements-panel {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  /* La tabla se scrollea horizontalmente */
+  .movements-scroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* DiffCell: columnas más compactas */
+  .movements-panel table th,
+  .movements-panel table td {
+    font-size: 0.78rem !important;
+    padding: 10px 12px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Ocultar columnas menos críticas en móvil */
+  .movements-panel table th:nth-child(4),
+  .movements-panel table td:nth-child(4),
+  .movements-panel table th:nth-child(5),
+  .movements-panel table td:nth-child(5),
+  .movements-panel table th:nth-child(7),
+  .movements-panel table td:nth-child(7) {
+    display: none !important;
+  }
+
+  /* DiffCell con layout column (before/after apilados) */
+  .movements-panel table td > span[style] {
+    font-size: 0.8rem !important;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     CHECKLIST ITEMS — Dark theme fix
+     ══════════════════════════════════════════════════════ */
+
+  .checklist-item {
+    background: var(--m-surface-2) !important;
+    border-color: var(--m-border) !important;
+  }
+
+  .checklist-item.is-done {
+    background: rgba(63, 185, 80, 0.08) !important;
+    border-color: rgba(63, 185, 80, 0.25) !important;
+  }
+
+  /* Mejorar contraste del texto de checklist no completado */
+  .checklist-item:not(.is-done) span {
+    color: var(--m-text) !important;
+  }
+
+  .checklist-item:not(.is-done) svg {
+    color: var(--m-muted) !important;
+    stroke: var(--m-muted) !important;
+  }
+
+} /* fin @media */
