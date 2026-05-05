@@ -6,7 +6,7 @@ import { logAudit } from '../utils/auditLogger.js';
  * Registra un movimiento de activo: actualiza ubicación/departamento/área/estado
  * y deja trazabilidad en la tabla MOVIMIENTO.
  */
-export const createMovement = async (req, res) => {
+export const createMovement = async (req, res, next) => {
   try {
     const { assetId, newLocation, newDepartment, newArea, newStatus, observation } = req.body;
 
@@ -101,7 +101,7 @@ export const createMovement = async (req, res) => {
  * GET /api/movements
  * Lista todos los movimientos (paginado).
  */
-export const getAllMovements = async (req, res) => {
+export const getAllMovements = async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 20));
@@ -163,7 +163,7 @@ export const getAllMovements = async (req, res) => {
  * GET /api/movements/asset/:assetId
  * Historial de movimientos de un activo específico.
  */
-export const getMovementsByAsset = async (req, res) => {
+export const getMovementsByAsset = async (req, res, next) => {
   try {
     const { assetId } = req.params;
     const db = await getPool();

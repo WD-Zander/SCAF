@@ -16,7 +16,9 @@
       "Bash(npx skills:*)",
       "WebFetch(domain:skills.sh)",
       "Bash(node backend/force_reset.js)",
-      "Bash(node backend/create-superadmin.js)"
+      "Bash(node backend/create-superadmin.js)",
+      "Bash(node force_reset.js)",
+      "Bash(node -e ':*)"
     ]
   }
 }

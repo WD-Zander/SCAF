@@ -1,7 +1,7 @@
 import { getPool, sql } from '../db.js';
 import { logAudit } from '../utils/auditLogger.js';
 
-export const getWorkOrders = async (req, res) => {
+export const getWorkOrders = async (req, res, next) => {
   try {
     const db = await getPool();
     const result = await db.request().query(`
@@ -25,7 +25,7 @@ export const getWorkOrders = async (req, res) => {
   }
 };
 
-export const deleteWorkOrder = async (req, res) => {
+export const deleteWorkOrder = async (req, res, next) => {
   try {
     const db = await getPool();
     const woId = req.params.id;
@@ -54,10 +54,10 @@ export const deleteWorkOrder = async (req, res) => {
 
     await logAudit(req, 'DELETE', 'WorkOrders', woId, 'Plan en marcha eliminado');
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { next(e); }
 };
 
-export const createWorkOrder = async (req, res) => {
+export const createWorkOrder = async (req, res, next) => {
   try {
     const { id, name, assetId, startDate, endDate, assignedTo, notes } = req.body;
     const db = await getPool();
