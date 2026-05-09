@@ -7,11 +7,14 @@ import ConfigEmpresa from './pages/Companies/ConfigEmpresa';
 import InventoryList from './pages/Inventory/InventoryList';
 import InventoryForm from './pages/Inventory/InventoryForm';
 import InventoryView from './pages/Inventory/InventoryView';
+import AssetHistory from './pages/Inventory/AssetHistory';
 import Assignments from './pages/Assignments/Assignments';
 import SuppliersList from './pages/Suppliers/SuppliersList';
 import SupplierForm from './pages/Suppliers/SupplierForm';
 import SupplierView from './pages/Suppliers/SupplierView';
 import MaintenanceList from './pages/Maintenance/MaintenanceList';
+import MaintenanceTypeSelector from './pages/Maintenance/MaintenanceTypeSelector';
+import ScopeGate from './components/Maintenance/ScopeGate';
 import MaintenanceForm from './pages/Maintenance/MaintenanceForm';
 import MaintenanceView from './pages/Maintenance/MaintenanceView';
 import MaintenanceRoutines from './pages/Maintenance/MaintenanceRoutines';
@@ -25,6 +28,8 @@ import WorkOrdersList from './pages/Maintenance/WorkOrdersList';
 import MaintenanceRescheduled from './pages/Maintenance/MaintenanceRescheduled';
 import MovementsList from './pages/Movements/MovementsList';
 import MovementForm from './pages/Movements/MovementForm';
+import EmployeesList from './pages/Employees/EmployeesList';
+import EmployeeForm from './pages/Employees/EmployeeForm';
 import Files from './pages/Files/Files';
 import AuditLogs from './pages/Audit/AuditLogs';
 import UsersList from './pages/Users/UsersList';
@@ -46,6 +51,7 @@ function App() {
             <Route path="inventory/new" element={<InventoryForm />} />
             <Route path="inventory/edit/:id" element={<InventoryForm />} />
             <Route path="inventory/view/:id" element={<InventoryView />} />
+            <Route path="inventory/history/:id" element={<AssetHistory />} />
             <Route path="movements" element={<MovementsList />} />
             <Route path="movements/new" element={<MovementForm />} />
             <Route path="suppliers" element={<SuppliersList />} />
@@ -53,8 +59,13 @@ function App() {
             <Route path="suppliers/edit/:id" element={<SupplierForm />} />
             <Route path="suppliers/view/:id" element={<SupplierView />} />
             {/* RUTAS DE MANTENIMIENTO */}
-            <Route path="maintenances" element={<MaintenanceList />} />
-            <Route path="maintenances/routines" element={<MaintenanceRoutines />} />
+            <Route path="maintenances" element={<MaintenanceTypeSelector />} />
+            <Route path="maintenances/list/:scope" element={<MaintenanceList />} />
+            <Route path="maintenances/routines" element={
+              <ScopeGate title="Programación" subtitle="Gestión de planes y protocolos de mantenimiento.">
+                <MaintenanceRoutines />
+              </ScopeGate>
+            } />
             <Route path="maintenances/routines/new" element={<PlanForm />} />
             <Route path="maintenances/routines/edit/:id" element={<PlanForm />} />
             <Route path="maintenances/routines/schedule/:planId" element={<ScheduleForm />} />
@@ -62,13 +73,31 @@ function App() {
             <Route path="maintenances/edit/:id" element={<MaintenanceForm />} />
             <Route path="maintenances/view/:id" element={<MaintenanceView />} />
             <Route path="calendar" element={<CalendarSchedule />} />
-            <Route path="maintenances/timeline" element={<MaintenanceTimeline />} />
-            <Route path="maintenances/daily" element={<OperatorDailySchedule />} />
+            <Route path="maintenances/timeline" element={
+              <ScopeGate title="Cronograma" subtitle="Vista anual del cronograma de mantenimientos.">
+                <MaintenanceTimeline />
+              </ScopeGate>
+            } />
+            <Route path="maintenances/daily" element={
+              <ScopeGate title="Mi Agenda Diaria" subtitle="Tareas y mantenimientos asignados para hoy.">
+                <OperatorDailySchedule />
+              </ScopeGate>
+            } />
             <Route path="maintenances/planner" element={<WorkOrderPlanner />} />
             <Route path="maintenances/planner/:planId" element={<WorkOrderPlanner />} />
-            <Route path="maintenances/work-orders" element={<WorkOrdersList />} />
-            <Route path="maintenances/rescheduled" element={<MaintenanceRescheduled />} />
-            <Route path="maintenances/planner/:planId" element={<WorkOrderPlanner />} />
+            <Route path="maintenances/work-orders" element={
+              <ScopeGate title="Planes en Marcha" subtitle="Órdenes de trabajo activas y su progreso.">
+                <WorkOrdersList />
+              </ScopeGate>
+            } />
+            <Route path="maintenances/rescheduled" element={
+              <ScopeGate title="Reprogramados" subtitle="Historial de mantenimientos reprogramados.">
+                <MaintenanceRescheduled />
+              </ScopeGate>
+            } />
+            <Route path="employees" element={<EmployeesList />} />
+            <Route path="employees/new" element={<EmployeeForm />} />
+            <Route path="employees/edit/:id" element={<EmployeeForm />} />
             <Route path="assignments" element={<Assignments />} />
             <Route path="users" element={<UsersList />} />
             <Route path="files" element={<Files />} />

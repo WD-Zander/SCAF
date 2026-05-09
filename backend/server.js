@@ -24,6 +24,8 @@ import maintenancePlansRoutes from './routes/maintenancePlans.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import movementsRoutes from './routes/movements.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
+import employeesRoutes from './routes/employees.routes.js';
+import maintenanceScopesRoutes from './routes/maintenanceScopes.routes.js';
 
 const app = express();
 
@@ -70,6 +72,8 @@ app.use('/api/work-orders', workOrdersRoutes);
 app.use('/api/maintenances', maintenancesRoutes);
 app.use('/api/maintenance-plans', maintenancePlansRoutes);
 app.use('/api/movements', movementsRoutes);
+app.use('/api/employees', employeesRoutes);
+app.use('/api/maintenance-scopes', maintenanceScopesRoutes);
 app.use('/api/assets', uploadRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {

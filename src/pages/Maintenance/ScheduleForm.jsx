@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { Check, ArrowLeft, Calendar, Activity, Star, Zap } from 'lucide-react';
 import { api } from '../../api';
@@ -23,7 +23,8 @@ const FREQ_COLORS = {
 const ScheduleForm = () => {
   const { planId } = useParams();
   const navigate = useNavigate();
-  const { maintenancePlans, assets, refreshMaintenances, currentUser, setGlobalAlert } = useAppContext();
+  const [searchParams] = useSearchParams();
+  const { maintenancePlans, assets, assetCategoriesTree, refreshMaintenances, currentUser, setGlobalAlert, getCategoriesForScope, maintenanceScopes } = useAppContext();
 
   const plan = maintenancePlans.find(p => p.Id === planId);
 
@@ -36,18 +37,76 @@ const ScheduleForm = () => {
     loadBalancing: true,
   });
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  const handleCancel = () => {
+    if (isDirty && !window.confirm('¿Está seguro de salir? Los cambios no guardados se perderán.')) return;
+    navigate(-1);
+  };
 
   const planCategory = plan?.Category || plan?.SubFamily || '';
   const mainFreq = scheduleData.mainFrequency || plan?.PlanFrequency || 'Mensual';
   const mainInterval = FREQ_MAP[mainFreq.toLowerCase()] || 1;
 
+  // ── Filtro de activos por scope del plan + categoría/familia ──
   const eligibleAssets = useMemo(() => {
-    if (!planCategory) return assets;
-    return assets.filter(a =>
-      (a.category && a.category.toLowerCase() === planCategory.toLowerCase()) ||
-      (a.subFamily && a.subFamily.toLowerCase() === planCategory.toLowerCase())
-    );
-  }, [assets, planCategory]);
+    if (!plan) return assets;
+
+    const catId   = plan.CategoryId;
+    const famId   = plan.FamilyId;
+    const catName = (plan.Category || '').toLowerCase().trim();
+    const famName = (plan.FamilyName || plan.SubFamily || '').toLowerCase().trim();
+    const planScope = plan.scope || searchParams.get('scope') || 'activo';
+
+    // 1) Filtrar por scope: solo activos cuya categoría raíz pertenece al módulo del plan
+    const scopeCategories = getCategoriesForScope(planScope);
+    const scopeCatIds = new Set();
+    const collectIds = (nodes) => {
+      for (const n of nodes) {
+        scopeCatIds.add(n.id);
+        if (n.children) collectIds(n.children);
+      }
+    };
+    collectIds(scopeCategories);
+
+    let baseAssets = scopeCatIds.size > 0
+      ? assets.filter(a => {
+          const aCatId = a.categoryId || a.CategoryId || '';
+          return scopeCatIds.has(aCatId);
+        })
+      : assets;
+
+    // 2) Filtrar más por categoría/familia específica del plan (si tiene)
+    if (!catId && !catName) return baseAssets;
+
+    // IDs de la categoría raíz + hijos directos
+    const planCatIds = new Set();
+    if (catId) {
+      planCatIds.add(catId);
+      const root = assetCategoriesTree.find(c => c.id === catId);
+      if (root?.children) root.children.forEach(c => planCatIds.add(c.id));
+    }
+
+    return baseAssets.filter(asset => {
+      const assetCatId   = asset.categoryId || asset.CategoryId || '';
+      const assetCatName = (asset.category || '').toLowerCase().trim();
+      const assetFamName = (asset.subFamily || asset.subfamily || '').toLowerCase().trim();
+
+      if (catId && assetCatId) {
+        if (famId) return assetCatId === famId;
+        return planCatIds.has(assetCatId);
+      }
+
+      if (famName) return assetCatName === catName && assetFamName === famName;
+      return assetCatName === catName;
+    });
+  }, [assets, plan, assetCategoriesTree, getCategoriesForScope]);
 
   // Calcular la distribución de tareas por mes (para la matriz visual)
   const taskMatrix = useMemo(() => {
@@ -96,11 +155,13 @@ const ScheduleForm = () => {
         assignedTo: scheduleData.assignedTo,
         mainFrequency: mainFreq,
         fixedDay: scheduleData.loadBalancing ? null : (scheduleData.fixedDay || null),
+        scope: plan.scope || 'activo',
       });
 
       if (response?.ok) {
         const result = await response.json();
         await refreshMaintenances();
+        setIsDirty(false);
         setGlobalAlert({ isOpen: true, title: '✅ Cronograma Generado', message: `Se han creado ${result.count} tickets programados con la lógica de frecuencias mixtas.` });
         navigate('/maintenances/timeline');
       } else {
@@ -114,6 +175,7 @@ const ScheduleForm = () => {
   };
 
   const toggleAssetSelection = (id) => {
+    setIsDirty(true);
     setScheduleData(prev => {
       const isSelected = prev.assetIds.includes(id);
       if (isSelected) return { ...prev, assetIds: prev.assetIds.filter(aid => aid !== id) };
@@ -135,7 +197,7 @@ const ScheduleForm = () => {
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '60px' }}>
       <div style={{ marginBottom: '32px' }}>
-        <button className="btn-secondary" onClick={() => navigate('/maintenances/routines')} style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <button className="btn-secondary" onClick={handleCancel} style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <ArrowLeft size={18} /> Volver a Programación
         </button>
         <h1 style={{ marginBottom: '8px' }}>Generar Cronograma Automático</h1>
@@ -187,8 +249,29 @@ const ScheduleForm = () => {
 
           {/* Activos */}
           <div className="glass-panel" style={{ padding: '24px' }}>
+            {/* Badge de alcance del plan */}
+            {planCategory && (
+              <div style={{
+                marginBottom: '12px', padding: '8px 12px',
+                background: 'rgba(59,130,246,0.08)',
+                border: '1px solid rgba(59,130,246,0.2)',
+                borderRadius: '8px', fontSize: '0.8rem',
+                display: 'flex', alignItems: 'center', gap: '8px'
+              }}>
+                <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>📂 Alcance:</span>
+                <span>
+                  <strong>{plan?.Category || planCategory}</strong>
+                  {(plan?.FamilyName || plan?.SubFamily) && plan?.FamilyName !== plan?.Category
+                    ? <> → <strong>{plan.FamilyName || plan.SubFamily}</strong></>
+                    : null}
+                </span>
+                <span className="text-muted" style={{ marginLeft: 'auto' }}>
+                  {eligibleAssets.length} activo{eligibleAssets.length !== 1 ? 's' : ''} disponible{eligibleAssets.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
             <div className="flex-between" style={{ marginBottom: '12px' }}>
-              <label style={{ margin: 0, fontWeight: 600 }}>Activos Objetivo ({scheduleData.assetIds.length})</label>
+              <label style={{ margin: 0, fontWeight: 600 }}>Activos Objetivo ({scheduleData.assetIds.length} / {eligibleAssets.length})</label>
               <button className="text-accent" style={{ fontSize: '0.8rem', fontWeight: 600 }} onClick={selectAll}>Seleccionar Todos</button>
             </div>
             <div style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--glass-border)', borderRadius: '10px', background: 'var(--bg-primary)' }}>
@@ -227,7 +310,7 @@ const ScheduleForm = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
           {/* Config */}
-          <div className="glass-panel" style={{ padding: '28px' }}>
+          <div className="glass-panel" style={{ padding: '28px' }} onInput={() => setIsDirty(true)}>
             <h2 style={{ fontSize: '1rem', marginBottom: '20px', fontWeight: 700 }}>Configuración del Cronograma</h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -344,7 +427,7 @@ const ScheduleForm = () => {
 
           {/* Botones */}
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
-            <button className="btn-secondary" onClick={() => navigate('/maintenances/routines')}>Cancelar</button>
+            <button className="btn-secondary" onClick={handleCancel}>Cancelar</button>
             <button className="btn-primary" style={{ background: 'var(--success)', padding: '12px 36px' }} onClick={handleSubmit} disabled={saving || scheduleData.assetIds.length === 0}>
               <Check size={20} /> {saving ? 'Generando...' : 'Procesar Cronograma'}
             </button>

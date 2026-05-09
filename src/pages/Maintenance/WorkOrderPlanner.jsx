@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import {
-  ArrowLeft, Calendar, Plus, Trash2, Copy, Save, ChevronLeft, ChevronRight, Check, Filter
+  ArrowLeft, Calendar, Plus, Trash2, Copy, Save, ChevronLeft, ChevronRight, Check, Filter,
+  Search, X, Package
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -166,41 +167,75 @@ const MiniCalendar = ({ generalTask, subTasks }) => {
 const WorkOrderPlanner = () => {
   const navigate = useNavigate();
   const { planId } = useParams();
-  const { assets, maintenancePlans, assetCategoriesTree, setGlobalAlert, refreshMaintenances } = useAppContext();
+  const [searchParams] = useSearchParams();
+  const { assets, maintenancePlans, assetCategoriesTree, setGlobalAlert, refreshMaintenances, maintenanceTypesTree, employees, getCategoriesForScope } = useAppContext();
 
+  // Scope: from plan, or from URL ?scope=
   const plan = maintenancePlans.find(p => p.Id === planId);
+  const currentScope = plan?.scope || searchParams.get('scope') || 'activo';
 
-  // ── Filtrar activos por el alcance definido en el plan ─────────────
-  // La BD guarda CATEGORIA como nombre de la categoría y SUBFAMILIA como familia
-  // El PlanForm guarda CategoryId y FamilyId (IDs del árbol de categorías)
+  const flattenTypes = (nodes) => {
+    let types = [];
+    for (const node of (nodes || [])) {
+      types.push(node);
+      if (node.children) types = [...types, ...flattenTypes(node.children)];
+    }
+    return types;
+  };
+  const allTypes = flattenTypes(maintenanceTypesTree);
+
+  // Filtrar tipos según contexto:
+  // - Con plan (programación) → solo Preventivo
+  // - Sin plan (orden directa) → solo Correctivo / Correctivo Programado
+  const availableTypes = useMemo(() => {
+    if (planId) {
+      // Viene de un plan → solo preventivos
+      return allTypes.filter(t => t.name.toLowerCase().includes('preventivo'));
+    }
+    // Orden directa → solo correctivos
+    return allTypes.filter(t => t.name.toLowerCase().includes('correctivo'));
+  }, [allTypes, planId]);
+
+  // ── Filtrar activos por scope del módulo + categoría del plan ─────────────
   const filteredAssets = useMemo(() => {
-    if (!plan) return assets;
+    // 1) Filtrar por scope: solo activos cuya categoría raíz pertenece al módulo
+    const scopeCategories = getCategoriesForScope(currentScope);
+    const scopeCatIds = new Set();
+    const collectIds = (nodes) => {
+      for (const n of nodes) {
+        scopeCatIds.add(n.id);
+        if (n.children) collectIds(n.children);
+      }
+    };
+    collectIds(scopeCategories);
 
+    let baseAssets = scopeCatIds.size > 0
+      ? assets.filter(a => scopeCatIds.has(a.categoryId || a.CategoryId || ''))
+      : assets;
+
+    // 2) Si hay plan con categoría específica, filtrar más
+    if (!plan) return baseAssets;
     const catId = plan.CategoryId;
     const famId = plan.FamilyId;
+    if (!catId) return baseAssets;
 
-    if (!catId) return assets; // Sin alcance definido → todos los activos
-
-    return assets.filter(asset => {
-      // 1. La categoría raíz debe coincidir (por ID siempre que esté disponible)
+    return baseAssets.filter(asset => {
       const catMatch = asset.categoryId
         ? asset.categoryId === catId
         : (asset.category || '').toLowerCase().trim() === (plan.Category || '').toLowerCase().trim();
-
       if (!catMatch) return false;
 
-      // 2. Si el plan tiene familia, el activo debe tener ese familyId
-      //    Fallback por nombre de texto para activos creados antes de esta versión
       if (famId) {
         if (asset.familyId) return asset.familyId === famId;
-        // Fallback: comparar nombre de familia (activos sin ID_FAM en BD aún)
         const famName = (plan.FamilyName || plan.SubFamily || '').toLowerCase().trim();
         return (asset.family || '').toLowerCase().trim() === famName;
       }
-
       return true;
     });
-  }, [assets, plan, assetCategoriesTree]);
+  }, [assets, plan, currentScope, getCategoriesForScope]);
+
+  // El tipo por defecto es el primero de la lista filtrada
+  const defaultType = availableTypes[0] || null;
 
   const [generalTask, setGeneralTask] = useState({
     name: '',
@@ -210,6 +245,8 @@ const WorkOrderPlanner = () => {
     assetId: '',
     assignedTo: '',
     notes: '',
+    typeId: defaultType?.id || '',
+    typeName: defaultType?.name || (planId ? 'Preventivo' : 'Correctivo'),
   });
 
   const [subTasks, setSubTasks] = useState([
@@ -222,6 +259,8 @@ const WorkOrderPlanner = () => {
         ...prev,
         name: plan.Description || 'Plan General',
         frequency: plan.PlanFrequency || 'Mensual',
+        typeId: prev.typeId || (defaultType?.id || ''),
+        typeName: prev.typeName || (defaultType?.name || 'Preventivo'),
       }));
       if (plan.tasks && plan.tasks.length > 0) {
         setSubTasks(plan.tasks.map(t => ({
@@ -237,6 +276,38 @@ const WorkOrderPlanner = () => {
   const [savedTemplate, setSavedTemplate] = useState(null);
   const [copyTarget, setCopyTarget] = useState('');
   const [showCopyPanel, setShowCopyPanel] = useState(false);
+
+  // Asset search combobox
+  const [assetSearch, setAssetSearch] = useState('');
+  const [assetDropdownOpen, setAssetDropdownOpen] = useState(false);
+  const assetSearchRef = React.useRef(null);
+  const assetDropdownRef = React.useRef(null);
+
+  const selectedAsset = useMemo(() => {
+    return filteredAssets.find(a => a.id === generalTask.assetId) || null;
+  }, [filteredAssets, generalTask.assetId]);
+
+  const assetSuggestions = useMemo(() => {
+    if (!assetSearch.trim()) return filteredAssets;
+    const q = assetSearch.toLowerCase();
+    return filteredAssets.filter(a =>
+      (a.id || '').toLowerCase().includes(q) ||
+      (a.name || '').toLowerCase().includes(q) ||
+      (a.serial || a.serialNumber || '').toLowerCase().includes(q) ||
+      (a.location || '').toLowerCase().includes(q)
+    );
+  }, [filteredAssets, assetSearch]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (assetDropdownRef.current && !assetDropdownRef.current.contains(e.target)) {
+        setAssetDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Calcular duración del rango
   const rangeDays = useMemo(() => {
@@ -261,47 +332,80 @@ const WorkOrderPlanner = () => {
     if (subTasks.length > 1) setSubTasks(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const autoScheduleYear = () => {
-    if (!generalTask.startDate) {
-      setGlobalAlert({ isOpen: true, title: 'Atención', message: 'Define la Fecha Inicio del Plan General primero.' });
+  // ── Modal Auto-Programar ─────────────────────────────────────────
+  const [showAutoModal, setShowAutoModal] = useState(false);
+  // taskStartDates: { [taskIndex]: 'YYYY-MM-DD' }
+  const [taskStartDates, setTaskStartDates] = useState({});
+
+  const openAutoModal = () => {
+    if (!generalTask.startDate || !generalTask.endDate) {
+      setGlobalAlert({ isOpen: true, title: 'Atención', message: 'Define primero la Fecha Inicio y Fecha Fin del Plan General.' });
       return;
     }
-    
-    // Configurar endDate a 1 año menos 1 día
-    const start = new Date(generalTask.startDate + 'T12:00:00');
-    const end = new Date(start);
-    end.setFullYear(end.getFullYear() + 1);
-    end.setDate(end.getDate() - 1);
-    
-    setGeneralTask(p => ({ ...p, endDate: end.toISOString().split('T')[0] }));
+    if (!plan || !plan.tasks?.length) return;
+    // Pre-rellenar con la fecha inicio del plan
+    const defaults = {};
+    plan.tasks.forEach((_, i) => { defaults[i] = generalTask.startDate; });
+    setTaskStartDates(defaults);
+    setShowAutoModal(true);
+  };
 
-    if (!plan || !plan.tasks) return;
+  // Genera todas las ocurrencias de una tarea según su frecuencia
+  const generateOccurrences = (taskName, taskFreq, startDateStr, endDateStr) => {
+    const freq = (taskFreq || 'mensual').toLowerCase();
+    const end = new Date(endDateStr + 'T12:00:00');
+    const results = [];
+    let current = new Date(startDateStr + 'T12:00:00');
 
+    // Avanza current según la frecuencia
+    const advance = (date) => {
+      const d = new Date(date);
+      if (freq.includes('diari'))         d.setDate(d.getDate() + 1);
+      else if (freq.includes('semanal'))  d.setDate(d.getDate() + 7);
+      else if (freq.includes('quincenal'))d.setDate(d.getDate() + 15);
+      else if (freq.includes('bimestral'))d.setMonth(d.getMonth() + 2);
+      else if (freq.includes('trimestral'))d.setMonth(d.getMonth() + 3);
+      else if (freq.includes('cuatrimestral'))d.setMonth(d.getMonth() + 4);
+      else if (freq.includes('semestral'))d.setMonth(d.getMonth() + 6);
+      else if (freq.includes('anual'))    d.setFullYear(d.getFullYear() + 1);
+      else                                d.setMonth(d.getMonth() + 1); // mensual por defecto
+      return d;
+    };
+
+    while (current <= end) {
+      results.push({
+        name: taskName,
+        date: current.toISOString().split('T')[0],
+        notes: `Freq: ${taskFreq || 'Mensual'}`
+      });
+      current = advance(current);
+    }
+    return results;
+  };
+
+  const applyAutoSchedule = () => {
     const newSubTasks = [];
-    plan.tasks.forEach(t => {
-      const freq = t.Frequency?.toLowerCase() || 'mensual';
-      let intervals = 12;
-      if (freq.includes('bimestral')) intervals = 6;
-      else if (freq.includes('trimestral')) intervals = 4;
-      else if (freq.includes('semestral')) intervals = 2;
-      else if (freq.includes('anual')) intervals = 1;
-
-      for (let i = 0; i < intervals; i++) {
-        const taskDate = new Date(start);
-        // Add months based on interval spacing
-        taskDate.setMonth(taskDate.getMonth() + (i * (12 / intervals)));
-        
-        newSubTasks.push({
-          name: t.TaskDescription,
-          date: taskDate.toISOString().split('T')[0],
-          notes: `Freq: ${t.Frequency || 'Mensual'}`
-        });
-      }
+    plan.tasks.forEach((t, i) => {
+      const startDate = taskStartDates[i] || generalTask.startDate;
+      const occurrences = generateOccurrences(
+        t.TaskDescription,
+        t.Frequency,
+        startDate,
+        generalTask.endDate
+      );
+      newSubTasks.push(...occurrences);
     });
-
     newSubTasks.sort((a, b) => a.date.localeCompare(b.date));
     setSubTasks(newSubTasks);
-    setGlobalAlert({ isOpen: true, title: '✅ Autoprogramado', message: 'Las tareas se han distribuido automáticamente para todo el año.' });
+    setShowAutoModal(false);
+    setGlobalAlert({ isOpen: true, title: '✅ Autoprogramado', message: `Se generaron ${newSubTasks.length} tareas programadas.` });
+  };
+
+  // Preview: cuántas ocurrencias generaría cada tarea
+  const previewCount = (taskIndex) => {
+    const t = plan?.tasks?.[taskIndex];
+    if (!t || !taskStartDates[taskIndex] || !generalTask.endDate) return 0;
+    return generateOccurrences(t.TaskDescription, t.Frequency, taskStartDates[taskIndex], generalTask.endDate).length;
   };
 
   // Guardar como orden de trabajo
@@ -326,7 +430,8 @@ const WorkOrderPlanner = () => {
         startDate: generalTask.startDate,
         endDate: generalTask.endDate,
         assignedTo: generalTask.assignedTo || '',
-        notes: generalTask.notes
+        notes: generalTask.notes,
+        scope: currentScope
       });
 
       if (!resMain?.ok) {
@@ -342,7 +447,8 @@ const WorkOrderPlanner = () => {
           id: `${mainId}-T${idx+1}`,
           assetId: generalTask.assetId,
           title: `${st.name}`,
-          type: 'Preventivo',
+          typeId: generalTask.typeId || null,
+          type: generalTask.typeName || 'Preventivo',
           provider: '',
           assignedTo: generalTask.assignedTo || '',
           startDate: st.date,
@@ -350,7 +456,8 @@ const WorkOrderPlanner = () => {
           status: 'PENDIENTE',
           description: `[Sub-tarea de: ${generalTask.name}]\n${st.notes || ''}`,
           singleTask: st.name,
-          workOrderId: mainId
+          workOrderId: mainId,
+          scope: currentScope
         });
 
         if (!resSub?.ok) {
@@ -361,7 +468,7 @@ const WorkOrderPlanner = () => {
 
       await refreshMaintenances();
       setGlobalAlert({ isOpen: true, title: '✅ Orden Creada', message: 'La orden de trabajo y sus sub-tareas fueron guardadas en el calendario.' });
-      navigate('/calendar');
+      navigate(`/maintenances/work-orders${currentScope ? `?scope=${currentScope}` : ''}`);
     } catch(e) {
       setGlobalAlert({ isOpen: true, title: 'Error', message: e.message });
     }
@@ -408,6 +515,7 @@ const WorkOrderPlanner = () => {
   };
 
   return (
+    <>
     <div className="animate-fade-in" style={{ paddingBottom: '60px' }}>
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
@@ -436,7 +544,8 @@ const WorkOrderPlanner = () => {
               <input type="text" className="input-control"
                 placeholder="Ej: Mantenimiento Preventivo Secadora S-01"
                 value={generalTask.name}
-                onChange={e => setGeneralTask(p => ({ ...p, name: e.target.value }))} />
+                onChange={e => setGeneralTask(p => ({ ...p, name: e.target.value }))}
+                disabled={!!plan} />
             </div>
 
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'14px' }}>
@@ -484,27 +593,166 @@ const WorkOrderPlanner = () => {
                   </span>
                 </div>
               )}
-              <select className="input-control"
-                value={generalTask.assetId}
-                onChange={e => setGeneralTask(p => ({ ...p, assetId: e.target.value }))}>
-                <option value="">— Seleccionar activo —</option>
-                {filteredAssets.map(a => (
-                  <option key={a.id} value={a.id}>{a.id} — {a.name}</option>
-                ))}
-              </select>
+
+              {/* Searchable asset combobox */}
+              <div ref={assetDropdownRef} style={{ position: 'relative' }}>
+                {/* Selected asset display / search input */}
+                {selectedAsset && !assetDropdownOpen ? (
+                  <div
+                    onClick={() => { setAssetDropdownOpen(true); setAssetSearch(''); setTimeout(() => assetSearchRef.current?.focus(), 50); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '10px 14px', borderRadius: '10px', cursor: 'pointer',
+                      background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)',
+                      transition: 'border-color 0.2s',
+                    }}
+                  >
+                    <div style={{
+                      width: '36px', height: '36px', borderRadius: '8px',
+                      background: 'rgba(59,130,246,0.1)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <Package size={18} color="var(--accent-primary)" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {selectedAsset.name}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '8px' }}>
+                        <span style={{ fontFamily: 'monospace', background: 'var(--bg-tertiary)', padding: '1px 6px', borderRadius: '4px' }}>{selectedAsset.id}</span>
+                        {(selectedAsset.serial || selectedAsset.serialNumber) && <span>S/N: {selectedAsset.serial || selectedAsset.serialNumber}</span>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setGeneralTask(p => ({ ...p, assetId: '' })); setAssetSearch(''); }}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '0 14px', borderRadius: '10px',
+                    background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)',
+                    boxShadow: '0 0 0 3px rgba(59,130,246,0.1)',
+                  }}>
+                    <Search size={16} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
+                    <input
+                      ref={assetSearchRef}
+                      type="text"
+                      value={assetSearch}
+                      onChange={e => { setAssetSearch(e.target.value); setAssetDropdownOpen(true); }}
+                      onFocus={() => setAssetDropdownOpen(true)}
+                      placeholder="Buscar por nombre, ID o serial..."
+                      style={{
+                        flex: 1, border: 'none', background: 'transparent',
+                        padding: '11px 0', fontSize: '0.88rem', outline: 'none',
+                        color: 'var(--text-main)',
+                      }}
+                    />
+                    {assetSearch && (
+                      <button onClick={() => setAssetSearch('')}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Dropdown suggestions */}
+                {assetDropdownOpen && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0,
+                    marginTop: '4px', maxHeight: '240px', overflowY: 'auto',
+                    background: '#fff', borderRadius: '10px',
+                    border: '1px solid var(--glass-border)',
+                    boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
+                    zIndex: 50,
+                  }}>
+                    {assetSuggestions.length === 0 ? (
+                      <div style={{ padding: '16px', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                        No se encontraron activos
+                      </div>
+                    ) : (
+                      assetSuggestions.map(a => (
+                        <div
+                          key={a.id}
+                          onClick={() => {
+                            setGeneralTask(p => ({ ...p, assetId: a.id }));
+                            setAssetSearch('');
+                            setAssetDropdownOpen(false);
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '10px 14px', cursor: 'pointer',
+                            borderBottom: '1px solid var(--glass-border)',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <div style={{
+                            width: '32px', height: '32px', borderRadius: '6px',
+                            background: 'var(--bg-tertiary)', display: 'flex',
+                            alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          }}>
+                            <Package size={15} color="var(--text-muted)" />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {a.name}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '2px' }}>
+                              <span style={{ fontFamily: 'monospace', background: 'var(--bg-tertiary)', padding: '0 5px', borderRadius: '3px' }}>{a.id}</span>
+                              {(a.serial || a.serialNumber) && <span style={{ opacity: 0.8 }}>S/N: {a.serial || a.serialNumber}</span>}
+                              {(a.area || a.location) && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', opacity: 0.8 }}>
+                                  <span style={{ color: 'var(--accent-primary)' }}>|</span>
+                                  {a.area}{a.area && a.location ? ' · ' : ''}{a.location}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
               {plan && (plan.Category || plan.CategoryName) && filteredAssets.length === 0 && (
                 <p style={{ fontSize: '0.78rem', color: 'var(--warning)', marginTop: '6px' }}>
-                  ⚠️ No hay activos registrados en este alcance. Verifica las categorías en Inventario.
+                  No hay activos registrados en este alcance. Verifica las categorías en Inventario.
                 </p>
               )}
             </div>
 
             <div className="input-group" style={{ marginBottom:'14px' }}>
+              <label>Tipo de Mantenimiento *</label>
+              <select className="input-control"
+                value={generalTask.typeId}
+                onChange={e => {
+                  const t = availableTypes.find(t => t.id === e.target.value);
+                  setGeneralTask(p => ({ ...p, typeId: e.target.value, typeName: t?.name || '' }));
+                }}>
+                {availableTypes.length === 0 && <option value="">— Sin tipos configurados —</option>}
+                {availableTypes.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="input-group" style={{ marginBottom:'14px' }}>
               <label>Responsable</label>
-              <input type="text" className="input-control"
-                placeholder="Nombre del técnico"
+              <select className="input-control"
                 value={generalTask.assignedTo}
-                onChange={e => setGeneralTask(p => ({ ...p, assignedTo: e.target.value }))} />
+                onChange={e => setGeneralTask(p => ({ ...p, assignedTo: e.target.value }))}>
+                <option value="">-- Seleccionar --</option>
+                {employees.map(e => (
+                  <option key={e.id} value={`${e.nombre} ${e.apellido}`}>{e.apellido}, {e.nombre}</option>
+                ))}
+              </select>
             </div>
 
             <div className="input-group">
@@ -531,8 +779,8 @@ const WorkOrderPlanner = () => {
             <h2 style={{ fontSize:'1rem', fontWeight:700, margin:0 }}>Planes Específicos</h2>
             <div style={{ display: 'flex', gap: '8px' }}>
               {plan && plan.tasks && (
-                <button className="btn-secondary" style={{ fontSize:'0.8rem', padding:'6px 12px', color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }} onClick={autoScheduleYear}>
-                  <Calendar size={14} /> Auto-Programar (1 Año)
+                <button className="btn-secondary" style={{ fontSize:'0.8rem', padding:'6px 12px', color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }} onClick={openAutoModal}>
+                  <Calendar size={14} /> Auto-Programar
                 </button>
               )}
               <button className="btn-secondary" style={{ fontSize:'0.8rem', padding:'6px 12px' }} onClick={addSubTask}>
@@ -637,6 +885,100 @@ const WorkOrderPlanner = () => {
         )}
       </div>
     </div>
+
+    {/* ── Modal Auto-Programar ─────────────────────────────────────── */}
+    {showAutoModal && plan?.tasks && (
+      <div style={{
+        position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 99999, backdropFilter: 'blur(4px)'
+      }}>
+        <div style={{
+          background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '680px',
+          maxHeight: '88vh', display: 'flex', flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)'
+        }}>
+          {/* Header */}
+          <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>Auto-Programar Tareas</h2>
+              <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Define la fecha de inicio de cada tarea. El sistema generará todas las ocurrencias hasta <strong>{fmt(generalTask.endDate)}</strong> según su frecuencia.
+              </p>
+            </div>
+            <button onClick={() => setShowAutoModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-muted)', lineHeight: 1 }}>✕</button>
+          </div>
+
+          {/* Body — una fila por tarea del plan */}
+          <div style={{ overflowY: 'auto', padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {plan.tasks.map((t, i) => {
+              const count = previewCount(i);
+              return (
+                <div key={i} style={{
+                  display: 'grid', gridTemplateColumns: '1fr auto auto',
+                  gap: '12px', alignItems: 'center',
+                  padding: '14px 16px', background: 'var(--bg-secondary)',
+                  borderRadius: '10px', border: '1px solid var(--glass-border)'
+                }}>
+                  {/* Info tarea */}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {i + 1}. {t.TaskDescription}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--accent-primary)', borderRadius: '4px', padding: '1px 7px', fontWeight: 600 }}>
+                        {t.Frequency || 'Mensual'}
+                      </span>
+                      {count > 0 && (
+                        <span style={{ color: '#22c55e', fontWeight: 600 }}>→ {count} ocurrencia{count !== 1 ? 's' : ''}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fecha inicio */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fecha inicio</label>
+                    <input
+                      type="date"
+                      className="input-control"
+                      style={{ padding: '6px 10px', fontSize: '0.85rem', width: '160px' }}
+                      min={generalTask.startDate}
+                      max={generalTask.endDate}
+                      value={taskStartDates[i] || generalTask.startDate}
+                      onChange={e => setTaskStartDates(prev => ({ ...prev, [i]: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Resumen total */}
+          <div style={{ padding: '14px 28px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+            <Calendar size={16} color="var(--accent-primary)" />
+            <span className="text-muted">Total de tareas a generar:</span>
+            <strong style={{ color: 'var(--accent-primary)', fontSize: '1rem' }}>
+              {plan.tasks.reduce((sum, _, i) => sum + previewCount(i), 0)}
+            </strong>
+            <span className="text-muted">ocurrencias</span>
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: '16px 28px', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <button className="btn-secondary" onClick={() => setShowAutoModal(false)}>Cancelar</button>
+            <button
+              className="btn-primary"
+              onClick={applyAutoSchedule}
+              disabled={plan.tasks.reduce((sum, _, i) => sum + previewCount(i), 0) === 0}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Calendar size={16} /> Generar Programa
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

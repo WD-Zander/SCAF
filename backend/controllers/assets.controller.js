@@ -69,6 +69,43 @@ export const getAssets = async (req, res) => {
   }
 };
 
+export const getAssetById = async (req, res) => {
+  try {
+    const db = await getPool();
+    const result = await db.request()
+      .input('id', sql.VarChar, req.params.id)
+      .query(`
+        SELECT
+          a.ID as id, a.NOMBRE as name, a.MARCA as brand, a.MODELO as model, a.SERIAL as serial,
+          ea.NOMBRE as status, ea.COLOR as statusColor, a.DESCRIPCION as description,
+          a.ID_CATEGORIA as categoryId, c.NOMBRE AS category,
+          a.ID_DEPTO as departmentId, d.NOMBRE AS department,
+          FORMAT(a.FECHA_INGRESO, 'yyyy-MM-dd') as entryDate, a.COSTO_ADQUIS as acquisitionCost,
+          a.ID_CUSTODIO as assignedToId, u.NOMBRE as assignedTo,
+          a.ID_PROVEEDOR as supplierId, s.NOMBRE as supplier,
+          a.FAMILIA as family, a.SUBFAM as subFamily, a.UBICACION as location, a.AREA as area,
+          a.OBSERVACIONES as observations, a.VALOR_ACTUAL as currentValue,
+          a.FOTO_URL as photoUrl, a.FACTURA_URL as invoiceUrl
+        FROM ACTIVO a WITH (NOLOCK)
+        LEFT JOIN CATEGORIA c WITH (NOLOCK) ON a.ID_CATEGORIA = c.ID
+        LEFT JOIN UNIDAD_ORG d WITH (NOLOCK) ON a.ID_DEPTO = d.ID
+        LEFT JOIN USUARIO u WITH (NOLOCK) ON a.ID_CUSTODIO = u.ID
+        LEFT JOIN PROVEEDOR s WITH (NOLOCK) ON a.ID_PROVEEDOR = s.ID
+        LEFT JOIN ESTADO_ACTIVO ea WITH (NOLOCK) ON a.ID_ESTADO = ea.ID
+        WHERE a.ID = @id AND a.BORRADO = 0
+      `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: 'Activo no encontrado' });
+    }
+
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error('Error in getAssetById:', err);
+    res.status(500).json({ error: 'Error del servidor consultando Activo' });
+  }
+};
+
 export const createAsset = async (req, res) => {
   try {
     const {

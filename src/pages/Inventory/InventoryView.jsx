@@ -13,12 +13,30 @@ const InventoryView = () => {
   const [lightbox, setLightbox] = useState(null); // 'photo' | 'pdf' | null
 
   useEffect(() => {
-    const found = assets.find(a => a.id === id);
-    if (found) {
-      setAsset(found);
-    } else {
-      navigate('/inventory');
-    }
+    if (!id) return;
+    
+    const fetchAsset = async () => {
+      const found = assets.find(a => a.id === id);
+      if (found) {
+        setAsset(found);
+        return;
+      }
+      
+      try {
+        const res = await api.get(`/api/assets/${id}`);
+        if (res?.ok) {
+          const data = await res.json();
+          setAsset(data);
+        } else {
+          navigate('/inventory');
+        }
+      } catch (err) {
+        console.error('Error fetching asset:', err);
+        navigate('/inventory');
+      }
+    };
+    
+    fetchAsset();
   }, [id, assets, navigate]);
 
   useEffect(() => {

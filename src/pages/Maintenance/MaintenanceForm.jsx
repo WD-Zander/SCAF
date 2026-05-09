@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Check, Search } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 const MaintenanceForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
-  const { maintenances, addMaintenance, updateMaintenance, assets, suppliers, currentUser, maintenanceTypesTree, hasPermission, setGlobalAlert } = useAppContext();
+  const { maintenances, addMaintenance, updateMaintenance, assets, suppliers, currentUser, maintenanceTypesTree, hasPermission, setGlobalAlert, employees, maintenanceScopes, assetCategoriesTree } = useAppContext();
 
   const flattenTypes = (nodes) => {
     let types = [];
@@ -33,10 +34,15 @@ const MaintenanceForm = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Para la creación directa (no desde Planificador), el tipo por defecto es "Correctivo"
+  const defaultType = availableTypes.find(t => t.name.toLowerCase().includes('correctivo')) || availableTypes[0] || null;
+
+  const defaultScope = location.state?.scope || 'activo';
+
   const [formData, setFormData] = useState({
     title: '',
-    typeId: availableTypes.length > 0 ? availableTypes[0].id : '',
-    type: availableTypes.length > 0 ? availableTypes[0].name : 'Preventivo',
+    typeId: defaultType ? defaultType.id : '',
+    type: defaultType ? defaultType.name : 'Correctivo',
     assetId: '',
     providerId: '',
     provider: 'Interno',
@@ -46,12 +52,25 @@ const MaintenanceForm = () => {
     status: 'PENDIENTE',
     cost: '',
     description: '',
-    planId: ''
+    planId: '',
+    scope: defaultScope
   });
 
   // Control de reprogramación
   const [originalDates, setOriginalDates] = useState({ startDate: '', endDate: '' });
   const [reprogramReason, setReprogramReason] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  const handleCancel = () => {
+    if (isDirty && !window.confirm('¿Está seguro de salir? Los cambios no guardados se perderán.')) return;
+    navigate(-1);
+  };
   const datesChanged = isEdit && (
     formData.startDate !== originalDates.startDate ||
     formData.endDate !== originalDates.endDate
@@ -81,10 +100,27 @@ const MaintenanceForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Resolve scope slug from asset's root category
+  const getScopeFromAsset = (asset) => {
+    const catId = asset.categoryId || asset.CategoryId;
+    if (!catId) return null;
+    // Walk up to root: find which root category contains this catId
+    for (const root of assetCategoriesTree) {
+      if (root.id === catId || (root.children || []).some(c => c.id === catId)) {
+        if (root.scopeId) {
+          const scopeObj = maintenanceScopes.find(s => s.id === root.scopeId);
+          return scopeObj?.slug || null;
+        }
+      }
+    }
+    return null;
+  };
+
   const handleAssetSelect = (a) => {
-    setFormData(prev => ({...prev, assetId: a.id}));
+    const autoScope = getScopeFromAsset(a) || formData.scope;
+    setFormData(prev => ({...prev, assetId: a.id, scope: autoScope}));
     setAssetSearch(a.id);
-    
+
     // Auto-sugest plan if exists based on subFamily
     if (a.subFamily && maintenancePlans) {
       const match = maintenancePlans.find(p => p.subFamily?.toLowerCase() === a.subFamily?.toLowerCase());
@@ -109,15 +145,28 @@ const MaintenanceForm = () => {
     } else {
       await addMaintenance(formData);
     }
-    navigate('/maintenances');
+    setIsDirty(false);
+    // Navigate back to the scoped list if we came from one
+    if (formData.scope) {
+      navigate(`/maintenances/list/${formData.scope}`);
+    } else {
+      navigate('/maintenances');
+    }
   };
 
-  // Filter assets for the dropdown
-  const filteredAssets = assets.filter(a => 
-    a.id.toLowerCase().includes(assetSearch.toLowerCase()) || 
+  // Filter assets by scope first, then by search term
+  const scopeFilteredAssets = defaultScope && defaultScope !== 'activo'
+    ? assets.filter(a => {
+        const scopeSlug = getScopeFromAsset(a);
+        return scopeSlug === defaultScope || !scopeSlug; // include unscoped assets too
+      })
+    : assets;
+
+  const filteredAssets = scopeFilteredAssets.filter(a =>
+    a.id.toLowerCase().includes(assetSearch.toLowerCase()) ||
     a.name.toLowerCase().includes(assetSearch.toLowerCase()) ||
     (a.serial && a.serial.toLowerCase().includes(assetSearch.toLowerCase()))
-  ).slice(0, 5); // Limit to 5 max
+  ).slice(0, 5);
   
   // Extracting maintenance plans to context
   const { maintenancePlans } = useAppContext();
@@ -126,7 +175,7 @@ const MaintenanceForm = () => {
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
       <div className="flex-between" style={{ marginBottom: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button type="button" className="btn-secondary" onClick={() => navigate('/maintenances')} style={{ padding: '8px', borderRadius: '50%' }}>
+          <button type="button" className="btn-secondary" onClick={handleCancel} style={{ padding: '8px', borderRadius: '50%' }}>
             <ArrowLeft size={20} />
           </button>
           <h1 style={{ marginBottom: '0' }}>{isEdit ? `Editar Tarea: ${id}` : 'Registrar Mantenimiento'}</h1>
@@ -134,7 +183,7 @@ const MaintenanceForm = () => {
       </div>
 
       <div className="glass-panel" style={{ padding: '32px' }}>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} onInput={() => setIsDirty(true)}>
           
           <div className="form-section">
              <div className="form-section-title">Ticket de Servicio</div>
@@ -153,6 +202,23 @@ const MaintenanceForm = () => {
                      <option key={t.id} value={t.id}>{t.name}</option>
                    ))}
                    {availableTypes.length === 0 && <option value="">Generico</option>}
+                 </select>
+               </div>
+             </div>
+             <div className="form-grid-2">
+               <div className="input-group">
+                 <label>Módulo / Categoría</label>
+                 <select className="input-control" name="scope" value={formData.scope || 'activo'} onChange={handleChange} required>
+                   {maintenanceScopes.filter(s => s.activo !== false).map(s => (
+                     <option key={s.id} value={s.slug}>{s.nombre}</option>
+                   ))}
+                   {maintenanceScopes.length === 0 && (
+                     <>
+                       <option value="activo">Mantenimiento de Activo</option>
+                       <option value="area">Mantenimiento de Área</option>
+                       <option value="habitacion">Mantenimiento de Habitación</option>
+                     </>
+                   )}
                  </select>
                </div>
              </div>
@@ -237,7 +303,12 @@ const MaintenanceForm = () => {
                </div>
                <div className="input-group">
                  <label>Técnico / Persona a Cargo</label>
-                 <input className="input-control" type="text" name="assignedTo" value={formData.assignedTo} onChange={handleChange} required />
+                 <select className="input-control" name="assignedTo" value={formData.assignedTo} onChange={handleChange} required>
+                   <option value="">-- Seleccionar --</option>
+                   {employees.map(e => (
+                     <option key={e.id} value={`${e.nombre} ${e.apellido}`}>{e.apellido}, {e.nombre}</option>
+                   ))}
+                 </select>
                </div>
                <div className="input-group">
                  <label>Proveedor Contratado (Opcional)</label>
@@ -260,7 +331,7 @@ const MaintenanceForm = () => {
                </div>
                <div className="input-group">
                  <label>Fecha Estimada/Real de Fin</label>
-                 <input className="input-control" type="date" name="endDate" value={formData.endDate} onChange={handleChange} />
+                 <input className="input-control" type="date" name="endDate" min={formData.startDate || undefined} value={formData.endDate} onChange={handleChange} />
                </div>
                <div className="input-group">
                  <label>Inversión Estimada ($)</label>
@@ -298,7 +369,7 @@ const MaintenanceForm = () => {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', paddingTop: '24px', borderTop: '1px solid var(--glass-border)' }}>
-            <button type="button" className="btn-secondary" onClick={() => navigate('/maintenances')}>CANCELAR</button>
+            <button type="button" className="btn-secondary" onClick={handleCancel}>CANCELAR</button>
             <button type="submit" className="btn-primary" disabled={!formData.assetId}>
                <Check size={18} /> {isEdit ? 'GUARDAR CAMBIOS' : 'CREAR TICKET'}
             </button>

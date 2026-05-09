@@ -1,12 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Wrench, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Search, Edit, Trash2, Wrench, ArrowUpDown, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import ConfirmModal from '../../components/Common/ConfirmModal';
 
+const SCOPE_LABELS = {
+  area: 'Mantenimientos de Área',
+  habitacion: 'Mantenimiento de Habitaciones',
+  activo: 'Mantenimiento de Activos',
+};
+
 const MaintenanceList = () => {
-  const { maintenances, setMaintenances, removeMaintenance, updateMaintenance, assets, hasPermission } = useAppContext();
+  const { maintenances, setMaintenances, removeMaintenance, updateMaintenance, assets, hasPermission, maintenanceScopes } = useAppContext();
   const navigate = useNavigate();
+  const { scope } = useParams();
+  const scopeLabel = maintenanceScopes.find(s => s.slug === scope)?.nombre || SCOPE_LABELS[scope] || 'Mantenimientos';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS');
@@ -58,6 +66,8 @@ const MaintenanceList = () => {
 
   const sortedAndFilteredMaintenances = useMemo(() => {
     let filtered = maintenances.filter(m => {
+        // Filter by scope if set
+        if (scope && m.scope !== scope) return false;
         const assetName = getAssetDetails(m.assetId).name.toLowerCase();
         const assetSerial = getAssetDetails(m.assetId).serial?.toLowerCase() || '';
         const searchLow = searchTerm.toLowerCase();
@@ -93,7 +103,7 @@ const MaintenanceList = () => {
     });
 
     return filtered;
-  }, [maintenances, searchTerm, statusFilter, sortConfig, assets]);
+  }, [maintenances, searchTerm, statusFilter, sortConfig, assets, scope]);
 
   // Pagination
   const totalPages = Math.ceil(sortedAndFilteredMaintenances.length / itemsPerPage);
@@ -125,13 +135,22 @@ const MaintenanceList = () => {
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
       {/* Header Area */}
       <div className="flex-between" style={{ marginBottom: '32px' }}>
-        <div>
-          <h1 style={{ marginBottom: '8px' }}>Mantenimientos</h1>
-          <p className="text-muted">Gestión de tareas de mantenimiento preventivo y correctivo.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button className="btn-secondary" onClick={() => navigate(-1)} style={{ padding: '8px', borderRadius: '50%' }} title="Volver">
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 style={{ marginBottom: '8px' }}>{scopeLabel}</h1>
+            <p className="text-muted">Gestión de tareas de mantenimiento preventivo y correctivo.</p>
+          </div>
         </div>
         {hasPermission('maintenances_create') && (
-          <button className="btn-primary" onClick={() => navigate('/maintenances/new')}>
-            <Plus size={20} /> REGISTRAR TAREA
+          <button
+            className="btn-primary"
+            onClick={() => navigate('/maintenances/new', { state: { scope } })}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            + Nuevo Mantenimiento
           </button>
         )}
       </div>

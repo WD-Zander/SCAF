@@ -8,7 +8,7 @@ import { logAudit } from '../utils/auditLogger.js';
  */
 export const createMovement = async (req, res, next) => {
   try {
-    const { assetId, newLocation, newDepartment, newArea, newStatus, observation } = req.body;
+    const { assetId, newLocation, newDepartment, newArea, newStatus, observation, motivoId } = req.body;
 
     if (!assetId) return res.status(400).json({ error: 'El ID del activo es requerido.' });
     if (!observation?.trim()) return res.status(400).json({ error: 'La observación es obligatoria.' });
@@ -62,6 +62,8 @@ export const createMovement = async (req, res, next) => {
     const userId = req.user?.id || null;
     const userName = req.user?.name || req.user?.username || null;
 
+    const motivoIdParsed = motivoId ? parseInt(motivoId, 10) : null;
+
     await db.request()
       .input('assetId',  sql.VarChar,  assetId)
       .input('locAnt',   sql.NVarChar, prev.UBICACION || '')
@@ -75,15 +77,16 @@ export const createMovement = async (req, res, next) => {
       .input('obs',      sql.NVarChar, observation.trim())
       .input('userId',   sql.VarChar,  userId)
       .input('userName', sql.NVarChar, userName)
+      .input('motivoId', sql.Int,      motivoIdParsed)
       .query(`
         INSERT INTO MOVIMIENTO (
           ID_ACTIVO, UBICACION_ANT, UBICACION_NUE,
           DEPTO_ANT, DEPTO_NUE, AREA_ANT, AREA_NUE,
-          ESTADO_ANT, ESTADO_NUE, OBSERVACION, ID_USUARIO, NOMBRE_USUARIO
+          ESTADO_ANT, ESTADO_NUE, OBSERVACION, ID_USUARIO, NOMBRE_USUARIO, ID_MOTIVO
         ) VALUES (
           @assetId, @locAnt, @locNue,
           @depAnt, @depNue, @areaAnt, @areaNue,
-          @estAnt, @estNue, @obs, @userId, @userName
+          @estAnt, @estNue, @obs, @userId, @userName, @motivoId
         )
       `);
 
@@ -125,9 +128,11 @@ export const getAllMovements = async (req, res, next) => {
           m.ESTADO_ANT as statusFrom, m.ESTADO_NUE as statusTo,
           m.OBSERVACION as observation,
           m.NOMBRE_USUARIO as changedBy,
-          FORMAT(m.FECHA, 'yyyy-MM-ddTHH:mm:ss') as changedAt
+          FORMAT(m.FECHA, 'yyyy-MM-ddTHH:mm:ss') as changedAt,
+          mo.NOMBRE as motivoNombre
         FROM MOVIMIENTO m
         LEFT JOIN ACTIVO a ON m.ID_ACTIVO = a.ID
+        LEFT JOIN MOTIVO_MOVIMIENTO mo ON m.ID_MOTIVO = mo.ID
         WHERE @search = '%%'
           OR m.ID_ACTIVO LIKE @search
           OR a.NOMBRE LIKE @search

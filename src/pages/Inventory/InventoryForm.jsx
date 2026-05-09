@@ -5,7 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import { api, BASE_URL } from '../../api';
 
 const InventoryForm = () => {
-  const { assets, addAsset, updateAsset, refreshAssets, suppliers, assetCategoriesTree, organizationalTree, maintenancePlans, assetStatuses, hasPermission, setGlobalAlert } = useAppContext();
+  const { assets, addAsset, updateAsset, refreshAssets, suppliers, assetCategoriesTree, organizationalTree, maintenancePlans, assetStatuses, employees, hasPermission, setGlobalAlert, maintenanceScopes } = useAppContext();
   const navigate = useNavigate();
   const { id } = useParams(); // to know if we are editing
   const isEditMode = Boolean(id);
@@ -37,16 +37,55 @@ const InventoryForm = () => {
   const [invoiceFile, setInvoiceFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  const handleCancel = () => {
+    if (isDirty && !window.confirm('¿Está seguro de salir? Los cambios no guardados se perderán.')) return;
+    navigate('/inventory');
+  };
 
   useEffect(() => {
     if (isEditMode) {
-      const assetToEdit = assets.find(a => a.id === id);
-      if (assetToEdit) {
-        setFormData(assetToEdit);
-        if (assetToEdit.photoUrl) setPhotoPreview(`${BASE_URL}${assetToEdit.photoUrl}`);
-      } else {
-        navigate('/inventory');
-      }
+      const fetchAsset = async () => {
+        const assetToEdit = assets.find(a => a.id === id);
+        if (assetToEdit) {
+          setFormData(assetToEdit);
+          if (assetToEdit.photoUrl) setPhotoPreview(`${BASE_URL}${assetToEdit.photoUrl}`);
+          return;
+        }
+
+        try {
+          const res = await api.get(`/api/assets/${id}`);
+          if (res?.ok) {
+            const data = await res.json();
+            const preparedData = {
+              ...data,
+              categoryId: data.categoryId || '',
+              category: data.category || '',
+              departmentId: data.departmentId || '',
+              department: data.department || '',
+              supplierId: data.supplierId || '',
+              supplier: data.supplier || '',
+              assignedTo: data.assignedTo || ''
+            };
+            setFormData(preparedData);
+            if (data.photoUrl) setPhotoPreview(`${BASE_URL}${data.photoUrl}`);
+          } else {
+            navigate('/inventory');
+          }
+        } catch (err) {
+          console.error(err);
+          navigate('/inventory');
+        }
+      };
+
+      fetchAsset();
     }
   }, [id, assets, isEditMode, navigate]);
 
@@ -85,18 +124,19 @@ const InventoryForm = () => {
 
     // Refrescar contexto para que InventoryView vea photoUrl/invoiceUrl actualizados
     await refreshAssets();
+    setIsDirty(false);
     navigate('/inventory');
   };
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
-      
+
       {/* Header with back button */}
       <div className="flex-between" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button 
-            className="btn-secondary" 
-            onClick={() => navigate('/inventory')}
+          <button
+            className="btn-secondary"
+            onClick={handleCancel}
             style={{ padding: '8px', borderRadius: '50%' }}
             title="Volver"
           >
@@ -110,32 +150,32 @@ const InventoryForm = () => {
       </div>
 
       <div className="glass-panel form-container" style={{ overflow: 'hidden' }}>
-        <form onSubmit={handleFormSubmit}>
+        <form onSubmit={handleFormSubmit} onInput={() => setIsDirty(true)}>
           <div style={{ padding: '32px 40px' }}>
-            
+
             {/* Información Principal */}
             <div className="form-section">
               <h3 className="form-section-title">Información Principal</h3>
               <div className="form-grid form-grid-2">
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Nombre del Activo *</label>
-                  <input required type="text" className="input-control" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ej. Laptop Dell XP 15" />
+                  <input required type="text" className="input-control" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Ej. Laptop Dell XP 15" />
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Cargado Por</label>
-                  <input type="text" className="input-control" value={formData.loadedBy} onChange={e => setFormData({...formData, loadedBy: e.target.value})} placeholder="Usuario que registra" />
+                  <input type="text" className="input-control" value={formData.loadedBy} onChange={e => setFormData({ ...formData, loadedBy: e.target.value })} placeholder="Usuario que registra" />
                 </div>
               </div>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label>Descripción del Activo</label>
-                <textarea className="input-control" rows="2" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Añadir descripción detallada..."></textarea>
+                <textarea className="input-control" rows="2" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Añadir descripción detallada..."></textarea>
               </div>
             </div>
 
             {/* Clasificación */}
             <div className="form-section">
               <h3 className="form-section-title">Clasificación Estratégica (Módulo Ficheros)</h3>
-              
+
               <div className="form-grid form-grid-3">
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Categoría *</label>
@@ -145,7 +185,7 @@ const InventoryForm = () => {
                     value={formData.categoryId || ''}
                     onChange={e => {
                       const cat = assetCategoriesTree.find(c => c.id === e.target.value);
-                      setFormData({...formData, categoryId: e.target.value, category: cat?.name || '', family: '', familyId: '', subFamily: ''});
+                      setFormData({ ...formData, categoryId: e.target.value, category: cat?.name || '', family: '', familyId: '', subFamily: '' });
                     }}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -162,7 +202,7 @@ const InventoryForm = () => {
                     disabled={!formData.categoryId}
                     onChange={e => {
                       const fam = assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.find(f => f.id === e.target.value);
-                      setFormData({...formData, familyId: e.target.value, family: fam?.name || '', subFamily: ''});
+                      setFormData({ ...formData, familyId: e.target.value, family: fam?.name || '', subFamily: '' });
                     }}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -173,12 +213,12 @@ const InventoryForm = () => {
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Sublínea (Vincular a Plan)</label>
-                  <input 
+                  <input
                     type="text"
                     list="subfamilies"
-                    className="input-control" 
-                    value={formData.subFamily} 
-                    onChange={e => setFormData({...formData, subFamily: e.target.value})}
+                    className="input-control"
+                    value={formData.subFamily}
+                    onChange={e => setFormData({ ...formData, subFamily: e.target.value })}
                     placeholder="Ej. Aire Acondicionado"
                   />
                   <datalist id="subfamilies">
@@ -191,17 +231,32 @@ const InventoryForm = () => {
 
               {maintenancePlans.some(p => p.SubFamily && p.SubFamily.toLowerCase() === (formData.subFamily || '').toLowerCase()) && (
                 <div style={{ padding: '8px 12px', background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success)', borderRadius: '6px', fontSize: '0.85rem', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <strong>✓ Protocolo de Mantenimiento Detectado:</strong> 
+                  <strong>✓ Protocolo de Mantenimiento Detectado:</strong>
                   Será aplicable a este activo automáticamente.
                 </div>
               )}
 
-              <div className="form-grid form-grid-3" style={{ marginTop: '16px' }}>
+              {/* Scope badge: show which maintenance module this asset belongs to */}
+              {formData.categoryId && (() => {
+                const rootCat = assetCategoriesTree.find(c => c.id === formData.categoryId);
+                if (!rootCat?.scopeId) return null;
+                const scopeObj = maintenanceScopes.find(s => s.id === rootCat.scopeId);
+                if (!scopeObj) return null;
+                return (
+                  <div style={{ padding: '8px 12px', background: `${scopeObj.color}15`, borderLeft: `3px solid ${scopeObj.color}`, borderRadius: '6px', fontSize: '0.85rem', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: scopeObj.color, display: 'inline-block' }}></span>
+                    <span>Módulo: <strong style={{ color: scopeObj.color }}>{scopeObj.nombre}</strong></span>
+                    <span className="text-muted" style={{ marginLeft: 'auto', fontSize: '0.78rem' }}>Los tickets de este activo se verán en ese módulo</span>
+                  </div>
+                );
+              })()}
+
+              <div className="form-grid form-grid-2" style={{ marginTop: '16px' }}>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Proveedor Asignado</label>
                   <select required className="input-control" value={formData.supplierId || ''} onChange={e => {
                     const s = suppliers.find(s => s.id === e.target.value);
-                    setFormData({...formData, supplierId: e.target.value, supplier: s?.name || ''});
+                    setFormData({ ...formData, supplierId: e.target.value, supplier: s?.name || '' });
                   }}>
                     <option value="">-- Seleccionar Proveedor --</option>
                     {suppliers.map(s => (
@@ -211,11 +266,17 @@ const InventoryForm = () => {
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Marca</label>
-                  <input required type="text" className="input-control" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} placeholder="Ej. Dell" />
+                  <input required type="text" className="input-control" value={formData.brand} onChange={e => setFormData({ ...formData, brand: e.target.value })} placeholder="Ej. Dell" />
+                </div>
+              </div>
+              <div className="form-grid form-grid-2" style={{ marginTop: '12px' }}>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Modelo</label>
+                  <input type="text" className="input-control" value={formData.model || ''} onChange={e => setFormData({ ...formData, model: e.target.value })} placeholder="Ej. XPS 15 9520" />
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Modelo y Serial</label>
-                  <input required type="text" className="input-control" value={formData.serial} onChange={e => setFormData({...formData, serial: e.target.value})} placeholder="Serial de fábrica" />
+                  <label>Serial</label>
+                  <input type="text" className="input-control" value={formData.serial || ''} onChange={e => setFormData({ ...formData, serial: e.target.value })} placeholder="Número de serie de fábrica" />
                 </div>
               </div>
             </div>
@@ -226,15 +287,15 @@ const InventoryForm = () => {
               <div className="form-grid form-grid-3">
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Valor (USD) *</label>
-                  <input required type="number" step="0.01" className="input-control" value={formData.acquisitionCost} onChange={e => setFormData({...formData, acquisitionCost: e.target.value})} placeholder="0.00" />
+                  <input required type="number" step="0.01" className="input-control" value={formData.acquisitionCost} onChange={e => setFormData({ ...formData, acquisitionCost: e.target.value })} placeholder="0.00" />
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Fecha de Ingreso</label>
-                  <input required type="date" className="input-control" value={formData.entryDate} onChange={e => setFormData({...formData, entryDate: e.target.value})} />
+                  <input required type="date" className="input-control" value={formData.entryDate} onChange={e => setFormData({ ...formData, entryDate: e.target.value })} />
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Estado</label>
-                  <select className="input-control" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                  <select className="input-control" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                     <option value="">-- Seleccionar --</option>
                     {assetStatuses.map(s => (
                       <option key={s.id} value={s.name}>{s.name}</option>
@@ -249,12 +310,12 @@ const InventoryForm = () => {
               <h3 className="form-section-title">Estructura Organizativa (Módulo Ficheros) y Asignación</h3>
               <div className="form-grid form-grid-3">
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Sede Física (Ubicación) *</label>
+                  <label>Area*</label>
                   <select
                     required
                     className="input-control"
                     value={formData.location}
-                    onChange={e => setFormData({...formData, location: e.target.value, departmentId: '', department: '', area: ''})}
+                    onChange={e => setFormData({ ...formData, location: e.target.value, departmentId: '', department: '', area: '' })}
                   >
                     <option value="">-- Seleccionar --</option>
                     {organizationalTree.map(sede => (
@@ -263,14 +324,14 @@ const InventoryForm = () => {
                   </select>
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Departamento</label>
+                  <label>Ubicación</label>
                   <select
                     className="input-control"
                     value={formData.departmentId || ''}
                     disabled={!formData.location}
                     onChange={e => {
                       const dept = organizationalTree.find(s => s.name === formData.location)?.children?.find(d => d.id === e.target.value);
-                      setFormData({...formData, departmentId: e.target.value, department: dept?.name || '', area: ''});
+                      setFormData({ ...formData, departmentId: e.target.value, department: dept?.name || '', area: '' });
                     }}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -280,29 +341,35 @@ const InventoryForm = () => {
                   </select>
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Área Receptora</label>
+                  <label>Departamento</label>
                   <select
                     className="input-control"
                     value={formData.area}
                     disabled={!formData.departmentId}
-                    onChange={e => setFormData({...formData, area: e.target.value})}
+                    onChange={e => setFormData({ ...formData, area: e.target.value })}
                   >
                     <option value="">-- Seleccionar --</option>
                     {organizationalTree.find(s => s.name === formData.location)
                       ?.children?.find(d => d.id === formData.departmentId)
                       ?.children?.map(a => (
-                      <option key={a.id} value={a.name}>{a.name}</option>
-                    ))}
+                        <option key={a.id} value={a.name}>{a.name}</option>
+                      ))}
                   </select>
                 </div>
               </div>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label>Custodio / Asignado A (Opcional)</label>
-                <input type="text" className="input-control" value={formData.assignedTo} onChange={e => setFormData({...formData, assignedTo: e.target.value})} placeholder="Ej. Juan Pérez" />
+                <select className="input-control" value={formData.assignedTo}
+                  onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}>
+                  <option value="">-- Sin asignar --</option>
+                  {employees.map(e => (
+                    <option key={e.id} value={`${e.nombre} ${e.apellido}`}>{e.apellido}, {e.nombre}</option>
+                  ))}
+                </select>
               </div>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label>Observaciones</label>
-                <textarea className="input-control" rows="2" value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})}></textarea>
+                <textarea className="input-control" rows="2" value={formData.observations} onChange={e => setFormData({ ...formData, observations: e.target.value })}></textarea>
               </div>
             </div>
 
@@ -367,12 +434,12 @@ const InventoryForm = () => {
             </div>
           </div>
 
-          <div className="form-footer" style={{ 
-            padding: '24px 40px', background: 'var(--bg-primary)', 
-            borderTop: '1px solid var(--glass-border)', display: 'flex', 
-            justifyContent: 'flex-end', gap: '16px' 
+          <div className="form-footer" style={{
+            padding: '24px 40px', background: 'var(--bg-primary)',
+            borderTop: '1px solid var(--glass-border)', display: 'flex',
+            justifyContent: 'flex-end', gap: '16px'
           }}>
-            <button type="button" className="btn-secondary" onClick={() => navigate('/inventory')}>
+            <button type="button" className="btn-secondary" onClick={handleCancel}>
               Cancelar
             </button>
             <button type="submit" className="btn-primary" disabled={uploading}>

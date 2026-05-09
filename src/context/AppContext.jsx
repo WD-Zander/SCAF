@@ -30,6 +30,10 @@ export const AppProvider = ({ children }) => {
   const [maintenanceTypesTree, setMaintenanceTypesTree] = useState([]);
   const [assetStatuses, setAssetStatuses] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
+  const [movementReasons, setMovementReasons] = useState([]);
+  const [planFrequencies, setPlanFrequencies] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [maintenanceScopes, setMaintenanceScopes] = useState([]);
 
   useEffect(() => {
     if (currentUser) fetchGlobalState();
@@ -53,18 +57,26 @@ export const AppProvider = ({ children }) => {
       if (mainRes?.ok) setMaintenances(await mainRes.json());
       if (plansRes?.ok) setMaintenancePlans(await plansRes.json());
 
-      const [catRes, orgRes, mtTypesRes, statusRes, payRes] = await Promise.all([
+      const [catRes, orgRes, mtTypesRes, statusRes, payRes, motRes, freqRes, empRes, scopesRes] = await Promise.all([
         api.get('/api/files/categories'),
         api.get('/api/files/organization'),
         api.get('/api/files/maintenanceTypes'),
         api.get('/api/files/assetStatuses'),
         api.get('/api/files/paymentMethods'),
+        api.get('/api/files/movementReasons'),
+        api.get('/api/files/planFrequencies'),
+        api.get('/api/employees'),
+        api.get('/api/maintenance-scopes'),
       ]);
       if (catRes?.ok) setAssetCategoriesTree(await catRes.json());
       if (orgRes?.ok) setOrganizationalTree(await orgRes.json());
       if (mtTypesRes?.ok) setMaintenanceTypesTree(await mtTypesRes.json());
       if (statusRes?.ok) setAssetStatuses(await statusRes.json());
       if (payRes?.ok) setPaymentMethods(await payRes.json());
+      if (motRes?.ok) setMovementReasons(await motRes.json());
+      if (freqRes?.ok) setPlanFrequencies(await freqRes.json());
+      if (empRes?.ok) setEmployees(await empRes.json());
+      if (scopesRes?.ok) setMaintenanceScopes(await scopesRes.json());
 
       if (setRes?.ok) {
         setDbConnected(true);
@@ -212,18 +224,27 @@ export const AppProvider = ({ children }) => {
 
   const refreshFiles = async () => {
     try {
-      const [catRes, orgRes, mtTypesRes, statusRes, payRes] = await Promise.all([
+      const [catRes, orgRes, mtTypesRes, statusRes, payRes, motRes] = await Promise.all([
         api.get('/api/files/categories'),
         api.get('/api/files/organization'),
         api.get('/api/files/maintenanceTypes'),
         api.get('/api/files/assetStatuses'),
         api.get('/api/files/paymentMethods'),
+        api.get('/api/files/movementReasons'),
       ]);
       if (catRes?.ok) setAssetCategoriesTree(await catRes.json());
       if (orgRes?.ok) setOrganizationalTree(await orgRes.json());
       if (mtTypesRes?.ok) setMaintenanceTypesTree(await mtTypesRes.json());
       if (statusRes?.ok) setAssetStatuses(await statusRes.json());
       if (payRes?.ok) setPaymentMethods(await payRes.json());
+      if (motRes?.ok) setMovementReasons(await motRes.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const refreshEmployees = async () => {
+    try {
+      const res = await api.get('/api/employees');
+      if (res?.ok) setEmployees(await res.json());
     } catch (e) { console.error(e); }
   };
 
@@ -251,6 +272,14 @@ export const AppProvider = ({ children }) => {
     } catch (e) { console.error(e); }
   };
 
+  // ─── Scope-aware category filter ────────────────────────────────
+  const getCategoriesForScope = useCallback((scopeSlug) => {
+    if (!scopeSlug) return assetCategoriesTree;
+    const scopeObj = maintenanceScopes.find(s => s.slug === scopeSlug);
+    if (!scopeObj) return assetCategoriesTree;
+    return assetCategoriesTree.filter(root => root.scopeId === scopeObj.id);
+  }, [assetCategoriesTree, maintenanceScopes]);
+
   // ─── Permission Checker ────────────────────────────────────────
   const hasPermission = useCallback((permId) => {
     if (!currentUser?.role) return false;
@@ -273,6 +302,11 @@ export const AppProvider = ({ children }) => {
       maintenanceTypesTree, setMaintenanceTypesTree,
       assetStatuses, setAssetStatuses,
       paymentMethods, setPaymentMethods,
+      movementReasons, setMovementReasons,
+      planFrequencies, setPlanFrequencies,
+      employees, setEmployees, refreshEmployees,
+      maintenanceScopes, setMaintenanceScopes,
+      getCategoriesForScope,
       getNextSeqId, setGlobalAlert,
       dbConnected, setDbConnected,
       hasPermission,

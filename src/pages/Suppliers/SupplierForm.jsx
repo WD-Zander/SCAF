@@ -24,6 +24,18 @@ const SupplierForm = () => {
 
   const initialFormState = { id: '', name: '', contact: '', phone: '', email: '', address: '', rif: '', paymentMethod: '' };
   const [formData, setFormData] = useState(initialFormState);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  const handleCancel = () => {
+    if (isDirty && !window.confirm('¿Está seguro de salir? Los cambios no guardados se perderán.')) return;
+    navigate('/suppliers');
+  };
 
   useEffect(() => {
     if (isEditMode) {
@@ -43,6 +55,7 @@ const SupplierForm = () => {
     } else {
       addSupplier(formData);
     }
+    setIsDirty(false);
     navigate('/suppliers');
   };
 
@@ -52,9 +65,9 @@ const SupplierForm = () => {
       {/* Header */}
       <div className="flex-between" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button 
-            className="btn-secondary" 
-            onClick={() => navigate('/suppliers')}
+          <button
+            className="btn-secondary"
+            onClick={handleCancel}
             style={{ padding: '8px', borderRadius: '50%' }}
             title="Volver"
           >
@@ -68,7 +81,7 @@ const SupplierForm = () => {
       </div>
 
       <div className="glass-panel form-container" style={{ overflow: 'hidden' }}>
-        <form onSubmit={handleFormSubmit}>
+        <form onSubmit={handleFormSubmit} onInput={() => setIsDirty(true)}>
           <div style={{ padding: '32px 40px' }}>
             
             <div className="form-section">
@@ -133,7 +146,7 @@ const SupplierForm = () => {
             borderTop: '1px solid var(--glass-border)', display: 'flex', 
             justifyContent: 'flex-end', gap: '16px' 
           }}>
-            <button type="button" className="btn-secondary" onClick={() => navigate('/suppliers')}>
+            <button type="button" className="btn-secondary" onClick={handleCancel}>
               Cancelar
             </button>
             <button type="submit" className="btn-primary">

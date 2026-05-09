@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CalendarClock, ExternalLink, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { api } from '../../api';
+import { useAppContext } from '../../context/AppContext';
 
 const MaintenanceRescheduled = () => {
   const navigate = useNavigate();
+  const { maintenances, maintenanceScopes } = useAppContext();
+  const [searchParams] = useSearchParams();
+  const scope = searchParams.get('scope');
+  const scopeLabel = maintenanceScopes.find(s => s.slug === scope)?.nombre || '';
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,8 +35,14 @@ const MaintenanceRescheduled = () => {
     load();
   }, []);
 
-  const totalPages = Math.ceil(records.length / ITEMS_PER_PAGE);
-  const paginatedRecords = records.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const filteredRecords = useMemo(() => {
+    if (!scope) return records;
+    const scopeTicketIds = new Set(maintenances.filter(m => m.scope === scope).map(m => m.id));
+    return records.filter(r => scopeTicketIds.has(r.ticketId));
+  }, [records, scope, maintenances]);
+
+  const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
+  const paginatedRecords = filteredRecords.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const fmt = (dateStr) => {
     if (!dateStr) return '—';
@@ -50,6 +61,7 @@ const MaintenanceRescheduled = () => {
         <div>
           <h1 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <CalendarClock className="text-accent" size={30} /> Mantenimientos Reprogramados
+            {scopeLabel && <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent-primary)', fontWeight: 600 }}>{scopeLabel}</span>}
           </h1>
           <p className="text-muted">
             Historial de todos los mantenimientos a los que se les modificó la fecha, con su motivo registrado.

@@ -3,9 +3,6 @@ import { logAudit } from '../utils/auditLogger.js';
 
 export const getMaintenances = async (req, res) => {
   try {
-    // Ventana de fecha: por defecto 12 meses atrás → 18 meses adelante.
-    // El cliente puede pasar ?from=YYYY-MM-DD&to=YYYY-MM-DD para sobreescribir,
-    // o ?all=true para obtener todos los registros históricos (lento en BD grande).
     const all = req.query.all === 'true';
     const from = req.query.from || null;
     const to   = req.query.to   || null;
@@ -25,23 +22,55 @@ export const getMaintenances = async (req, res) => {
       }
     }
 
-    const result = await r.query(`
-      SELECT
-        m.ID as id, m.ID_ACTIVO as assetId, m.TITULO as title,
-        m.ID_TIPO_MANT as typeId, t.NOMBRE as type,
-        m.ID_PROVEEDOR as providerId, ISNULL(s.NOMBRE, 'Interno') as provider,
-        u.NOMBRE as assignedTo,
-        FORMAT(m.FECHA_INICIO, 'yyyy-MM-dd') as startDate, FORMAT(m.FECHA_FIN, 'yyyy-MM-dd') as endDate,
-        m.ESTADO as status, m.COSTO as cost, m.DESCRIPCION as description,
-        m.ID_PLAN as planId, m.ID_ORDEN_TRAB as workOrderId
-      FROM TICKET_MANT m
-      LEFT JOIN TIPO_MANT t ON m.ID_TIPO_MANT = t.ID
-      LEFT JOIN PROVEEDOR s ON m.ID_PROVEEDOR = s.ID
-      LEFT JOIN USUARIO u ON m.ID_ASIGNADO = u.ID
-      WHERE m.BORRADO = 0
-      ${dateFilter}
-      ORDER BY m.FECHA_INICIO ASC
-    `);
+    // Intentar con columnas de scope (ID_SCOPE / SCOPE_MANT).
+    // Si la migración aún no se ejecutó, cae al query base sin ellas.
+    let result;
+    try {
+      result = await r.query(`
+        SELECT
+          m.ID as id, m.ID_ACTIVO as assetId, m.TITULO as title,
+          m.ID_TIPO_MANT as typeId, t.NOMBRE as type,
+          m.ID_PROVEEDOR as providerId, ISNULL(s.NOMBRE, 'Interno') as provider,
+          u.NOMBRE as assignedTo,
+          FORMAT(m.FECHA_INICIO, 'yyyy-MM-dd') as startDate, FORMAT(m.FECHA_FIN, 'yyyy-MM-dd') as endDate,
+          m.ESTADO as status, m.COSTO as cost, m.DESCRIPCION as description,
+          m.ID_PLAN as planId, m.ID_ORDEN_TRAB as workOrderId,
+          m.ID_SCOPE as scopeId, sc.SLUG as scope
+        FROM TICKET_MANT m
+        LEFT JOIN TIPO_MANT t ON m.ID_TIPO_MANT = t.ID
+        LEFT JOIN PROVEEDOR s ON m.ID_PROVEEDOR = s.ID
+        LEFT JOIN USUARIO u ON m.ID_ASIGNADO = u.ID
+        LEFT JOIN SCOPE_MANT sc ON m.ID_SCOPE = sc.ID
+        WHERE m.BORRADO = 0
+        ${dateFilter}
+        ORDER BY m.FECHA_INICIO ASC
+      `);
+    } catch {
+      // Fallback: columnas de scope aún no existen (migración pendiente)
+      const r2 = db.request();
+      if (from && to) {
+        r2.input('from', sql.Date, from);
+        r2.input('to',   sql.Date, to);
+      }
+      result = await r2.query(`
+        SELECT
+          m.ID as id, m.ID_ACTIVO as assetId, m.TITULO as title,
+          m.ID_TIPO_MANT as typeId, t.NOMBRE as type,
+          m.ID_PROVEEDOR as providerId, ISNULL(s.NOMBRE, 'Interno') as provider,
+          u.NOMBRE as assignedTo,
+          FORMAT(m.FECHA_INICIO, 'yyyy-MM-dd') as startDate, FORMAT(m.FECHA_FIN, 'yyyy-MM-dd') as endDate,
+          m.ESTADO as status, m.COSTO as cost, m.DESCRIPCION as description,
+          m.ID_PLAN as planId, m.ID_ORDEN_TRAB as workOrderId,
+          NULL as scopeId, 'activo' as scope
+        FROM TICKET_MANT m
+        LEFT JOIN TIPO_MANT t ON m.ID_TIPO_MANT = t.ID
+        LEFT JOIN PROVEEDOR s ON m.ID_PROVEEDOR = s.ID
+        LEFT JOIN USUARIO u ON m.ID_ASIGNADO = u.ID
+        WHERE m.BORRADO = 0
+        ${dateFilter}
+        ORDER BY m.FECHA_INICIO ASC
+      `);
+    }
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ error: 'Error consultando mantenimientos', detalle: err.message });
@@ -50,48 +79,80 @@ export const getMaintenances = async (req, res) => {
 
 export const createMaintenance = async (req, res) => {
   try {
-    const { id, assetId, title, typeId, type, providerId, provider, assignedTo, startDate, endDate, status, cost, description, planId, workOrderId } = req.body;
+    const { id, assetId, title, typeId, type, providerId, provider, assignedTo, startDate, endDate, status, cost, description, planId, workOrderId, scope } = req.body;
     const db = await getPool();
-    await db.request()
-      .input('id', sql.VarChar, id)
-      .input('assetId', sql.VarChar, assetId)
-      .input('title', sql.VarChar, title)
-      .input('typeId', sql.VarChar, typeId || null)
-      .input('type', sql.VarChar, type || '')
-      .input('providerId', sql.VarChar, providerId || null)
-      .input('provider', sql.VarChar, provider || '')
-      .input('assignedTo', sql.VarChar, assignedTo || '')
-      .input('startDate', sql.Date, startDate)
-      .input('endDate', sql.Date, endDate || null)
-      .input('status', sql.VarChar, status)
-      .input('cost', sql.Decimal, cost || 0)
-      .input('desc', sql.NVarChar, description || '')
-      .input('planId', sql.VarChar, planId || null)
-      .input('workOrderId', sql.VarChar, workOrderId || null)
-      .query(`
-        INSERT INTO TICKET_MANT (ID, ID_ACTIVO, TITULO, ID_TIPO_MANT, ID_PROVEEDOR, ID_ASIGNADO, FECHA_INICIO, FECHA_FIN, ESTADO, COSTO, DESCRIPCION, ID_PLAN, ID_ORDEN_TRAB)
-        VALUES (@id, @assetId, @title,
-          COALESCE(@typeId, COALESCE(
-            (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
-            (SELECT TOP 1 ID FROM TIPO_MANT)
-          )),
-          COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
-          (SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
-          @startDate, @endDate, @status, @cost, @desc, @planId, @workOrderId)
-      `);
+
+    // Intentar con columna ID_SCOPE. Si la migración no se ejecutó aún, usar INSERT sin esa columna.
+    try {
+      await db.request()
+        .input('id', sql.VarChar, id)
+        .input('assetId', sql.VarChar, assetId)
+        .input('title', sql.VarChar, title)
+        .input('typeId', sql.VarChar, typeId || null)
+        .input('type', sql.VarChar, type || '')
+        .input('providerId', sql.VarChar, providerId || null)
+        .input('provider', sql.VarChar, provider || '')
+        .input('assignedTo', sql.VarChar, assignedTo || '')
+        .input('startDate', sql.Date, startDate)
+        .input('endDate', sql.Date, endDate || null)
+        .input('status', sql.VarChar, status)
+        .input('cost', sql.Decimal, cost || 0)
+        .input('desc', sql.NVarChar, description || '')
+        .input('planId', sql.VarChar, planId || null)
+        .input('workOrderId', sql.VarChar, workOrderId || null)
+        .input('scope', sql.VarChar, scope || 'activo')
+        .query(`
+          INSERT INTO TICKET_MANT (ID, ID_ACTIVO, TITULO, ID_TIPO_MANT, ID_PROVEEDOR, ID_ASIGNADO, FECHA_INICIO, FECHA_FIN, ESTADO, COSTO, DESCRIPCION, ID_PLAN, ID_ORDEN_TRAB, ID_SCOPE)
+          VALUES (@id, @assetId, @title,
+            COALESCE(@typeId, COALESCE(
+              (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
+              (SELECT TOP 1 ID FROM TIPO_MANT)
+            )),
+            COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
+            (SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
+            @startDate, @endDate, @status, @cost, @desc, @planId, @workOrderId,
+            (SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG = @scope))
+        `);
+    } catch {
+      // Fallback: sin columna ID_SCOPE
+      await db.request()
+        .input('id', sql.VarChar, id)
+        .input('assetId', sql.VarChar, assetId)
+        .input('title', sql.VarChar, title)
+        .input('typeId', sql.VarChar, typeId || null)
+        .input('type', sql.VarChar, type || '')
+        .input('providerId', sql.VarChar, providerId || null)
+        .input('provider', sql.VarChar, provider || '')
+        .input('assignedTo', sql.VarChar, assignedTo || '')
+        .input('startDate', sql.Date, startDate)
+        .input('endDate', sql.Date, endDate || null)
+        .input('status', sql.VarChar, status)
+        .input('cost', sql.Decimal, cost || 0)
+        .input('desc', sql.NVarChar, description || '')
+        .input('planId', sql.VarChar, planId || null)
+        .input('workOrderId', sql.VarChar, workOrderId || null)
+        .query(`
+          INSERT INTO TICKET_MANT (ID, ID_ACTIVO, TITULO, ID_TIPO_MANT, ID_PROVEEDOR, ID_ASIGNADO, FECHA_INICIO, FECHA_FIN, ESTADO, COSTO, DESCRIPCION, ID_PLAN, ID_ORDEN_TRAB)
+          VALUES (@id, @assetId, @title,
+            COALESCE(@typeId, COALESCE(
+              (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
+              (SELECT TOP 1 ID FROM TIPO_MANT)
+            )),
+            COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
+            (SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
+            @startDate, @endDate, @status, @cost, @desc, @planId, @workOrderId)
+        `);
+    }
 
     if (planId) {
       const monthIndex = req.body.monthIndex || 1;
-
       await db.request()
         .input('ticketId', sql.VarChar, id)
         .input('planId', sql.VarChar, planId)
         .input('mIdx', sql.Int, monthIndex)
         .query(`
           INSERT INTO TAREA_TICKET (ID_TICKET, DESCRIPCION)
-          SELECT
-            @ticketId,
-            DESCRIPCION
+          SELECT @ticketId, DESCRIPCION
           FROM TAREA_PLAN
           WHERE ID_PLAN = @planId
           AND (
@@ -108,10 +169,7 @@ export const createMaintenance = async (req, res) => {
       await db.request()
         .input('ticketId', sql.VarChar, id)
         .input('taskDesc', sql.NVarChar, req.body.singleTask)
-        .query(`
-          INSERT INTO TAREA_TICKET (ID_TICKET, DESCRIPCION)
-          VALUES (@ticketId, @taskDesc)
-        `);
+        .query(`INSERT INTO TAREA_TICKET (ID_TICKET, DESCRIPCION) VALUES (@ticketId, @taskDesc)`);
     }
 
     await logAudit(req, 'POST', 'Mantenimientos', id, `Ticket ${type} abierto para el activo ${assetId}: ${title}`);
@@ -121,11 +179,10 @@ export const createMaintenance = async (req, res) => {
 
 export const updateMaintenance = async (req, res) => {
   try {
-    const { assetId, title, typeId, type, providerId, provider, assignedTo, startDate, endDate, status, cost, description, reprogramReason } = req.body;
+    const { assetId, title, typeId, type, providerId, provider, assignedTo, startDate, endDate, status, cost, description, reprogramReason, scope } = req.body;
     const db = await getPool();
     const ticketId = req.params.id;
 
-    // Obtener fechas actuales para detectar si hubo reprogramación
     const current = await db.request()
       .input('id', sql.VarChar, ticketId)
       .query(`SELECT FORMAT(FECHA_INICIO,'yyyy-MM-dd') as startDate, FORMAT(FECHA_FIN,'yyyy-MM-dd') as endDate FROM TICKET_MANT WHERE ID=@id`);
@@ -133,40 +190,72 @@ export const updateMaintenance = async (req, res) => {
     const prev = current.recordset[0] || {};
     const dateChanged = prev.startDate !== startDate || prev.endDate !== (endDate || null);
 
-    // Si se cambió la fecha, la razón es obligatoria
     if (dateChanged && !reprogramReason?.trim()) {
       return res.status(400).json({ error: 'Debes indicar el motivo de la reprogramación al cambiar las fechas.' });
     }
 
-    await db.request()
-      .input('id', sql.VarChar, ticketId)
-      .input('assetId', sql.VarChar, assetId)
-      .input('title', sql.VarChar, title)
-      .input('typeId', sql.VarChar, typeId || null)
-      .input('type', sql.VarChar, type || '')
-      .input('providerId', sql.VarChar, providerId || null)
-      .input('provider', sql.VarChar, provider || '')
-      .input('assignedTo', sql.VarChar, assignedTo || '')
-      .input('startDate', sql.Date, startDate)
-      .input('endDate', sql.Date, endDate || null)
-      .input('status', sql.VarChar, status)
-      .input('cost', sql.Decimal, cost || 0)
-      .input('desc', sql.NVarChar, description || '')
-      .query(`
-        UPDATE TICKET_MANT SET
-          ID_ACTIVO=@assetId, TITULO=@title,
-          ID_TIPO_MANT=COALESCE(@typeId, COALESCE(
-            (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
-            (SELECT TOP 1 ID FROM TIPO_MANT)
-          )),
-          ID_PROVEEDOR=COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
-          ID_ASIGNADO=(SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
-          FECHA_INICIO=@startDate, FECHA_FIN=@endDate, ESTADO=@status, COSTO=@cost, DESCRIPCION=@desc,
-          FECHA_ACT=GETUTCDATE()
-        WHERE ID=@id
-      `);
+    // Intentar UPDATE con ID_SCOPE; fallback sin esa columna
+    try {
+      await db.request()
+        .input('id', sql.VarChar, ticketId)
+        .input('assetId', sql.VarChar, assetId)
+        .input('title', sql.VarChar, title)
+        .input('typeId', sql.VarChar, typeId || null)
+        .input('type', sql.VarChar, type || '')
+        .input('providerId', sql.VarChar, providerId || null)
+        .input('provider', sql.VarChar, provider || '')
+        .input('assignedTo', sql.VarChar, assignedTo || '')
+        .input('startDate', sql.Date, startDate)
+        .input('endDate', sql.Date, endDate || null)
+        .input('status', sql.VarChar, status)
+        .input('cost', sql.Decimal, cost || 0)
+        .input('desc', sql.NVarChar, description || '')
+        .input('scope', sql.VarChar, scope || 'activo')
+        .query(`
+          UPDATE TICKET_MANT SET
+            ID_ACTIVO=@assetId, TITULO=@title,
+            ID_TIPO_MANT=COALESCE(@typeId, COALESCE(
+              (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
+              (SELECT TOP 1 ID FROM TIPO_MANT)
+            )),
+            ID_PROVEEDOR=COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
+            ID_ASIGNADO=(SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
+            FECHA_INICIO=@startDate, FECHA_FIN=@endDate, ESTADO=@status, COSTO=@cost, DESCRIPCION=@desc,
+            ID_SCOPE=(SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG = @scope),
+            FECHA_ACT=GETUTCDATE()
+          WHERE ID=@id
+        `);
+    } catch {
+      // Fallback sin ID_SCOPE
+      await db.request()
+        .input('id', sql.VarChar, ticketId)
+        .input('assetId', sql.VarChar, assetId)
+        .input('title', sql.VarChar, title)
+        .input('typeId', sql.VarChar, typeId || null)
+        .input('type', sql.VarChar, type || '')
+        .input('providerId', sql.VarChar, providerId || null)
+        .input('provider', sql.VarChar, provider || '')
+        .input('assignedTo', sql.VarChar, assignedTo || '')
+        .input('startDate', sql.Date, startDate)
+        .input('endDate', sql.Date, endDate || null)
+        .input('status', sql.VarChar, status)
+        .input('cost', sql.Decimal, cost || 0)
+        .input('desc', sql.NVarChar, description || '')
+        .query(`
+          UPDATE TICKET_MANT SET
+            ID_ACTIVO=@assetId, TITULO=@title,
+            ID_TIPO_MANT=COALESCE(@typeId, COALESCE(
+              (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
+              (SELECT TOP 1 ID FROM TIPO_MANT)
+            )),
+            ID_PROVEEDOR=COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
+            ID_ASIGNADO=(SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
+            FECHA_INICIO=@startDate, FECHA_FIN=@endDate, ESTADO=@status, COSTO=@cost, DESCRIPCION=@desc,
+            FECHA_ACT=GETUTCDATE()
+          WHERE ID=@id
+        `);
+    }
 
-    // Registrar reprogramación si hubo cambio de fecha
     if (dateChanged && reprogramReason?.trim()) {
       await db.request()
         .input('ticketId', sql.VarChar, ticketId)
@@ -233,22 +322,15 @@ export const deleteMaintenance = async (req, res) => {
     const { estado, tareasCompletadas, reprogramaciones } = refs.recordset[0];
 
     if (estado === 'COMPLETADO') {
-      return res.status(409).json({
-        error: 'Este mantenimiento ya fue completado y forma parte del historial operacional. Puede editar su estado pero no eliminarlo.'
-      });
+      return res.status(409).json({ error: 'Este mantenimiento ya fue completado y forma parte del historial operacional.' });
     }
     if (tareasCompletadas > 0) {
-      return res.status(409).json({
-        error: `Este ticket tiene ${tareasCompletadas} tarea(s) completada(s). No puede eliminarse; puede reprogramarlo o cambiar su estado.`
-      });
+      return res.status(409).json({ error: `Este ticket tiene ${tareasCompletadas} tarea(s) completada(s). No puede eliminarse.` });
     }
     if (reprogramaciones > 0) {
-      return res.status(409).json({
-        error: `Este ticket tiene ${reprogramaciones} reprogramación(es) registrada(s). No puede eliminarse para preservar el historial.`
-      });
+      return res.status(409).json({ error: `Este ticket tiene ${reprogramaciones} reprogramación(es) registrada(s). No puede eliminarse.` });
     }
 
-    // Eliminar dependencias primero y luego el ticket físicamente
     await db.request().input('id', sql.VarChar, ticketId).query(`DELETE FROM TAREA_TICKET WHERE ID_TICKET=@id`);
     await db.request().input('id', sql.VarChar, ticketId).query(`DELETE FROM REPROGRAMACION WHERE ID_TICKET=@id`);
     await db.request().input('id', sql.VarChar, ticketId).query(`DELETE FROM TICKET_MANT WHERE ID=@id`);

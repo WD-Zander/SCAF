@@ -129,6 +129,33 @@ const MAPPING_STEPS = [
         'Observaciones':     '',
       }
     ]
+  },
+  {
+    id: 'maintenancePlans',
+    name: '8. Planes de Mantenimiento',
+    endpoint: '/api/maintenance-plans/batch',
+    hint: 'Sube la cabecera de los planes. Requerido: Codigo_plan (o Id_plan), Descripcion_del_plan y Sublinea.',
+    templateData: [
+      {
+        'Codigo_plan': 'PLAN-0002',
+        'Descripcion_del_plan': 'Mantenimiento Preventivo Semanal Ascensores',
+        'Sublinea': 'Ascensores',
+        'Frecuencia': 'Semanal'
+      }
+    ]
+  },
+  {
+    id: 'maintenanceTasks',
+    name: '9. Tareas de Mantenimiento',
+    endpoint: '/api/maintenance-plans/batch',
+    hint: 'Sube las tareas específicas vinculadas a cada plan. Requerido: IDPLAN (que coincida con el Codigo_plan cargado antes), Tarea_del_plan y Frecuencia.',
+    templateData: [
+      {
+        'IDPLAN': 'PLAN-0002',
+        'Tarea_del_plan': 'Achicar Ascensores Todos Los Lunes De Cada Semana',
+        'Frecuencia': 'Semanal'
+      }
+    ]
   }
 ];
 
@@ -232,6 +259,21 @@ const ImportMappings = () => {
               address:       (row['Dirección']     || row['DIR']         || '').toString().trim(),
               paymentMethod: (row['Forma de Pago'] || row['ID_FORMA_PAGO']|| '').toString().trim() || null,
             })).filter(s => s.name)
+          };
+        } else if (step.id === 'maintenancePlans') {
+          payload = {
+            plans: json.map(row => ({
+              ...row,
+              Codigo_plan: row['Codigo_plan'] || row['Id_plan'] || row['IDPLAN'],
+              Id_plan: row['Codigo_plan'] || row['Id_plan'] || row['IDPLAN']
+            }))
+          };
+        } else if (step.id === 'maintenanceTasks') {
+          payload = {
+            tasks: json.map(row => ({
+              ...row,
+              'Descripcion del plan de Mmto': row['IDPLAN'] || row['Descripcion del plan de Mmto'] || row['Codigo_plan']
+            }))
           };
         } else {
           payload = { items: json };

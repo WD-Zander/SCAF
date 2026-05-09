@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { UploadCloud, Plus, Calendar, Trash2, Edit2, Activity, AlignLeft, ArrowUpDown, ClipboardList } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -11,8 +11,11 @@ const toTitleCase = (str) => {
 };
 
 const MaintenanceRoutines = () => {
-  const { maintenancePlans, setMaintenancePlans, setGlobalAlert, hasPermission } = useAppContext();
+  const { maintenancePlans, setMaintenancePlans, setGlobalAlert, hasPermission, maintenanceScopes } = useAppContext();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const scope = searchParams.get('scope');
+  const scopeLabel = maintenanceScopes.find(s => s.slug === scope)?.nombre || '';
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [viewingPlan, setViewingPlan] = useState(null);
@@ -26,7 +29,9 @@ const MaintenanceRoutines = () => {
   };
 
   const processedPlans = useMemo(() => {
-    let sorted = [...maintenancePlans];
+    let sorted = scope
+      ? maintenancePlans.filter(p => p.scope === scope)
+      : [...maintenancePlans];
     sorted.sort((a, b) => {
       let aVal = a[sortConfig.key] || '';
       let bVal = b[sortConfig.key] || '';
@@ -88,18 +93,21 @@ const MaintenanceRoutines = () => {
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
       <div className="flex-between" style={{ marginBottom: '32px' }}>
         <div>
-          <h1 style={{ marginBottom: '8px' }}>Programación de Rutinas</h1>
+          <h1 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            Programación de Rutinas
+            {scopeLabel && <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent-primary)', fontWeight: 600 }}>{scopeLabel}</span>}
+          </h1>
           <p className="text-muted">Protocolos de mantenimiento agrupados por categoría de activos.</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           {hasPermission('maintenances_create') && (
-            <button className="btn-secondary" onClick={() => navigate('/maintenances/planner')}
+            <button className="btn-secondary" onClick={() => navigate(`/maintenances/planner${scope ? `?scope=${scope}` : ''}`)}
               style={{ display:'flex', alignItems:'center', gap:'6px', borderColor:'var(--accent-primary)', color:'var(--accent-primary)' }}>
               <ClipboardList size={20} /> Nueva Orden de Trabajo
             </button>
           )}
           {hasPermission('maintenances_create') && (
-            <button className="btn-primary" onClick={() => navigate('/maintenances/routines/new')}>
+            <button className="btn-primary" onClick={() => navigate(`/maintenances/routines/new${scope ? `?scope=${scope}` : ''}`)}>
               <Plus size={20} /> Nuevo Plan
             </button>
           )}
@@ -181,7 +189,7 @@ const MaintenanceRoutines = () => {
                       )}
                       {hasPermission('maintenances_create') && (
                         <button className="btn-primary" style={{ background: 'var(--success)', padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                          onClick={() => navigate(`/maintenances/planner/${plan.Id}`)}>
+                          onClick={() => navigate(`/maintenances/planner/${plan.Id}${scope ? `?scope=${scope}` : ''}`)}>
                           <Calendar size={16} /> Programar
                         </button>
                       )}

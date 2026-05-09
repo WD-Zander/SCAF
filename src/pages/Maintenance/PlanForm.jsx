@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { Check, ArrowLeft, Plus, X, ChevronDown } from 'lucide-react';
 import { api } from '../../api';
@@ -12,27 +12,46 @@ const toTitleCase = (str) => {
 const PlanForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { maintenancePlans, setMaintenancePlans, assetCategoriesTree, setGlobalAlert } = useAppContext();
+  const [searchParams] = useSearchParams();
+  const { maintenancePlans, setMaintenancePlans, assetCategoriesTree, planFrequencies, setGlobalAlert, maintenanceScopes, getCategoriesForScope } = useAppContext();
+  // Inherit scope from the routines page URL (passed via navigate state or searchParams)
+  const inheritedScope = searchParams.get('scope') || null;
   const isEditing = Boolean(id);
+
+  // Frecuencia por defecto: la primera de la BD o 'Mensual' como fallback
+  const defaultFreq = (freqs) => freqs?.find(f => f.active !== false)?.name || 'Mensual';
 
   const [formData, setFormData] = useState({
     Code: '',
-    CategoryId: '',     // ID de la categoría raíz seleccionada
-    CategoryName: '',   // Nombre de la categoría raíz
-    FamilyId: '',       // ID de la familia (hijo de categoría)
-    FamilyName: '',     // Nombre de la familia
+    CategoryId: '',
+    CategoryName: '',
+    FamilyId: '',
+    FamilyName: '',
     Description: '',
-    PlanFrequency: 'Mensual'
+    PlanFrequency: 'Mensual',
+    scope: inheritedScope || ''
   });
   const [tasks, setTasks] = useState([{ TaskDescription: '', Frequency: 'Mensual' }]);
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  const handleCancel = () => {
+    if (isDirty && !window.confirm('¿Está seguro de salir? Los cambios no guardados se perderán.')) return;
+    navigate(-1);
+  };
 
   // ── Derivar árbol de categorías desde el contexto ──────────────────
-  // La API devuelve árbol anidado: [{ id, name, children: [...] }]
-  // Las raíces son los elementos de primer nivel del árbol
+  // Si hay inheritedScope, filtra solo categorías raíz de ese módulo
   const rootCategories = useMemo(() => {
-    return assetCategoriesTree; // top-level = categorías raíz
-  }, [assetCategoriesTree]);
+    if (inheritedScope) return getCategoriesForScope(inheritedScope);
+    return assetCategoriesTree;
+  }, [assetCategoriesTree, inheritedScope, getCategoriesForScope]);
 
   // Familias: children del nodo raíz seleccionado
   const families = useMemo(() => {
@@ -53,7 +72,8 @@ const PlanForm = () => {
           FamilyId: plan.FamilyId || '',
           FamilyName: plan.FamilyName || '',
           Description: plan.Description,
-          PlanFrequency: plan.PlanFrequency || 'Mensual'
+          PlanFrequency: plan.PlanFrequency || 'Mensual',
+          scope: plan.scope || inheritedScope || ''
         });
         setTasks(
           plan.tasks?.length > 0
@@ -76,12 +96,19 @@ const PlanForm = () => {
   const handleCategoryChange = (e) => {
     const selectedId = e.target.value;
     const selectedCat = rootCategories.find(c => c.id === selectedId);
+    // Auto-derive scope from category's scopeId
+    let autoScope = formData.scope;
+    if (selectedCat?.scopeId) {
+      const scopeObj = maintenanceScopes.find(s => s.id === selectedCat.scopeId);
+      if (scopeObj) autoScope = scopeObj.slug;
+    }
     setFormData(prev => ({
       ...prev,
       CategoryId: selectedId,
       CategoryName: selectedCat?.name || '',
       FamilyId: '',
-      FamilyName: ''
+      FamilyName: '',
+      scope: autoScope
     }));
   };
 
@@ -114,7 +141,8 @@ const PlanForm = () => {
           CategoryId: formData.CategoryId,
           FamilyId: formData.FamilyId,
           FamilyName: formData.FamilyName,
-          PlanFrequency: formData.PlanFrequency
+          PlanFrequency: formData.PlanFrequency,
+          scope: formData.scope || null
         });
         const cleanTasks = tasks.filter(t => t.TaskDescription.trim());
         await api.put(`/api/maintenance-plans/${id}/tasks`, { tasks: cleanTasks });
@@ -130,7 +158,9 @@ const PlanForm = () => {
           CategoryId: formData.CategoryId,
           FamilyId: formData.FamilyId,
           FamilyName: formData.FamilyName,
-          Frecuencia: formData.PlanFrequency || 'Mensual'
+          Frecuencia: formData.PlanFrequency || 'Mensual',
+          scope: formData.scope || null,
+          Scope: formData.scope || null
         };
         const payloadTasks = tasks.filter(t => t.TaskDescription.trim()).map((t, idx) => ({
           Id_Tarea: `TSK-${Date.now()}-${idx}`,
@@ -152,6 +182,7 @@ const PlanForm = () => {
       // Refetch plans
       const refetch = await api.get('/api/maintenance-plans');
       if (refetch?.ok) setMaintenancePlans(await refetch.json());
+      setIsDirty(false);
       navigate('/maintenances/routines');
     } catch (e) {
       setGlobalAlert({ isOpen: true, title: 'Error', message: 'No se pudo guardar: ' + e.message });
@@ -165,7 +196,7 @@ const PlanForm = () => {
         <div>
           <button
             className="btn-secondary"
-            onClick={() => navigate('/maintenances/routines')}
+            onClick={handleCancel}
             style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <ArrowLeft size={18} /> Volver a Programación
@@ -179,10 +210,24 @@ const PlanForm = () => {
         </div>
       </div>
 
-      <div className="glass-panel" style={{ padding: '32px' }}>
+      <div className="glass-panel" style={{ padding: '32px' }} onInput={() => setIsDirty(true)}>
         <h2 style={{ fontSize: '1.1rem', marginBottom: '24px', paddingBottom: '12px', borderBottom: '1px solid var(--glass-border)' }}>
           Información del Protocolo
         </h2>
+
+        <div className="input-group" style={{ marginBottom: '20px' }}>
+          <label>Módulo de Mantenimiento</label>
+          <select
+            className="input-control"
+            value={formData.scope || ''}
+            onChange={e => { setFormData(prev => ({ ...prev, scope: e.target.value })); setIsDirty(true); }}
+          >
+            <option value="">— Sin módulo específico —</option>
+            {maintenanceScopes.filter(s => s.activo !== false).map(s => (
+              <option key={s.id} value={s.slug}>{s.nombre}</option>
+            ))}
+          </select>
+        </div>
 
         <div className="form-grid-2">
           <div className="input-group">
@@ -202,11 +247,14 @@ const PlanForm = () => {
               value={formData.PlanFrequency}
               onChange={e => setFormData({ ...formData, PlanFrequency: e.target.value })}
             >
-              <option value="Mensual">Mensual (12 veces/año)</option>
-              <option value="Bimestral">Bimestral (6 veces/año)</option>
-              <option value="Trimestral">Trimestral (4 veces/año)</option>
-              <option value="Semestral">Semestral (2 veces/año)</option>
-              <option value="Anual">Anual (1 vez/año)</option>
+              {planFrequencies.length > 0
+                ? planFrequencies.filter(f => f.active !== false).map(f => (
+                    <option key={f.id} value={f.name}>
+                      {f.name}{f.description ? ` — ${f.description}` : ''}
+                    </option>
+                  ))
+                : <option value={formData.PlanFrequency}>{formData.PlanFrequency}</option>
+              }
             </select>
           </div>
         </div>
@@ -356,11 +404,12 @@ const PlanForm = () => {
                     const t = [...tasks]; t[index].Frequency = e.target.value; setTasks(t);
                   }}
                 >
-                  <option>Mensual</option>
-                  <option>Bimestral</option>
-                  <option>Trimestral</option>
-                  <option>Semestral</option>
-                  <option>Anual</option>
+                  {planFrequencies.length > 0
+                    ? planFrequencies.filter(f => f.active !== false).map(f => (
+                        <option key={f.id} value={f.name}>{f.name}</option>
+                      ))
+                    : <option value={task.Frequency}>{task.Frequency}</option>
+                  }
                 </select>
               </div>
               <button
@@ -376,14 +425,14 @@ const PlanForm = () => {
             type="button"
             className="btn-secondary"
             style={{ alignSelf: 'flex-start', fontSize: '0.85rem', marginTop: '8px' }}
-            onClick={() => setTasks([...tasks, { TaskDescription: '', Frequency: 'Mensual' }])}
+            onClick={() => setTasks([...tasks, { TaskDescription: '', Frequency: defaultFreq(planFrequencies) }])}
           >
             <Plus size={16} /> Agregar Tarea
           </button>
         </div>
 
         <div style={{ marginTop: '40px', display: 'flex', gap: '16px', justifyContent: 'flex-end', borderTop: '1px solid var(--glass-border)', paddingTop: '24px' }}>
-          <button className="btn-secondary" onClick={() => navigate('/maintenances/routines')}>Cancelar</button>
+          <button className="btn-secondary" onClick={handleCancel}>Cancelar</button>
           <button className="btn-primary" onClick={handleSubmit} disabled={saving}>
             <Check size={18} /> {saving ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Crear Protocolo')}
           </button>

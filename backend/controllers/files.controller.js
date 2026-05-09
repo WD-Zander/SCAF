@@ -7,6 +7,8 @@ const getEntityTable = (entity) => {
   if (entity === 'maintenanceTypes') return 'TIPO_MANT';
   if (entity === 'paymentMethods') return 'FORMA_PAGO';
   if (entity === 'assetStatuses') return 'ESTADO_ACTIVO';
+  if (entity === 'movementReasons') return 'MOTIVO_MOVIMIENTO';
+  if (entity === 'planFrequencies') return 'FRECUENCIA_PLAN';
   return null;
 };
 
@@ -16,6 +18,7 @@ const buildTree = (data, parentId = null) => {
   return children.map(child => ({
     id: child.ID,
     name: child.NOMBRE,
+    scopeId: child.ID_SCOPE || null,
     children: buildTree(data, child.ID)
   }));
 };
@@ -28,8 +31,17 @@ export const getFiles = async (req, res) => {
     const db = await getPool();
     const result = await db.request().query(`SELECT * FROM ${table}`);
 
-    if (['TIPO_MANT', 'ESTADO_ACTIVO', 'FORMA_PAGO'].includes(table)) {
-      res.json(result.recordset.map(r => ({ id: r.ID, name: r.NOMBRE, children: [] })));
+    if (['TIPO_MANT', 'ESTADO_ACTIVO', 'FORMA_PAGO', 'MOTIVO_MOVIMIENTO', 'FRECUENCIA_PLAN'].includes(table)) {
+      // Para FRECUENCIA_PLAN incluimos descripción y veces/año
+      res.json(result.recordset.map(r => ({
+        id: r.ID,
+        name: r.NOMBRE,
+        description: r.DESCRIPCION || null,
+        timesPerYear: r.VECES_ANO || null,
+        active: r.ACTIVO !== 0,
+        order: r.ORDEN || 99,
+        children: []
+      })).sort((a, b) => (a.order || 99) - (b.order || 99)));
     } else {
       res.json(buildTree(result.recordset, null));
     }
@@ -44,24 +56,39 @@ export const createFile = async (req, res) => {
     const { name, parentId } = req.body;
     const db = await getPool();
 
-    if (['ESTADO_ACTIVO', 'FORMA_PAGO'].includes(table)) {
+    if (['ESTADO_ACTIVO', 'FORMA_PAGO', 'MOTIVO_MOVIMIENTO', 'FRECUENCIA_PLAN'].includes(table)) {
       // ID es INT IDENTITY — no se pasa, lo genera el motor
       const color = req.body.color || null;
       const r = db.request().input('name', sql.VarChar, name);
       if (table === 'ESTADO_ACTIVO' && color) {
         r.input('color', sql.VarChar, color);
         await r.query(`INSERT INTO ESTADO_ACTIVO (NOMBRE, COLOR) VALUES (@name, @color)`);
+      } else if (table === 'FRECUENCIA_PLAN') {
+        const desc = req.body.description || null;
+        const veces = req.body.timesPerYear ? parseInt(req.body.timesPerYear) : null;
+        const orden = req.body.order ? parseInt(req.body.order) : 99;
+        r.input('desc', sql.NVarChar, desc).input('veces', sql.Int, veces).input('orden', sql.Int, orden);
+        await r.query(`INSERT INTO FRECUENCIA_PLAN (NOMBRE, DESCRIPCION, VECES_ANO, ORDEN) VALUES (@name, @desc, @veces, @orden)`);
       } else {
         await r.query(`INSERT INTO ${table} (NOMBRE) VALUES (@name)`);
       }
     } else {
       // TIPO_MANT, CATEGORIA, UNIDAD_ORG: usan ID alfanumérico con jerarquía
-      const { id } = req.body;
-      await db.request()
-        .input('id',   sql.VarChar, id)
-        .input('name', sql.VarChar, name)
-        .input('pid',  sql.VarChar, parentId || null)
-        .query(`INSERT INTO ${table} (ID, NOMBRE, ID_PADRE) VALUES (@id, @name, @pid)`);
+      const { id, scopeId } = req.body;
+      if (table === 'CATEGORIA' && !parentId && scopeId) {
+        await db.request()
+          .input('id',   sql.VarChar, id)
+          .input('name', sql.VarChar, name)
+          .input('pid',  sql.VarChar, null)
+          .input('scopeId', sql.Int, scopeId)
+          .query(`INSERT INTO CATEGORIA (ID, NOMBRE, ID_PADRE, ID_SCOPE) VALUES (@id, @name, @pid, @scopeId)`);
+      } else {
+        await db.request()
+          .input('id',   sql.VarChar, id)
+          .input('name', sql.VarChar, name)
+          .input('pid',  sql.VarChar, parentId || null)
+          .query(`INSERT INTO ${table} (ID, NOMBRE, ID_PADRE) VALUES (@id, @name, @pid)`);
+      }
     }
     await logAudit(req, 'POST', 'Ficheros', id || name, `Término de catálogo añadido a la entidad ${req.params.entity}: ${name}`);
     res.json({ success: true });
@@ -92,7 +119,7 @@ export const createFileBatch = async (req, res) => {
 
       // ESTADO_ACTIVO y FORMA_PAGO: ID INT IDENTITY — upsert por NOMBRE (UNIQUE)
       // TIPO_MANT, CATEGORIA, UNIDAD_ORG: usan ID alfanumérico con soporte de jerarquía
-      const isNameAsPk = ['ESTADO_ACTIVO', 'FORMA_PAGO'].includes(table);
+      const isNameAsPk = ['ESTADO_ACTIVO', 'FORMA_PAGO', 'MOTIVO_MOVIMIENTO', 'FRECUENCIA_PLAN'].includes(table);
       const id = isNameAsPk
         ? null
         : (item['ID'] ? item['ID'].toString() : `FIL-${Date.now().toString().slice(-4)}${Math.floor(Math.random()*1000)}`);
@@ -140,12 +167,22 @@ export const updateFile = async (req, res) => {
     const table = getEntityTable(req.params.entity);
     if (!table) return res.status(400).json({ error: 'Entidad inválida' });
 
-    const { name } = req.body;
+    const { name, scopeId } = req.body;
     const db = await getPool();
-    await db.request()
-      .input('id', sql.VarChar, req.params.id)
-      .input('name', sql.VarChar, name)
-      .query(`UPDATE ${table} SET NOMBRE=@name WHERE ID=@id`);
+
+    if (table === 'CATEGORIA' && scopeId !== undefined) {
+      await db.request()
+        .input('id', sql.VarChar, req.params.id)
+        .input('name', sql.VarChar, name)
+        .input('scopeId', sql.Int, scopeId || null)
+        .query(`UPDATE CATEGORIA SET NOMBRE=@name, ID_SCOPE=@scopeId WHERE ID=@id`);
+    } else {
+      await db.request()
+        .input('id', sql.VarChar, req.params.id)
+        .input('name', sql.VarChar, name)
+        .query(`UPDATE ${table} SET NOMBRE=@name WHERE ID=@id`);
+    }
+
     await logAudit(req, 'PUT', 'Ficheros', req.params.id, `Renombrado ítem de catálogo en ${req.params.entity} a: ${name}`);
     res.json({ success: true });
   } catch(e) { res.status(500).json({error: e.message}); }
@@ -157,7 +194,7 @@ export const deleteFile = async (req, res) => {
     if (!table) return res.status(400).json({ error: 'Entidad inválida' });
 
     const db = await getPool();
-    if (!['TIPO_MANT', 'ESTADO_ACTIVO', 'FORMA_PAGO'].includes(table)) {
+    if (!['TIPO_MANT', 'ESTADO_ACTIVO', 'FORMA_PAGO', 'MOTIVO_MOVIMIENTO', 'FRECUENCIA_PLAN'].includes(table)) {
       const childCheck = await db.request().input('id', sql.VarChar, req.params.id)
         .query(`SELECT COUNT(*) as c FROM ${table} WHERE ID_PADRE=@id`);
       if (childCheck.recordset[0].c > 0) {

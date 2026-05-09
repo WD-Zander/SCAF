@@ -7,7 +7,7 @@ import { api } from '../../api';
 const MovementForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { assets, organizationalTree, assetStatuses, setGlobalAlert, refreshAssets } = useAppContext();
+  const { assets, organizationalTree, assetStatuses, movementReasons, setGlobalAlert, refreshAssets } = useAppContext();
 
   const preselectedId = searchParams.get('assetId') || '';
 
@@ -19,6 +19,7 @@ const MovementForm = () => {
     newArea: '',
     newStatus: '',
     observation: '',
+    motivoId: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -45,6 +46,7 @@ const MovementForm = () => {
       newArea: a.area || '',
       newStatus: a.status || '',
       observation: '',
+      motivoId: '',
     });
   };
 
@@ -75,6 +77,7 @@ const MovementForm = () => {
         newArea: formData.newArea,
         newStatus: formData.newStatus,
         observation: formData.observation,
+        motivoId: formData.motivoId || null,
       });
       if (res?.ok) {
         await refreshAssets(); // actualiza el contexto con los nuevos datos del activo
@@ -272,6 +275,24 @@ const MovementForm = () => {
                       ))}
                     </select>
                   </div>
+                </div>
+              </div>
+
+              {/* Motivo del movimiento */}
+              <div className="form-section">
+                <div className="form-section-title">Motivo del Movimiento</div>
+                <div className="input-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '0.85rem' }}>Seleccionar Motivo</label>
+                  <select
+                    className="input-control"
+                    value={formData.motivoId}
+                    onChange={e => setFormData(prev => ({ ...prev, motivoId: e.target.value }))}
+                  >
+                    <option value="">-- Sin motivo específico --</option>
+                    {movementReasons.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

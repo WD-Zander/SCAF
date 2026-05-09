@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, Layers, Calendar as CalendarIcon, ChevronDown, ChevronUp, CheckCircle2, Circle, ExternalLink, Wrench, Trash2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../api';
@@ -20,7 +20,10 @@ const StatusBadge = ({ status, progress }) => {
 
 const WorkOrdersList = () => {
   const navigate = useNavigate();
-  const { setGlobalAlert, hasPermission, maintenances } = useAppContext();
+  const [searchParams] = useSearchParams();
+  const scope = searchParams.get('scope');
+  const { setGlobalAlert, hasPermission, maintenances, maintenanceScopes } = useAppContext();
+  const scopeLabel = maintenanceScopes.find(s => s.slug === scope)?.nombre || '';
 
   const [workOrders, setWorkOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,15 +97,17 @@ const WorkOrdersList = () => {
     setLoadingTickets(prev => ({ ...prev, [woId]: false }));
   };
 
-  const filteredOrders = workOrders.filter(w => {
+  const filteredOrders = useMemo(() => workOrders.filter(w => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = (
       w.Id?.toLowerCase().includes(term) ||
       w.PlanName?.toLowerCase().includes(term) ||
       w.AssetName?.toLowerCase().includes(term) ||
       w.AssetSerial?.toLowerCase().includes(term)
     );
-  });
+    const matchesScope = !scope || w.Scope === scope;
+    return matchesSearch && matchesScope;
+  }), [workOrders, searchTerm, scope]);
 
   const ticketStatusColor = (status) => {
     if (status === 'COMPLETADO') return 'var(--success)';
@@ -114,11 +119,14 @@ const WorkOrdersList = () => {
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
       <div className="flex-between" style={{ marginBottom: '32px' }}>
         <div>
-          <h1 style={{ marginBottom: '8px' }}>Planes en Marcha</h1>
+          <h1 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            Planes en Marcha
+            {scopeLabel && <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent-primary)', fontWeight: 600 }}>{scopeLabel}</span>}
+          </h1>
           <p className="text-muted">Supervisión de planes generales y su progreso.</p>
         </div>
         {hasPermission('maintenances_create') && (
-          <button className="btn-primary" onClick={() => navigate('/maintenances/routines')}>
+          <button className="btn-primary" onClick={() => navigate(`/maintenances/routines${scope ? `?scope=${scope}` : ''}`)}>
             <Plus size={20} /> NUEVO PLAN
           </button>
         )}
