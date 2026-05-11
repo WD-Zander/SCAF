@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import './styles/tokens.css'
 import './index.css'
 import './mobile.css'   // ← Diseño exclusivo para móvil/tablet PWA
 import App from './App.jsx'

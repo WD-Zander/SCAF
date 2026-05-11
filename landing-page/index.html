@@ -1,0 +1,3164 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCAF — Sistema de Control de Activos Fijos</title>
+  <meta name="description"
+    content="Plataforma ERP de gestión de activos fijos y mantenimiento preventivo. PWA offline, QR integrado, auditoría ISO 27001.">
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230f172a'/><text x='32' y='44' text-anchor='middle' font-family='system-ui' font-weight='700' font-size='30' letter-spacing='-1.2' fill='white'>SC</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+   SCAF Landing Page — "Precision Engineering Editorial"
+   ═══════════════════════════════════════════════════════════ */
+
+    /* ── Reset & Tokens ─────────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-base: #0a0a0f;
+      --bg-elevated: #111118;
+      --bg-surface: #1a1a24;
+      --bg-hover: #22222e;
+
+      --text-primary: #f0f0f5;
+      --text-secondary: #a0a0b4;
+      --text-muted: #5a5a72;
+
+      --accent-amber: #f59e0b;
+      --accent-copper: #d97706;
+      --accent-amber-glow: rgba(245, 158, 11, 0.15);
+      --accent-amber-border: rgba(245, 158, 11, 0.25);
+
+      --brand-blue: #2563eb;
+      --brand-blue-glow: rgba(37, 99, 235, 0.12);
+      --brand-slate: #0f172a;
+
+      --status-green: #22c55e;
+      --status-red: #ef4444;
+      --status-yellow: #eab308;
+
+      --border: rgba(255, 255, 255, 0.06);
+      --border-accent: rgba(255, 255, 255, 0.1);
+      --glass-bg: rgba(255, 255, 255, 0.03);
+
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-heading: 'Outfit', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-base);
+      color: var(--text-secondary);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    input,
+    textarea {
+      font-family: inherit;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: var(--font-heading);
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+
+    /* ── Utilities ──────────────────────────────────────────── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      overflow-wrap: break-word;
+    }
+
+    .eyebrow {
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent-amber);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+    }
+
+    .text-amber {
+      color: var(--accent-amber);
+    }
+
+    .text-gradient {
+      background: linear-gradient(135deg, var(--accent-amber), #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Buttons ────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.9rem;
+      border: none;
+      transition: all 0.25s;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-amber), var(--accent-copper));
+      color: #0a0a0f;
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.25), 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 40px rgba(245, 158, 11, 0.4), 0 6px 20px rgba(0, 0, 0, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border-accent);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent-amber-border);
+      background: var(--glass-bg);
+    }
+
+    .btn-sm {
+      padding: 10px 20px;
+      font-size: 0.82rem;
+    }
+
+    /* ── Glass Card ─────────────────────────────────────────── */
+    .glass-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .glass-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ── Reveal Animation ───────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: perspective(1200px) rotateY(-8deg) rotateX(3deg) translateY(0);
+      }
+
+      50% {
+        transform: perspective(1200px) rotateY(-8deg) rotateX(3deg) translateY(-12px);
+      }
+    }
+
+    @keyframes pulse-glow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 30px rgba(245, 158, 11, 0.25);
+      }
+
+      50% {
+        box-shadow: 0 0 50px rgba(245, 158, 11, 0.4);
+      }
+    }
+
+    @keyframes grain {
+
+      0%,
+      100% {
+        transform: translate(0, 0);
+      }
+
+      10% {
+        transform: translate(-5%, -10%);
+      }
+
+      30% {
+        transform: translate(3%, -15%);
+      }
+
+      50% {
+        transform: translate(12%, 9%);
+      }
+
+      70% {
+        transform: translate(9%, 4%);
+      }
+
+      90% {
+        transform: translate(-1%, 7%);
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   NAVIGATION
+   ═══════════════════════════════════════════════════════════ */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      transition: background 0.3s, border-color 0.3s;
+      border-bottom: 1px solid transparent;
+    }
+
+    .nav.scrolled {
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom-color: var(--border);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .logo {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .logo-accent {
+      color: var(--accent-amber);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--accent-amber);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s;
+    }
+
+    .nav-links a:hover::after {
+      transform: scaleX(1);
+    }
+
+    .nav-cta {
+      display: block;
+    }
+
+    .hamburger {
+      display: none;
+      background: transparent;
+      border: none;
+      width: 36px;
+      height: 36px;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .hamburger span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: var(--text-primary);
+      transition: all 0.3s;
+    }
+
+    /* Mobile Menu */
+    .mobile-menu {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 280px;
+      height: 100vh;
+      background: var(--bg-elevated);
+      border-left: 1px solid var(--border);
+      z-index: 1001;
+      padding: 80px 24px 24px;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .mobile-menu.open {
+      transform: translateX(0);
+    }
+
+    .mobile-menu-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .mobile-menu-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .mobile-menu a {
+      display: block;
+      padding: 14px 0;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mobile-menu a:hover {
+      color: var(--accent-amber);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════════════════════ */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      padding: 100px 0 80px;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 75% 25%, rgba(245, 158, 11, 0.06) 0%, transparent 55%),
+        radial-gradient(ellipse at 20% 80%, rgba(37, 99, 235, 0.04) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0px, transparent 1px, transparent 80px),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0px, transparent 1px, transparent 80px);
+      pointer-events: none;
+    }
+
+    .hero-noise {
+      position: absolute;
+      inset: -50%;
+      width: 200%;
+      height: 200%;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      opacity: 0.4;
+      pointer-events: none;
+      animation: grain 8s steps(10) infinite;
+    }
+
+    .hero-inner {
+      display: grid;
+      grid-template-columns: 55% 45%;
+      align-items: center;
+      gap: 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border: 1px solid var(--accent-amber-border);
+      border-radius: 999px;
+      background: var(--accent-amber-glow);
+      margin-bottom: 20px;
+    }
+
+    .hero-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-amber);
+      animation: pulse-glow 2s infinite;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 4.5vw, 3.6rem);
+      font-weight: 800;
+      margin-bottom: 20px;
+      letter-spacing: -0.03em;
+    }
+
+    .hero-br {
+      display: block;
+    }
+
+    .hero-sub {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      max-width: 520px;
+      margin-bottom: 32px;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .hero-micro {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hero-micro span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero-micro .pip {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--status-green);
+    }
+
+    /* Hero Mockup */
+    .hero-mockup-wrap {
+      position: relative;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .hero-mockup-glow {
+      position: absolute;
+      top: 10%;
+      left: -20%;
+      width: 60%;
+      height: 80%;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
+      filter: blur(40px);
+      pointer-events: none;
+    }
+
+    /* ── Mockup Frame (shared) ──────────────────────────────── */
+    .mockup-frame {
+      background: #fcfcfc;
+      border-radius: 10px;
+      border: 1px solid #e4e4e7;
+      box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      font-family: var(--font-heading);
+      font-size: 11px;
+      color: #09090b;
+    }
+
+    .mockup-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #f4f4f5;
+      border-bottom: 1px solid #e4e4e7;
+    }
+
+    .mockup-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .mockup-dot.red {
+      background: #ef4444;
+    }
+
+    .mockup-dot.yellow {
+      background: #eab308;
+    }
+
+    .mockup-dot.green {
+      background: #22c55e;
+    }
+
+    .mockup-body {
+      display: flex;
+    }
+
+    .mockup-sidebar {
+      width: 42px;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 0;
+      gap: 8px;
+    }
+
+    .mockup-sidebar .sb-item {
+      width: 22px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .mockup-sidebar .sb-item.active {
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .mockup-main {
+      flex: 1;
+      padding: 10px;
+    }
+
+    /* Dashboard mockup */
+    .mock-kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .mock-kpi {
+      background: #fff;
+      border: 1px solid #e4e4e7;
+      border-radius: 6px;
+      padding: 8px;
+    }
+
+    .mock-kpi-label {
+      font-size: 7px;
+      color: #71717a;
+      margin-bottom: 2px;
+    }
+
+    .mock-kpi-value {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .mock-kpi-value.green {
+      color: #15803d;
+    }
+
+    .mock-kpi-value.amber {
+      color: #b45309;
+    }
+
+    .mock-kpi-value.blue {
+      color: #2563eb;
+    }
+
+    .mock-kpi-value.red {
+      color: #b91c1c;
+    }
+
+    .mock-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 48px;
+      padding: 4px 0;
+    }
+
+    .mock-bar {
+      flex: 1;
+      border-radius: 2px 2px 0 0;
+      background: linear-gradient(to top, #0f172a, #1e293b);
+    }
+
+    .mock-bar:nth-child(2) {
+      background: linear-gradient(to top, #f59e0b, #fbbf24);
+    }
+
+    .mock-bar:nth-child(5) {
+      background: linear-gradient(to top, #2563eb, #60a5fa);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   HOOK SECTION — Emotional anchor
+   ═══════════════════════════════════════════════════════════ */
+    .hook {
+      padding: 80px 0;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+    .hook::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 50%, rgba(239, 68, 68, 0.06) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .hook-stat {
+      font-family: var(--font-mono);
+      font-size: clamp(3rem, 8vw, 5.5rem);
+      font-weight: 700;
+      color: var(--status-red);
+      line-height: 1;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+    .hook-stat .dollar { color: var(--text-muted); font-weight: 400; font-size: 0.6em; }
+    .hook-label {
+      font-size: clamp(1rem, 2.5vw, 1.35rem);
+      font-family: var(--font-heading);
+      color: var(--text-primary);
+      font-weight: 600;
+      margin-bottom: 8px;
+      position: relative; z-index: 1;
+    }
+    .hook-sub {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto;
+      position: relative; z-index: 1;
+    }
+    .hook-sub strong { color: var(--text-secondary); }
+    .hook-source {
+      display: inline-block;
+      margin-top: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      position: relative; z-index: 1;
+    }
+    .hook-divider {
+      width: 48px; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--status-red), transparent);
+      margin: 24px auto 0;
+      position: relative; z-index: 1;
+    }
+
+    @keyframes countUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   TRUST METRICS BAR
+   ═══════════════════════════════════════════════════════════ */
+    .trust-bar {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+      padding: 36px 0;
+    }
+
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+    }
+
+    .trust-item {
+      text-align: center;
+      padding: 0 16px;
+      border-right: 1px solid var(--border);
+    }
+
+    .trust-item:last-child {
+      border-right: none;
+    }
+
+    .trust-number {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--accent-amber);
+      margin-bottom: 4px;
+    }
+
+    .trust-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   PROBLEM SECTION
+   ═══════════════════════════════════════════════════════════ */
+    .problem {
+      padding: 120px 0;
+      position: relative;
+    }
+
+    .problem::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 30%, rgba(239, 68, 68, 0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .problem-header {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 56px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .problem-header h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .pain-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .pain-card {
+      padding: 32px 28px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .pain-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--status-red), transparent);
+      opacity: 0.6;
+    }
+
+    .pain-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--radius-md);
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px;
+    }
+    .pain-icon svg {
+      width: 28px; height: 28px;
+      stroke: var(--status-red);
+      stroke-width: 1.5;
+      fill: none;
+    }
+
+    .pain-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .pain-card p {
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+    .pain-stat {
+      display: inline-block;
+      margin-top: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--status-red);
+      padding: 4px 10px;
+      background: rgba(239, 68, 68, 0.06);
+      border-radius: 999px;
+      border: 1px solid rgba(239, 68, 68, 0.12);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   FEATURES SHOWCASE
+   ═══════════════════════════════════════════════════════════ */
+    .features {
+      padding: 120px 0;
+    }
+
+    .features-header {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 72px;
+    }
+
+    .features-header h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .feature-block {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+      margin-bottom: 80px;
+    }
+
+    .feature-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .feature-block.reverse .feature-text {
+      order: 2;
+    }
+
+    .feature-block.reverse .feature-mockup {
+      order: 1;
+    }
+
+    .feature-text .eyebrow {
+      margin-bottom: 10px;
+    }
+
+    .feature-text h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .feature-text p {
+      font-size: 0.92rem;
+      line-height: 1.65;
+      margin-bottom: 18px;
+    }
+
+    .feature-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .feature-bullets li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+    }
+
+    .feature-bullets li::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-amber);
+      flex-shrink: 0;
+    }
+
+    /* ── Feature Mockups ────────────────────────────────────── */
+    .feature-mockup .mockup-frame {
+      transform: perspective(1000px) rotateY(-5deg);
+      transition: transform 0.4s;
+    }
+
+    .feature-block.reverse .feature-mockup .mockup-frame {
+      transform: perspective(1000px) rotateY(5deg);
+    }
+
+    .feature-mockup:hover .mockup-frame {
+      transform: perspective(1000px) rotateY(0deg);
+    }
+
+    /* Inventory mockup */
+    .mock-search {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      border-radius: 4px;
+      padding: 5px 8px;
+      margin-bottom: 8px;
+    }
+
+    .mock-search-icon {
+      width: 10px;
+      height: 10px;
+      border: 1.5px solid #71717a;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .mock-search-text {
+      font-size: 7px;
+      color: #71717a;
+    }
+
+    .mock-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .mock-table th {
+      font-size: 6.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #71717a;
+      font-weight: 600;
+      padding: 5px 6px;
+      text-align: left;
+      background: #f4f4f5;
+      border-bottom: 1px solid #e4e4e7;
+    }
+
+    .mock-table td {
+      padding: 5px 6px;
+      font-size: 8px;
+      border-bottom: 1px solid #f4f4f5;
+    }
+
+    .mock-table .code {
+      font-family: var(--font-mono);
+      font-size: 7px;
+      color: #71717a;
+    }
+
+    .mock-table .name {
+      font-weight: 600;
+    }
+
+    .mock-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 6.5px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .mock-badge.green {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .mock-badge.amber {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .mock-badge.red {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .mock-badge-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .mock-pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      font-size: 7px;
+      color: #71717a;
+      border-top: 1px solid #e4e4e7;
+      margin-top: 4px;
+    }
+
+    .mock-page-btns {
+      display: flex;
+      gap: 3px;
+    }
+
+    .mock-page-btn {
+      padding: 2px 5px;
+      border-radius: 3px;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      font-size: 6.5px;
+      color: #71717a;
+    }
+
+    .mock-page-btn.active {
+      background: #0f172a;
+      color: #fff;
+      border-color: #0f172a;
+    }
+
+    /* Calendar mockup */
+    .mock-cal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+
+    .mock-cal-arrows {
+      display: flex;
+      gap: 4px;
+    }
+
+    .mock-cal-arrow {
+      width: 14px;
+      height: 14px;
+      background: #f4f4f5;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      color: #71717a;
+    }
+
+    .mock-cal-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1px;
+      padding: 0 6px 6px;
+    }
+
+    .mock-cal-day-label {
+      font-size: 6px;
+      text-transform: uppercase;
+      text-align: center;
+      color: #71717a;
+      padding: 3px 0;
+    }
+
+    .mock-cal-day {
+      text-align: center;
+      font-size: 7px;
+      padding: 4px 0 6px;
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .mock-cal-day.today {
+      background: #2563eb;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .mock-cal-day .cal-event {
+      width: 80%;
+      height: 2px;
+      border-radius: 1px;
+      margin: 1px auto 0;
+    }
+
+    /* Gantt mockup */
+    .mock-gantt-header {
+      display: grid;
+      grid-template-columns: 80px repeat(7, 1fr);
+      font-size: 6.5px;
+      color: #71717a;
+      padding: 6px 8px;
+      border-bottom: 1px solid #e4e4e7;
+    }
+
+    .mock-gantt-row {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      align-items: center;
+      padding: 5px 8px;
+      border-bottom: 1px solid #f4f4f5;
+    }
+
+    .mock-gantt-label {
+      font-size: 7.5px;
+      font-weight: 500;
+    }
+
+    .mock-gantt-track {
+      position: relative;
+      height: 10px;
+    }
+
+    .mock-gantt-bar {
+      position: absolute;
+      height: 8px;
+      border-radius: 3px;
+      top: 1px;
+    }
+
+    /* Audit mockup */
+    .mock-audit-row {
+      display: grid;
+      grid-template-columns: 8px 1fr 60px 50px;
+      gap: 8px;
+      align-items: center;
+      padding: 5px 8px;
+      border-bottom: 1px solid #f4f4f5;
+    }
+
+    .mock-audit-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .mock-audit-desc {
+      font-size: 8px;
+    }
+
+    .mock-audit-user {
+      font-size: 7px;
+      color: #71717a;
+    }
+
+    .mock-audit-time {
+      font-family: var(--font-mono);
+      font-size: 6.5px;
+      color: #71717a;
+    }
+
+    /* QR mockup */
+    .mock-qr-layout {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .mock-qr-code {
+      width: 80px;
+      height: 80px;
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 1px;
+      flex-shrink: 0;
+    }
+
+    .mock-qr-cell {
+      border-radius: 1px;
+    }
+
+    .mock-qr-cell.filled {
+      background: #09090b;
+    }
+
+    .mock-qr-cell.empty {
+      background: #fff;
+    }
+
+    .mock-qr-info {
+      font-size: 8px;
+    }
+
+    .mock-qr-info .tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .mock-movement {
+      margin-top: 8px;
+      padding: 6px;
+      background: #f4f4f5;
+      border-radius: 4px;
+      font-size: 7px;
+    }
+
+    .mock-movement .old {
+      color: #b91c1c;
+      text-decoration: line-through;
+    }
+
+    .mock-movement .new {
+      color: #15803d;
+      font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   ECOSYSTEM — Full module grid
+   ═══════════════════════════════════════════════════════════ */
+    .ecosystem {
+      padding: 100px 0;
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .eco-header {
+      text-align: center;
+      max-width: 650px;
+      margin: 0 auto 56px;
+    }
+    .eco-header h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      margin-top: 12px;
+    }
+    .eco-header p {
+      margin-top: 14px;
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+    }
+    .eco-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .eco-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px 16px;
+      transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    }
+    .eco-card:hover {
+      border-color: var(--accent-amber-border);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 30px -8px rgba(0,0,0,0.3);
+    }
+    .eco-icon {
+      font-size: 1.4rem;
+      margin-bottom: 10px;
+    }
+    .eco-name {
+      font-family: var(--font-heading);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .eco-desc {
+      font-size: 0.76rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   DIFFERENTIATORS
+   ═══════════════════════════════════════════════════════════ */
+    .diff-section {
+      padding: 120px 0;
+      background: linear-gradient(180deg, var(--bg-base) 0%, var(--bg-elevated) 50%, var(--bg-base) 100%);
+    }
+
+    .diff-header {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 56px;
+    }
+
+    .diff-header h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .diff-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .diff-card {
+      padding: 32px;
+    }
+
+    .diff-card.wide {
+      grid-column: span 2;
+    }
+
+    .diff-card.highlight {
+      border-color: var(--accent-amber-border);
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.08);
+    }
+
+    .diff-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 1.2rem;
+    }
+
+    .diff-icon.amber {
+      background: var(--accent-amber-glow);
+      color: var(--accent-amber);
+    }
+
+    .diff-icon.blue {
+      background: var(--brand-blue-glow);
+      color: var(--brand-blue);
+    }
+
+    .diff-icon.green {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--status-green);
+    }
+
+    .diff-card h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .diff-card p {
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   HOW IT WORKS
+   ═══════════════════════════════════════════════════════════ */
+    .how-section {
+      padding: 120px 0;
+    }
+
+    .how-header {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 64px;
+    }
+
+    .how-header h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .how-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+      position: relative;
+    }
+
+    .how-steps::before {
+      content: '';
+      position: absolute;
+      top: 36px;
+      left: calc(16.6% + 20px);
+      right: calc(16.6% + 20px);
+      height: 2px;
+      border-top: 2px dashed var(--border-accent);
+    }
+
+    .how-step {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .how-number {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 2px solid var(--accent-amber-border);
+      background: var(--bg-base);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-family: var(--font-heading);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent-amber);
+    }
+
+    .how-step h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .how-step p {
+      font-size: 0.88rem;
+      line-height: 1.6;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   CTA SECTION
+   ═══════════════════════════════════════════════════════════ */
+    .cta-section {
+      padding: 120px 0;
+      position: relative;
+    }
+
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 50%, rgba(245, 158, 11, 0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .cta-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta-text h2 {
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .cta-text p {
+      font-size: 1rem;
+      line-height: 1.65;
+      margin-bottom: 24px;
+    }
+
+    .cta-benefits {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .cta-benefits li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+    }
+
+    .cta-benefits li::before {
+      content: '✓';
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--status-green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .cta-form {
+      padding: 36px;
+    }
+
+    .cta-form h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-input,
+    .form-textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus {
+      border-color: var(--accent-amber);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-submit {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    /* ── Contact direct cards (in CTA section) ─────────────── */
+    .contact-direct {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .contact-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-accent);
+      background: var(--glass-bg);
+      text-decoration: none;
+      transition: transform 0.2s, border-color 0.25s, box-shadow 0.25s;
+    }
+    .contact-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px -6px rgba(0,0,0,0.3);
+    }
+    .contact-card.whatsapp:hover {
+      border-color: rgba(37,211,102,0.5);
+      box-shadow: 0 8px 24px -6px rgba(37,211,102,0.2);
+    }
+    .contact-card.email:hover {
+      border-color: var(--accent-amber-border);
+      box-shadow: 0 8px 24px -6px rgba(245,158,11,0.15);
+    }
+    .contact-card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1.3rem;
+    }
+    .contact-card.whatsapp .contact-card-icon {
+      background: rgba(37,211,102,0.12);
+      color: #25d366;
+    }
+    .contact-card.email .contact-card-icon {
+      background: var(--accent-amber-glow);
+      color: var(--accent-amber);
+    }
+    .contact-card-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .contact-card-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .contact-card-value {
+      font-family: var(--font-heading);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+    .contact-card-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* ── Floating WhatsApp Button ──────────────────────────── */
+    .fab-whatsapp {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 900;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #25d366;
+      color: #fff;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(37,211,102,0.4), 0 2px 8px rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: transform 0.25s, box-shadow 0.25s;
+      text-decoration: none;
+    }
+    .fab-whatsapp:hover {
+      transform: scale(1.1) translateY(-2px);
+      box-shadow: 0 10px 30px rgba(37,211,102,0.5), 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .fab-whatsapp svg {
+      width: 30px;
+      height: 30px;
+      fill: #fff;
+    }
+    .fab-whatsapp-pulse {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 899;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #25d366;
+      animation: wa-pulse 2s ease-out infinite;
+      pointer-events: none;
+    }
+    @keyframes wa-pulse {
+      0% { transform: scale(1); opacity: 0.5; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════ */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 56px 0 24px;
+      background: #08080d;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .footer-brand .logo {
+      font-size: 1.8rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .footer-brand p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      max-width: 300px;
+      line-height: 1.6;
+    }
+
+    .footer-col h4 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .footer-col a {
+      display: block;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      padding: 4px 0;
+      transition: color 0.2s;
+    }
+
+    .footer-col a:hover {
+      color: var(--accent-amber);
+    }
+
+    .footer-bottom {
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .footer-bottom p {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — max-width: 768px
+   ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+
+      .nav-links,
+      .nav-cta {
+        display: none;
+      }
+
+      .hamburger {
+        display: flex;
+      }
+
+      .hero {
+        padding: 100px 0 60px;
+      }
+
+      .hero-inner {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .hero h1 {
+        font-size: clamp(1.5rem, 5.8vw, 2rem);
+        padding: 0 8px;
+      }
+
+      .hero-br {
+        display: none;
+      }
+
+      .hero-sub {
+        margin: 0 auto 28px;
+        font-size: 0.9rem;
+        max-width: 100%;
+        padding: 0 4px;
+      }
+
+      .hero-badge .eyebrow {
+        font-size: 0.6rem !important;
+      }
+
+      .hero-ctas {
+        justify-content: center;
+      }
+
+      .hero-ctas .btn {
+        font-size: 0.82rem;
+        padding: 12px 20px;
+      }
+
+      .hero-micro {
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        font-size: 0.65rem;
+      }
+
+      .hero-mockup-wrap {
+        animation: none;
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+      }
+
+      .hero-mockup-wrap .mockup-frame {
+        max-width: 340px;
+        width: 100%;
+        transform: none !important;
+      }
+
+      .hero-mockup-glow {
+        display: none;
+      }
+
+      .trust-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+      }
+
+      .trust-item {
+        border-right: none;
+        padding: 10px 0;
+      }
+
+      .problem {
+        padding: 80px 0;
+      }
+
+      .pain-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .features {
+        padding: 80px 0;
+      }
+
+      .feature-block {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        margin-bottom: 60px;
+      }
+
+      .feature-block.reverse .feature-text {
+        order: 1;
+      }
+
+      .feature-block.reverse .feature-mockup {
+        order: 2;
+      }
+
+      .feature-mockup .mockup-frame,
+      .feature-block.reverse .feature-mockup .mockup-frame {
+        transform: none;
+        max-width: 380px;
+        margin: 0 auto;
+      }
+
+      .ecosystem {
+        padding: 60px 0;
+      }
+
+      .eco-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      .eco-card {
+        padding: 14px 12px;
+      }
+
+      .eco-icon {
+        font-size: 1.1rem;
+        margin-bottom: 6px;
+      }
+
+      .eco-name {
+        font-size: 0.8rem;
+      }
+
+      .eco-desc {
+        font-size: 0.7rem;
+      }
+
+      .diff-section {
+        padding: 80px 0;
+      }
+
+      .diff-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .diff-card.wide {
+        grid-column: span 1;
+      }
+
+      .how-section {
+        padding: 80px 0;
+      }
+
+      .how-steps {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .how-steps::before {
+        top: 0;
+        bottom: 0;
+        left: 35px;
+        right: auto;
+        width: 2px;
+        height: 100%;
+        border-top: none;
+        border-left: 2px dashed var(--border-accent);
+      }
+
+      .how-step {
+        text-align: left;
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .how-number {
+        margin: 0;
+      }
+
+      .how-step p {
+        max-width: none;
+      }
+
+      .cta-section {
+        padding: 80px 0;
+      }
+
+      .cta-inner {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .cta-text {
+        text-align: center;
+      }
+
+      .cta-benefits {
+        align-items: center;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .footer-brand p {
+        margin: 0 auto;
+      }
+
+      .footer-bottom {
+        justify-content: center;
+        text-align: center;
+      }
+
+      /* FAB position on mobile */
+      .fab-whatsapp,
+      .fab-whatsapp-pulse {
+        bottom: 18px;
+        right: 18px;
+        width: 54px;
+        height: 54px;
+      }
+      .fab-whatsapp svg {
+        width: 26px;
+        height: 26px;
+      }
+
+      .contact-card-value {
+        font-size: 0.92rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     NAVIGATION
+     ═══════════════════════════════════════════════════════════ -->
+  <nav class="nav" id="nav">
+    <div class="container nav-inner">
+      <span class="logo">SC<span class="logo-accent">AF</span></span>
+      <ul class="nav-links">
+        <li><a href="#funcionalidades">Funcionalidades</a></li>
+        <li><a href="#ecosistema">Ecosistema</a></li>
+        <li><a href="#diferenciadores">Diferenciadores</a></li>
+        <li><a href="#contacto">Contacto</a></li>
+      </ul>
+      <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20SCAF" target="_blank" rel="noopener" class="btn btn-sm nav-cta" style="background:rgba(37,211,102,0.12);color:#25d366;border:1px solid rgba(37,211,102,0.3);gap:6px;padding:8px 16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>
+      <a href="#contacto" class="btn btn-primary btn-sm nav-cta">Solicitar Demo</a>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Menú">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="mobile-menu-overlay" id="menuOverlay"></div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#funcionalidades">Funcionalidades</a>
+    <a href="#ecosistema">Ecosistema</a>
+    <a href="#diferenciadores">Diferenciadores</a>
+    <a href="#contacto">Contacto</a>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
+      <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20SCAF" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);border-radius:8px;color:#25d366;font-weight:600;font-size:0.9rem;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        +58 412-498-2079
+      </a>
+      <a href="mailto:info@scaf.app" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--accent-amber-glow);border:1px solid var(--accent-amber-border);border-radius:8px;color:var(--accent-amber);font-weight:600;font-size:0.9rem;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        info@scaf.app
+      </a>
+    </div>
+    <a href="#contacto" class="btn btn-primary" style="margin-top:12px;text-align:center;display:block;">Solicitar Demo</a>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     HERO
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="hero" id="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-noise"></div>
+    <div class="container hero-inner">
+      <div class="hero-text">
+        <div class="hero-badge reveal">
+          <span class="dot"></span>
+          <span class="eyebrow" style="margin:0;font-size:0.7rem;">Sistema ERP de Gestión de Activos</span>
+        </div>
+        <h1 class="reveal" style="transition-delay:0.1s;">
+          Control total de tus <span class="text-gradient">activos fijos.</span> <span class="hero-br"></span>Mantenimiento sin fricci&#243;n.
+        </h1>
+        <p class="hero-sub reveal" style="transition-delay:0.2s;">
+          SCAF unifica inventario, mantenimiento preventivo, tickets, control de personal, proveedores, auditor&#237;a y operaciones en una sola plataforma — con acceso offline, QR integrado y 16+ m&#243;dulos interconectados.
+        </p>
+        <div class="hero-ctas reveal" style="transition-delay:0.3s;">
+          <a href="#contacto" class="btn btn-primary">Solicitar Demo</a>
+          <a href="#funcionalidades" class="btn btn-secondary">Ver Funcionalidades</a>
+        </div>
+        <div class="hero-micro reveal" style="transition-delay:0.4s;">
+          <span><span class="pip"></span> PWA instalable</span>
+          <span><span class="pip"></span> Funciona offline</span>
+          <span><span class="pip"></span> SQL Server</span>
+          <span><span class="pip"></span> ISO 27001 ready</span>
+        </div>
+      </div>
+
+      <div class="hero-mockup-wrap reveal" style="transition-delay:0.3s;">
+        <div class="hero-mockup-glow"></div>
+        <div class="mockup-frame" style="width:420px;max-width:100%;">
+          <div class="mockup-titlebar">
+            <span class="mockup-dot red"></span>
+            <span class="mockup-dot yellow"></span>
+            <span class="mockup-dot green"></span>
+            <span style="flex:1;text-align:center;font-size:8px;color:#71717a;">SCAF — Dashboard</span>
+          </div>
+          <div class="mockup-body">
+            <div class="mockup-sidebar">
+              <div class="sb-item active"></div>
+              <div class="sb-item"></div>
+              <div class="sb-item"></div>
+              <div class="sb-item"></div>
+              <div class="sb-item"></div>
+              <div class="sb-item"></div>
+            </div>
+            <div class="mockup-main">
+              <div style="font-size:9px;font-weight:700;margin-bottom:8px;color:#0f172a;">Dashboard Ejecutivo</div>
+              <div class="mock-kpi-grid">
+                <div class="mock-kpi">
+                  <div class="mock-kpi-label">Activos totales</div>
+                  <div class="mock-kpi-value blue">1,247</div>
+                </div>
+                <div class="mock-kpi">
+                  <div class="mock-kpi-label">Valor total (USD)</div>
+                  <div class="mock-kpi-value green">$2.4M</div>
+                </div>
+                <div class="mock-kpi">
+                  <div class="mock-kpi-label">Mant. pendientes</div>
+                  <div class="mock-kpi-value amber">38</div>
+                </div>
+                <div class="mock-kpi">
+                  <div class="mock-kpi-label">Alertas vencidas</div>
+                  <div class="mock-kpi-value red">5</div>
+                </div>
+              </div>
+              <div style="font-size:7px;color:#71717a;margin-bottom:4px;">Mantenimientos por mes</div>
+              <div class="mock-chart">
+                <div class="mock-bar" style="height:60%;"></div>
+                <div class="mock-bar" style="height:85%;"></div>
+                <div class="mock-bar" style="height:45%;"></div>
+                <div class="mock-bar" style="height:72%;"></div>
+                <div class="mock-bar" style="height:90%;"></div>
+                <div class="mock-bar" style="height:55%;"></div>
+                <div class="mock-bar" style="height:78%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     HOOK — Emotional stat that stops the scroll
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="hook" id="hook">
+    <div class="container">
+      <div class="hook-stat reveal">
+        <span class="dollar">$</span><span id="hookCounter">0</span>K
+      </div>
+      <div class="hook-label reveal" style="transition-delay:0.1s;">
+        Costo promedio de <em>una sola</em> falla no planificada
+      </div>
+      <div class="hook-sub reveal" style="transition-delay:0.2s;">
+        El mantenimiento reactivo cuesta <strong>hasta 10x más</strong> que el preventivo.
+        Las empresas sin control de activos pierden un <strong>20-30%</strong> de su presupuesto operativo
+        en reparaciones de emergencia, activos extraviados y tiempo muerto no registrado.
+      </div>
+      <span class="hook-source reveal" style="transition-delay:0.3s;">
+        Fuente: Deloitte Plant Maintenance Survey
+      </span>
+      <div class="hook-divider"></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     TRUST METRICS
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="trust-bar">
+    <div class="container">
+      <div class="trust-grid">
+        <div class="trust-item reveal">
+          <div class="trust-number" data-count="16">0</div>
+          <div class="trust-label">M&#243;dulos integrados</div>
+        </div>
+        <div class="trust-item reveal" style="transition-delay:0.1s;">
+          <div class="trust-number">PWA</div>
+          <div class="trust-label">Instalable iOS y Android</div>
+        </div>
+        <div class="trust-item reveal" style="transition-delay:0.2s;">
+          <div class="trust-number" data-count="7">0</div>
+          <div class="trust-label">Años de retención auditoría</div>
+        </div>
+        <div class="trust-item reveal" style="transition-delay:0.3s;">
+          <div class="trust-number">100%</div>
+          <div class="trust-label">Offline-capable</div>
+        </div>
+        <div class="trust-item reveal" style="transition-delay:0.4s;">
+          <div class="trust-number">QR</div>
+          <div class="trust-label">Identificación física</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     PROBLEM SECTION
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="problem" id="problema">
+    <div class="container">
+      <div class="problem-header">
+        <div class="eyebrow reveal">El Problema</div>
+        <h2 class="reveal" style="transition-delay:0.1s;">Hojas de cálculo, datos perdidos y cero trazabilidad</h2>
+      </div>
+      <div class="pain-grid">
+        <div class="pain-card reveal">
+          <div class="pain-icon">
+            <!-- Spreadsheet with error -->
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="12" x2="19" y2="16" stroke-width="2"/><line x1="19" y1="12" x2="15" y2="16" stroke-width="2"/></svg>
+          </div>
+          <h3>Inventarios en Excel</h3>
+          <p>Archivos desactualizados, versiones duplicadas, sin validaciones y sin control de quién modificó qué. Imposible escalar a +500 activos.</p>
+          <span class="pain-stat">68% de empresas aún usan hojas de cálculo</span>
+        </div>
+        <div class="pain-card reveal" style="transition-delay:0.1s;">
+          <div class="pain-icon">
+            <!-- Eye with slash (no visibility) -->
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="1" y1="1" x2="23" y2="23" stroke-width="2"/></svg>
+          </div>
+          <h3>Sin historial de cambios</h3>
+          <p>Cuando algo falla, no hay forma de saber quién movió el activo, cuándo ni por qué. Cero auditoría, cero responsabilidad.</p>
+          <span class="pain-stat">0% de trazabilidad = riesgo legal</span>
+        </div>
+        <div class="pain-card reveal" style="transition-delay:0.2s;">
+          <div class="pain-icon">
+            <!-- Gear with alert -->
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/><line x1="18" y1="2" x2="22" y2="6" stroke-width="2.5" stroke="rgba(239,68,68,0.7)"/></svg>
+          </div>
+          <h3>Mantenimiento reactivo</h3>
+          <p>Sin programación preventiva, los equipos fallan sin aviso. Paros no planificados que paralizan la operación completa.</p>
+          <span class="pain-stat">Costo reactivo = 3-10x vs preventivo</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     FEATURES SHOWCASE
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="features" id="funcionalidades">
+    <div class="container">
+      <div class="features-header">
+        <div class="eyebrow reveal">Módulos</div>
+        <h2 class="reveal" style="transition-delay:0.1s;">Activos, mantenimiento, personal y operaciones en un solo lugar</h2>
+      </div>
+
+      <!-- Feature 1: Inventario -->
+      <div class="feature-block reveal">
+        <div class="feature-text">
+          <div class="eyebrow">Inventario</div>
+          <h3>Registro inteligente de activos</h3>
+          <p>Cada activo con su ciclo de vida completo: adquisici&#243;n, depreciaci&#243;n, fotos, facturas y asignaciones. B&#250;squeda server-side que escala a miles de registros. Movimientos con diff visual entre ubicaciones, departamentos y custodios.</p>
+          <ul class="feature-bullets">
+            <li>Paginaci&#243;n server-side escalable (+10K registros)</li>
+            <li>Import/export masivo desde Excel</li>
+            <li>C&#243;digos QR autom&#225;ticos + escaneo m&#243;vil</li>
+            <li>Historial completo de cambios por activo</li>
+            <li>Movimientos con trazabilidad from/to</li>
+            <li>Categor&#237;as, familias y sub-familias jer&#225;rquicas</li>
+          </ul>
+        </div>
+        <div class="feature-mockup">
+          <div class="mockup-frame">
+            <div class="mockup-titlebar">
+              <span class="mockup-dot red"></span>
+              <span class="mockup-dot yellow"></span>
+              <span class="mockup-dot green"></span>
+            </div>
+            <div style="padding:8px;">
+              <div class="mock-search">
+                <div class="mock-search-icon"></div>
+                <span class="mock-search-text">Buscar por código, nombre o serial...</span>
+              </div>
+              <table class="mock-table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Activo</th>
+                    <th>Categoría</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="code">AF-0014</td>
+                    <td class="name">Compresor Atlas GA-90</td>
+                    <td>Maquinaria</td>
+                    <td><span class="mock-badge green"><span class="mock-badge-dot"></span> Activo</span></td>
+                  </tr>
+                  <tr>
+                    <td class="code">AF-0027</td>
+                    <td class="name">Generador Cummins 75kVA</td>
+                    <td>Energía</td>
+                    <td><span class="mock-badge amber"><span class="mock-badge-dot"></span> En Mant.</span></td>
+                  </tr>
+                  <tr>
+                    <td class="code">AF-0114</td>
+                    <td class="name">Servidor Proliant DL380</td>
+                    <td>IT</td>
+                    <td><span class="mock-badge red"><span class="mock-badge-dot"></span> Vencido</span></td>
+                  </tr>
+                  <tr>
+                    <td class="code">AF-0042</td>
+                    <td class="name">Carretilla Yale GLP</td>
+                    <td>Logística</td>
+                    <td><span class="mock-badge green"><span class="mock-badge-dot"></span> Activo</span></td>
+                  </tr>
+                  <tr>
+                    <td class="code">AF-0089</td>
+                    <td class="name">Banco prueba hidráulico</td>
+                    <td>Calidad</td>
+                    <td><span class="mock-badge green"><span class="mock-badge-dot"></span> Activo</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="mock-pagination">
+                <span>Pág. 1 de 24 (1,247 activos)</span>
+                <div class="mock-page-btns">
+                  <span class="mock-page-btn active">1</span>
+                  <span class="mock-page-btn">2</span>
+                  <span class="mock-page-btn">3</span>
+                  <span class="mock-page-btn">...</span>
+                  <span class="mock-page-btn">24</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 2: Mantenimiento Multi-Scope -->
+      <div class="feature-block reverse reveal">
+        <div class="feature-text">
+          <div class="eyebrow">Mantenimiento Multi-Scope</div>
+          <h3>Tickets, rutinas y programaci&#243;n por m&#243;dulo</h3>
+          <p>Arquitectura &#250;nica: crea m&#243;dulos de mantenimiento din&#225;micos (&#193;rea, Habitaciones, Equipos, Flota...) cada uno con sus propios tickets, planes preventivos, frecuencias y checklist. Programa tareas desde plantillas y genera &#243;rdenes autom&#225;ticamente.</p>
+          <ul class="feature-bullets">
+            <li>Scopes din&#225;micos personalizables con iconos y colores</li>
+            <li>Planes preventivos con frecuencias (mensual a anual)</li>
+            <li>Tickets de mantenimiento con estados y progreso</li>
+            <li>Programaci&#243;n autom&#225;tica desde rutinas a activos</li>
+            <li>Calendario visual + timeline 12 meses por activo</li>
+            <li>Agenda diaria del operador con checklist</li>
+          </ul>
+        </div>
+        <div class="feature-mockup">
+          <div class="mockup-frame">
+            <div class="mockup-titlebar">
+              <span class="mockup-dot red"></span>
+              <span class="mockup-dot yellow"></span>
+              <span class="mockup-dot green"></span>
+            </div>
+            <div style="padding:8px;">
+              <div style="font-size:9px;font-weight:700;margin-bottom:6px;">M&#243;dulos de Mantenimiento</div>
+              <!-- Scope selector cards -->
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px;">
+                <div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:4px;padding:5px;text-align:center;">
+                  <div style="font-size:11px;">&#9881;</div>
+                  <div style="font-size:6px;font-weight:700;color:#1d4ed8;">Equipos</div>
+                  <div style="font-size:5px;color:#71717a;">24 tickets</div>
+                </div>
+                <div style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:4px;padding:5px;text-align:center;">
+                  <div style="font-size:11px;">&#9978;</div>
+                  <div style="font-size:6px;font-weight:700;color:#15803d;">&#193;reas</div>
+                  <div style="font-size:5px;color:#71717a;">18 tickets</div>
+                </div>
+                <div style="background:#fefce8;border:1.5px solid #eab308;border-radius:4px;padding:5px;text-align:center;">
+                  <div style="font-size:11px;">&#9962;</div>
+                  <div style="font-size:6px;font-weight:700;color:#a16207;">Habitaciones</div>
+                  <div style="font-size:5px;color:#71717a;">12 tickets</div>
+                </div>
+              </div>
+              <!-- Ticket list -->
+              <div style="font-size:7px;font-weight:600;color:#71717a;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em;">Tickets activos — Equipos</div>
+              <div style="display:flex;flex-direction:column;gap:3px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
+                  <span><strong>PM-312</strong> Lubricaci&#243;n compresor GA-90</span>
+                  <span class="mock-badge green"><span class="mock-badge-dot"></span> Completado</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
+                  <span><strong>PM-314</strong> Cambio filtros generador 75kVA</span>
+                  <span class="mock-badge amber"><span class="mock-badge-dot"></span> En Progreso</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
+                  <span><strong>PM-316</strong> Rev. hidr&#225;ulica carretilla Yale</span>
+                  <span class="mock-badge red"><span class="mock-badge-dot"></span> Pendiente</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
+                  <span><strong>PM-318</strong> Calibraci&#243;n banco de pruebas</span>
+                  <span class="mock-badge amber"><span class="mock-badge-dot"></span> En Progreso</span>
+                </div>
+              </div>
+              <!-- Mini progress -->
+              <div style="margin-top:6px;display:flex;align-items:center;gap:6px;">
+                <div style="flex:1;height:4px;background:#e4e4e7;border-radius:2px;overflow:hidden;">
+                  <div style="width:62%;height:100%;background:linear-gradient(90deg,#22c55e,#3b82f6);border-radius:2px;"></div>
+                </div>
+                <span style="font-size:6.5px;font-weight:700;color:#3b82f6;">62%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 3: Dashboard -->
+      <div class="feature-block reveal">
+        <div class="feature-text">
+          <div class="eyebrow">Dashboard</div>
+          <h3>KPIs ejecutivos en tiempo real</h3>
+          <p>Panel de control con indicadores financieros, alertas de mantenimiento vencido, Órdenes activas y feed de
+            actividad reciente. Toma decisiones basadas en datos, no en intuición.</p>
+          <ul class="feature-bullets">
+            <li>Valor total y depreciación de activos</li>
+            <li>Contadores de mantenimientos por estado</li>
+            <li>Feed de actividad en tiempo real</li>
+            <li>Alertas de vencimiento automáticas</li>
+          </ul>
+        </div>
+        <div class="feature-mockup">
+          <div class="mockup-frame" style="width:100%;">
+            <div class="mockup-titlebar">
+              <span class="mockup-dot red"></span>
+              <span class="mockup-dot yellow"></span>
+              <span class="mockup-dot green"></span>
+            </div>
+            <div style="padding:10px;">
+              <div style="font-size:9px;font-weight:700;margin-bottom:8px;">Dashboard Ejecutivo</div>
+              <div class="mock-kpi-grid">
+                <div class="mock-kpi">
+                  <div class="mock-kpi-label">Total activos</div>
+                  <div class="mock-kpi-value blue">1,247</div>
+                </div>
+                <div class="mock-kpi">
+                  <div class="mock-kpi-label">Valor cartera</div>
+                  <div class="mock-kpi-value green">$2.4M</div>
+                </div>
+                <div class="mock-kpi">
+                  <div class="mock-kpi-label">Mant. hoy</div>
+                  <div class="mock-kpi-value amber">12</div>
+                </div>
+                <div class="mock-kpi">
+                  <div class="mock-kpi-label">Vencidos</div>
+                  <div class="mock-kpi-value red">3</div>
+                </div>
+              </div>
+              <div style="font-size:7px;color:#71717a;margin:6px 0 4px;">Actividad reciente</div>
+              <div style="font-size:7.5px;padding:4px 0;border-bottom:1px solid #f4f4f5;display:flex;gap:4px;"><span
+                  style="color:#15803d;">&#9679;</span> Carlos L. completó PM-204</div>
+              <div style="font-size:7.5px;padding:4px 0;border-bottom:1px solid #f4f4f5;display:flex;gap:4px;"><span
+                  style="color:#b45309;">&#9679;</span> Ana M. creó ACT-0114</div>
+              <div style="font-size:7.5px;padding:4px 0;display:flex;gap:4px;"><span
+                  style="color:#b91c1c;">&#9679;</span> Diego R. eliminó ACT-0007</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 4: Programación y Órdenes -->
+      <div class="feature-block reverse reveal">
+        <div class="feature-text">
+          <div class="eyebrow">Programaci&#243;n y &#211;rdenes</div>
+          <h3>Planifica tareas, asigna y ejecuta</h3>
+          <p>Crea planes de mantenimiento con frecuencias (mensual, trimestral, semestral, anual), asigna rutinas a activos espec&#237;ficos, y genera &#243;rdenes de trabajo con sub-tareas, barras Gantt, mini-calendario y progreso por t&#233;cnico. Reprograma con historial completo.</p>
+          <ul class="feature-bullets">
+            <li>Planes con checklist de tareas configurables</li>
+            <li>Asignaci&#243;n de rutinas a activos con fecha inicio</li>
+            <li>&#211;rdenes de trabajo multi-tarea con Gantt</li>
+            <li>Mini-calendario por orden de trabajo</li>
+            <li>Reprogramaci&#243;n con log de cambios</li>
+            <li>Agenda del operador: hoy, semana, mes, pr&#243;ximos</li>
+          </ul>
+        </div>
+        <div class="feature-mockup">
+          <div class="mockup-frame">
+            <div class="mockup-titlebar">
+              <span class="mockup-dot red"></span>
+              <span class="mockup-dot yellow"></span>
+              <span class="mockup-dot green"></span>
+            </div>
+            <div style="padding:8px;">
+              <div style="font-size:9px;font-weight:700;margin-bottom:6px;">Órdenes en Marcha</div>
+              <div class="mock-gantt-header">
+                <span>Tarea</span>
+                <span>Lun</span><span>Mar</span><span>Mi</span><span>Jue</span><span>Vie</span><span>Sb</span><span>Dom</span>
+              </div>
+              <div class="mock-gantt-row">
+                <div class="mock-gantt-label">Lubricación</div>
+                <div class="mock-gantt-track">
+                  <div class="mock-gantt-bar" style="left:0%;width:35%;background:#22c55e;"></div>
+                </div>
+              </div>
+              <div class="mock-gantt-row">
+                <div class="mock-gantt-label">Filtros aire</div>
+                <div class="mock-gantt-track">
+                  <div class="mock-gantt-bar" style="left:15%;width:50%;background:#2563eb;"></div>
+                </div>
+              </div>
+              <div class="mock-gantt-row">
+                <div class="mock-gantt-label">Calibración</div>
+                <div class="mock-gantt-track">
+                  <div class="mock-gantt-bar" style="left:40%;width:45%;background:#f59e0b;"></div>
+                </div>
+              </div>
+              <div class="mock-gantt-row">
+                <div class="mock-gantt-label">Rev. hidráulica</div>
+                <div class="mock-gantt-track">
+                  <div class="mock-gantt-bar" style="left:60%;width:30%;background:#0f172a;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 5: Auditoría -->
+      <div class="feature-block reveal">
+        <div class="feature-text">
+          <div class="eyebrow">Auditoría</div>
+          <h3>Registro inmutable de cada acción</h3>
+          <p>Cada creación, modificación y eliminación queda registrada con timestamp, usuario y descripción. Retención
+            de 7 años para cumplimiento ISO 27001 y auditorías externas.</p>
+          <ul class="feature-bullets">
+            <li>Log inmutable por acción y usuario</li>
+            <li>Búsqueda y filtrado avanzado</li>
+            <li>Retención configurable (7+ años)</li>
+            <li>Exportable para auditorías externas</li>
+          </ul>
+        </div>
+        <div class="feature-mockup">
+          <div class="mockup-frame">
+            <div class="mockup-titlebar">
+              <span class="mockup-dot red"></span>
+              <span class="mockup-dot yellow"></span>
+              <span class="mockup-dot green"></span>
+            </div>
+            <div style="padding:8px;">
+              <div style="font-size:9px;font-weight:700;margin-bottom:6px;">Auditoría del Sistema</div>
+              <div class="mock-audit-row" style="font-size:6.5px;color:#71717a;border-bottom:1px solid #e4e4e7;">
+                <span></span><span style="font-weight:600;">Acción</span><span>Usuario</span><span>Fecha</span>
+              </div>
+              <div class="mock-audit-row">
+                <span class="mock-audit-dot" style="background:#22c55e;"></span>
+                <span class="mock-audit-desc"><strong>CREADO</strong> ACT-0114 Servidor Proliant</span>
+                <span class="mock-audit-user">Ana M.</span>
+                <span class="mock-audit-time">10/05 09:42</span>
+              </div>
+              <div class="mock-audit-row">
+                <span class="mock-audit-dot" style="background:#f59e0b;"></span>
+                <span class="mock-audit-desc"><strong>MODIFICADO</strong> PM-204 estado → Completado</span>
+                <span class="mock-audit-user">Carlos L.</span>
+                <span class="mock-audit-time">10/05 08:15</span>
+              </div>
+              <div class="mock-audit-row">
+                <span class="mock-audit-dot" style="background:#ef4444;"></span>
+                <span class="mock-audit-desc"><strong>ELIMINADO</strong> ACT-0007 (legacy)</span>
+                <span class="mock-audit-user">Diego R.</span>
+                <span class="mock-audit-time">09/05 18:30</span>
+              </div>
+              <div class="mock-audit-row">
+                <span class="mock-audit-dot" style="background:#22c55e;"></span>
+                <span class="mock-audit-desc"><strong>CREADO</strong> Plan PM-HVAC semestral</span>
+                <span class="mock-audit-user">Mara V.</span>
+                <span class="mock-audit-time">09/05 14:08</span>
+              </div>
+              <div class="mock-audit-row" style="border-bottom:none;">
+                <span class="mock-audit-dot" style="background:#f59e0b;"></span>
+                <span class="mock-audit-desc"><strong>MODIFICADO</strong> ACT-0042 valor +$2,400</span>
+                <span class="mock-audit-user">Mara V.</span>
+                <span class="mock-audit-time">09/05 11:22</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 6: Control de Personal -->
+      <div class="feature-block reverse reveal">
+        <div class="feature-text">
+          <div class="eyebrow">Personal y Proveedores</div>
+          <h3>Control total de empleados, custodias y vendors</h3>
+          <p>Directorio completo de empleados con c&#233;dula, cargo, departamento y unidad organizacional. Gestiona asignaciones de activos con check-in/check-out, registra proveedores con contacto y contratos, y controla accesos con 15+ permisos granulares por rol.</p>
+          <ul class="feature-bullets">
+            <li>Directorio de empleados (CRUD, b&#250;squeda, departamentos)</li>
+            <li>Asignaci&#243;n y custodia de equipos por empleado</li>
+            <li>Registro de proveedores con datos de contacto</li>
+            <li>Gesti&#243;n de usuarios con 15+ permisos RBAC</li>
+            <li>&#193;rbol organizacional configurable</li>
+            <li>Movimientos de activos con diff visual</li>
+          </ul>
+        </div>
+        <div class="feature-mockup">
+          <div class="mockup-frame">
+            <div class="mockup-titlebar">
+              <span class="mockup-dot red"></span>
+              <span class="mockup-dot yellow"></span>
+              <span class="mockup-dot green"></span>
+            </div>
+            <div style="padding:8px;">
+              <div style="font-size:9px;font-weight:700;margin-bottom:6px;">Empleados</div>
+              <div class="mock-search" style="margin-bottom:6px;">
+                <div class="mock-search-icon"></div>
+                <span class="mock-search-text">Buscar por nombre, c&#233;dula o cargo...</span>
+              </div>
+              <table class="mock-table">
+                <thead>
+                  <tr>
+                    <th>Empleado</th>
+                    <th>C&#233;dula</th>
+                    <th>Cargo</th>
+                    <th>Depto</th>
+                    <th>Activos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="name">Carlos L&#243;pez</td>
+                    <td class="code">V-18.432.109</td>
+                    <td style="font-size:7px;">T&#233;cnico Mec&#225;nico</td>
+                    <td style="font-size:7px;">Mantenimiento</td>
+                    <td><span class="mock-badge green"><span class="mock-badge-dot"></span> 3</span></td>
+                  </tr>
+                  <tr>
+                    <td class="name">Ana M&#225;rquez</td>
+                    <td class="code">V-20.114.887</td>
+                    <td style="font-size:7px;">Supervisora</td>
+                    <td style="font-size:7px;">Operaciones</td>
+                    <td><span class="mock-badge amber"><span class="mock-badge-dot"></span> 5</span></td>
+                  </tr>
+                  <tr>
+                    <td class="name">Diego Ram&#237;rez</td>
+                    <td class="code">V-15.908.234</td>
+                    <td style="font-size:7px;">Jefe de Planta</td>
+                    <td style="font-size:7px;">Producci&#243;n</td>
+                    <td><span class="mock-badge green"><span class="mock-badge-dot"></span> 2</span></td>
+                  </tr>
+                  <tr>
+                    <td class="name">Mar&#237;a Vega</td>
+                    <td class="code">V-22.345.671</td>
+                    <td style="font-size:7px;">Administrativa</td>
+                    <td style="font-size:7px;">RRHH</td>
+                    <td><span class="mock-badge green"><span class="mock-badge-dot"></span> 1</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <!-- Assignment badge -->
+              <div style="margin-top:6px;padding:5px 6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:3px;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:10px;">&#128100;</span>
+                <div>
+                  <div style="font-size:7px;font-weight:600;color:#1d4ed8;">Custodia activa: Carlos L&#243;pez</div>
+                  <div style="font-size:6px;color:#71717a;">3 activos asignados &#183; &#250;ltimo check-out: 08/05/2026</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     ECOSYSTEM — Full module grid
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="ecosystem" id="ecosistema">
+    <div class="container">
+      <div class="eco-header">
+        <div class="eyebrow reveal">Ecosistema Completo</div>
+        <h2 class="reveal" style="transition-delay:0.1s;">16+ m&#243;dulos integrados en una sola plataforma</h2>
+        <p class="reveal" style="transition-delay:0.2s;">Cada m&#243;dulo se comunica con los dem&#225;s. No son herramientas aisladas — es un sistema de informaci&#243;n unificado.</p>
+      </div>
+      <div class="eco-grid">
+        <div class="eco-card reveal">
+          <div class="eco-icon" style="color:#3b82f6;">&#9744;</div>
+          <div class="eco-name">Inventario de Activos</div>
+          <div class="eco-desc">CRUD completo, b&#250;squeda, paginaci&#243;n server-side, fotos y documentos</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.05s;">
+          <div class="eco-icon" style="color:#f59e0b;">&#9783;</div>
+          <div class="eco-name">C&#243;digos QR</div>
+          <div class="eco-desc">Generaci&#243;n autom&#225;tica, escaneo m&#243;vil, acceso instant&#225;neo al historial</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.1s;">
+          <div class="eco-icon" style="color:#8b5cf6;">&#8644;</div>
+          <div class="eco-name">Movimientos</div>
+          <div class="eco-desc">Trazabilidad from/to con diff visual, razones de movimiento</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.15s;">
+          <div class="eco-icon" style="color:#22c55e;">&#128100;</div>
+          <div class="eco-name">Empleados</div>
+          <div class="eco-desc">Directorio con c&#233;dula, cargo, departamento y unidad organizacional</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.2s;">
+          <div class="eco-icon" style="color:#0ea5e9;">&#8634;</div>
+          <div class="eco-name">Asignaciones</div>
+          <div class="eco-desc">Check-in / check-out de equipos entregados a custodios</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.25s;">
+          <div class="eco-icon" style="color:#ec4899;">&#9881;</div>
+          <div class="eco-name">Multi-Scope</div>
+          <div class="eco-desc">M&#243;dulos din&#225;micos: &#193;rea, Habitaciones, Equipos, Flota, custom</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.05s;">
+          <div class="eco-icon" style="color:#f97316;">&#128203;</div>
+          <div class="eco-name">Tickets Mant.</div>
+          <div class="eco-desc">Crear, asignar, completar y cancelar tickets con estados y progreso</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.1s;">
+          <div class="eco-icon" style="color:#14b8a6;">&#128221;</div>
+          <div class="eco-name">Planes y Rutinas</div>
+          <div class="eco-desc">Templates con frecuencias, tareas, checklist. Import masivo Excel</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.15s;">
+          <div class="eco-icon" style="color:#6366f1;">&#128197;</div>
+          <div class="eco-name">Programaci&#243;n</div>
+          <div class="eco-desc">Asigna rutinas a activos con fecha, frecuencia y balanceo de carga</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.2s;">
+          <div class="eco-icon" style="color:#2563eb;">&#9776;</div>
+          <div class="eco-name">&#211;rdenes de Trabajo</div>
+          <div class="eco-desc">Multi-tarea con Gantt, sub-tareas, progreso y mini-calendario</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.25s;">
+          <div class="eco-icon" style="color:#a855f7;">&#128198;</div>
+          <div class="eco-name">Calendario</div>
+          <div class="eco-desc">Vista mensual interactiva con c&#243;digos de color por scope</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.05s;">
+          <div class="eco-icon" style="color:#eab308;">&#128200;</div>
+          <div class="eco-name">Timeline</div>
+          <div class="eco-desc">Matriz 12 meses &#215; activos con barras de ejecuci&#243;n por frecuencia</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.1s;">
+          <div class="eco-icon" style="color:#10b981;">&#9745;</div>
+          <div class="eco-name">Agenda Operador</div>
+          <div class="eco-desc">Vista diaria/semanal/mensual con checklist y auto-completado</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.15s;">
+          <div class="eco-icon" style="color:#ef4444;">&#128337;</div>
+          <div class="eco-name">Reprogramaciones</div>
+          <div class="eco-desc">Historial de cambios de fecha con motivo y usuario responsable</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.2s;">
+          <div class="eco-icon" style="color:#64748b;">&#128666;</div>
+          <div class="eco-name">Proveedores</div>
+          <div class="eco-desc">Directorio de vendors con contacto, RIF y contratos activos</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.25s;">
+          <div class="eco-icon" style="color:#0ea5e9;">&#128202;</div>
+          <div class="eco-name">Dashboard</div>
+          <div class="eco-desc">KPIs ejecutivos, valor total, alertas vencimiento, activity feed</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.05s;">
+          <div class="eco-icon" style="color:#f59e0b;">&#128274;</div>
+          <div class="eco-name">Auditor&#237;a ISO</div>
+          <div class="eco-desc">Log inmutable POST/PUT/DELETE, 7+ a&#241;os retenci&#243;n, exportable</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.1s;">
+          <div class="eco-icon" style="color:#8b5cf6;">&#128101;</div>
+          <div class="eco-name">Usuarios y RBAC</div>
+          <div class="eco-desc">15+ permisos granulares por rol, control de acceso a cada m&#243;dulo</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.15s;">
+          <div class="eco-icon" style="color:#22c55e;">&#127795;</div>
+          <div class="eco-name">&#193;rbol Organizacional</div>
+          <div class="eco-desc">Categor&#237;as, familias y sub-familias configurables con scopes</div>
+        </div>
+        <div class="eco-card reveal" style="transition-delay:0.2s;">
+          <div class="eco-icon" style="color:#3b82f6;">&#9881;</div>
+          <div class="eco-name">Configuraci&#243;n</div>
+          <div class="eco-desc">Multi-tenant, conexi&#243;n BD, import mappings, reset controlado</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     DIFFERENTIATORS
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="diff-section" id="diferenciadores">
+    <div class="container">
+      <div class="diff-header">
+        <div class="eyebrow reveal">Por qu SCAF</div>
+        <h2 class="reveal" style="transition-delay:0.1s;">Lo que nos diferencia de cualquier otra solución</h2>
+      </div>
+      <div class="diff-grid">
+        <div class="glass-card diff-card reveal">
+          <div class="diff-icon blue">&#9783;</div>
+          <h3>PWA Nativa</h3>
+          <p>Instala SCAF como app nativa en iOS y Android. Sin App Store, sin actualizaciones. Service Worker con cache inteligente para funcionar 100% offline.</p>
+        </div>
+        <div class="glass-card diff-card reveal" style="transition-delay:0.1s;">
+          <div class="diff-icon amber">&#9638;</div>
+          <h3>QR Integrado</h3>
+          <p>Cada activo recibe su etiqueta QR. Escanea con la c&#225;mara del m&#243;vil para acceder al historial completo, movimientos, estado y documentos.</p>
+        </div>
+        <div class="glass-card diff-card reveal" style="transition-delay:0.2s;">
+          <div class="diff-icon green">&#9776;</div>
+          <h3>Multi-Scope Din&#225;mico</h3>
+          <p>Crea m&#243;dulos de mantenimiento ilimitados: &#193;rea, Habitaciones, Equipos, Flota, Infraestructura... cada uno con su propio ecosistema de tickets, planes y calendario.</p>
+        </div>
+        <div class="glass-card diff-card reveal" style="transition-delay:0.1s;">
+          <div class="diff-icon blue">&#128101;</div>
+          <h3>Control de Personal</h3>
+          <p>Directorio de empleados, asignaci&#243;n de equipos con custodia, proveedores, y RBAC con 15+ permisos granulares que controlan cada pantalla y acci&#243;n del sistema.</p>
+        </div>
+        <div class="glass-card diff-card reveal" style="transition-delay:0.2s;">
+          <div class="diff-icon green">&#128203;</div>
+          <h3>Importaci&#243;n Masiva</h3>
+          <p>Importa activos, planes de mantenimiento y empleados desde Excel. Mapeo de columnas configurable. Migra desde tus hojas de c&#225;lculo en minutos, no semanas.</p>
+        </div>
+        <div class="glass-card diff-card wide highlight reveal" style="transition-delay:0.3s;">
+          <div class="diff-icon amber">&#9888;</div>
+          <h3>Auditor&#237;a ISO 27001</h3>
+          <p>Registro inmutable de cada acci&#243;n del sistema. Retenci&#243;n de 7 a&#241;os configurable. Usuarios, timestamps, entidades y descripciones — todo listo para auditor&#237;as de cumplimiento externas. Exportable a CSV para evidencia documental.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     HOW IT WORKS
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="how-section" id="como-funciona">
+    <div class="container">
+      <div class="how-header">
+        <div class="eyebrow reveal">Proceso</div>
+        <h2 class="reveal" style="transition-delay:0.1s;">Tres pasos para el control total</h2>
+      </div>
+      <div class="how-steps">
+        <div class="how-step reveal">
+          <div class="how-number">1</div>
+          <div>
+            <h3>Registra</h3>
+            <p>Carga activos, empleados, proveedores y estructura organizacional. Importa masivamente desde Excel o registra uno a uno con fotos, documentos y QR.</p>
+          </div>
+        </div>
+        <div class="how-step reveal" style="transition-delay:0.15s;">
+          <div class="how-number">2</div>
+          <div>
+            <h3>Programa</h3>
+            <p>Crea m&#243;dulos de mantenimiento por scope, define planes con frecuencias y tareas, asigna rutinas a activos y genera &#243;rdenes de trabajo autom&#225;ticamente.</p>
+          </div>
+        </div>
+        <div class="how-step reveal" style="transition-delay:0.3s;">
+          <div class="how-number">3</div>
+          <div>
+            <h3>Controla</h3>
+            <p>Dashboard ejecutivo con KPIs, agenda del operador, auditor&#237;a ISO con 7 a&#241;os de retenci&#243;n, control de custodia y trazabilidad completa de cada activo y acci&#243;n.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     CTA + FORM
+     ═══════════════════════════════════════════════════════════ -->
+  <section class="cta-section" id="contacto">
+    <div class="container">
+      <div class="cta-inner">
+        <div class="cta-text reveal">
+          <div class="eyebrow" style="margin-bottom:12px;">Empieza Hoy</div>
+          <h2>Transforma la gestión de tus activos</h2>
+          <p>Agenda una demo personalizada y descubre cómo SCAF puede reducir costos de mantenimiento, eliminar pérdidas
+            de información y garantizar cumplimiento normativo.</p>
+          <ul class="cta-benefits">
+            <li>Implementaci&#243;n en menos de 48 horas</li>
+            <li>Migraci&#243;n asistida desde Excel</li>
+            <li>Soporte t&#233;cnico dedicado</li>
+            <li>Sin contratos a largo plazo</li>
+          </ul>
+
+          <!-- Direct contact cards -->
+          <div class="contact-direct">
+            <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20una%20demo%20de%20SCAF" target="_blank" rel="noopener" class="contact-card whatsapp reveal" style="transition-delay:0.1s;">
+              <div class="contact-card-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              </div>
+              <div class="contact-card-text">
+                <span class="contact-card-label">WhatsApp</span>
+                <span class="contact-card-value">+58 412-498-2079</span>
+                <span class="contact-card-hint">Respuesta en menos de 2 horas</span>
+              </div>
+            </a>
+            <a href="mailto:info@scaf.app" class="contact-card email reveal" style="transition-delay:0.2s;">
+              <div class="contact-card-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              </div>
+              <div class="contact-card-text">
+                <span class="contact-card-label">Correo Electr&#243;nico</span>
+                <span class="contact-card-value">info@scaf.app</span>
+                <span class="contact-card-hint">Cotizaciones y documentaci&#243;n formal</span>
+              </div>
+            </a>
+          </div>
+        </div>
+        <iframe name="formTarget" id="formIframe" style="display:none;"></iframe>
+        <form class="glass-card cta-form reveal" style="transition-delay:0.15s;" id="contactForm"
+          action="https://formsubmit.co/Zanderjosue05@gmail.com" method="POST" target="formTarget"
+          onsubmit="return handleSubmit()">
+          <h3>Solicitar Demo</h3>
+          <!-- FormSubmit.co config -->
+          <input type="hidden" name="_subject" value="Nueva solicitud de demo — SCAF Landing">
+          <input type="hidden" name="_template" value="table">
+          <input type="hidden" name="_captcha" value="false">
+          <!-- Honeypot anti-spam -->
+          <input type="text" name="_honey" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Nombre</label>
+            <input type="text" name="nombre" class="form-input" placeholder="Tu nombre completo" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-input" placeholder="correo@empresa.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tel&#233;fono / WhatsApp</label>
+            <input type="tel" name="telefono" class="form-input" placeholder="+58 412-498-2079">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Empresa</label>
+            <input type="text" name="empresa" class="form-input" placeholder="Nombre de tu empresa">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mensaje</label>
+            <textarea name="mensaje" class="form-textarea" placeholder="Cu&#233;ntanos sobre tu operaci&#243;n y necesidades..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary form-submit" id="formBtn">Enviar Solicitud</button>
+          <p id="formStatus" style="text-align:center;font-size:0.82rem;margin-top:8px;display:none;"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <span class="logo">SC<span class="logo-accent">AF</span></span>
+          <p>Sistema de Control de Activos Fijos. Plataforma ERP para gesti&#243;n integral de inventario, mantenimiento preventivo, personal y operaciones.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Plataforma</h4>
+          <a href="#funcionalidades">Funcionalidades</a>
+          <a href="#ecosistema">Ecosistema</a>
+          <a href="#diferenciadores">Diferenciadores</a>
+          <a href="#contacto">Solicitar Demo</a>
+        </div>
+        <div class="footer-col">
+          <h4>Contacto directo</h4>
+          <a href="https://wa.me/584124982079" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            +58 412-498-2079
+          </a>
+          <a href="mailto:info@scaf.app" style="display:flex;align-items:center;gap:8px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            info@scaf.app
+          </a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 SCAF. Todos los derechos reservados.</p>
+        <p>Hecho con precisi&#243;n.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Floating WhatsApp Button -->
+  <div class="fab-whatsapp-pulse"></div>
+  <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20una%20demo%20de%20SCAF" target="_blank" rel="noopener" class="fab-whatsapp" aria-label="Contactar por WhatsApp">
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+  </a>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════ -->
+  <script>
+    // ── Scroll Reveal ──────────────────────────────────────────
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('revealed');
+          // Counter animation for trust numbers
+          const counter = entry.target.querySelector('[data-count]');
+          if (counter) animateCounter(counter);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // ── Counter Animation ──────────────────────────────────────
+    function animateCounter(el) {
+      const target = parseInt(el.dataset.count);
+      const duration = 1500;
+      const start = performance.now();
+
+      function update(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+        el.textContent = Math.round(target * eased) + '+';
+        if (progress < 1) requestAnimationFrame(update);
+      }
+      requestAnimationFrame(update);
+    }
+
+    // ── Hook Counter (large dramatic number) ─────────────────
+    const hookObs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const el = document.getElementById('hookCounter');
+          if (!el || el.dataset.animated) return;
+          el.dataset.animated = '1';
+          const target = 250; // $250K
+          const duration = 2200;
+          const start = performance.now();
+          function tick(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 4);
+            el.textContent = Math.round(target * eased).toLocaleString('en-US');
+            if (progress < 1) requestAnimationFrame(tick);
+          }
+          requestAnimationFrame(tick);
+        }
+      });
+    }, { threshold: 0.3 });
+    const hookEl = document.getElementById('hook');
+    if (hookEl) hookObs.observe(hookEl);
+
+    // ── Nav Scroll ─────────────────────────────────────────────
+    let lastScroll = 0;
+    window.addEventListener('scroll', () => {
+      requestAnimationFrame(() => {
+        document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 50);
+      });
+    }, { passive: true });
+
+    // ── Mobile Menu ────────────────────────────────────────────
+    const hamburger = document.getElementById('hamburgerBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    const menuOverlay = document.getElementById('menuOverlay');
+
+    function toggleMenu() {
+      mobileMenu.classList.toggle('open');
+      menuOverlay.classList.toggle('open');
+    }
+
+    hamburger.addEventListener('click', toggleMenu);
+    menuOverlay.addEventListener('click', toggleMenu);
+    mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', toggleMenu));
+
+    // ── QR Code Pattern ────────────────────────────────────────
+    (function generateQR() {
+      const grid = document.getElementById('qrGrid');
+      if (!grid) return;
+      // Pseudo-QR pattern — not a real QR, just looks like one
+      const pattern = [
+        1, 1, 1, 1, 1, 1, 1, 0, 1, 0,
+        1, 0, 0, 0, 0, 0, 1, 0, 0, 1,
+        1, 0, 1, 1, 1, 0, 1, 0, 1, 0,
+        1, 0, 1, 1, 1, 0, 1, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 1, 0, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+        1, 0, 1, 1, 0, 1, 0, 1, 0, 1,
+        1, 1, 1, 1, 1, 1, 1, 0, 1, 1,
+        0, 0, 0, 1, 0, 1, 0, 1, 0, 0,
+      ];
+      pattern.forEach(v => {
+        const cell = document.createElement('div');
+        cell.className = 'mock-qr-cell ' + (v ? 'filled' : 'empty');
+        grid.appendChild(cell);
+      });
+    })();
+
+    // ── Form Handler ───────────────────────────────────────────
+    // Uses hidden iframe to POST (avoids CORS issues on file:// protocol)
+    function handleSubmit() {
+      const btn = document.getElementById('formBtn');
+      const status = document.getElementById('formStatus');
+      const form = document.getElementById('contactForm');
+      const iframe = document.getElementById('formIframe');
+
+      // Show loading state
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+      btn.style.opacity = '0.7';
+      status.style.display = 'none';
+
+      // Listen for iframe load (means FormSubmit responded)
+      function onLoad() {
+        iframe.removeEventListener('load', onLoad);
+        btn.textContent = '\u00a1Enviado con \u00e9xito!';
+        btn.style.background = 'var(--status-green)';
+        btn.style.opacity = '1';
+        status.textContent = 'Te contactaremos pronto. Revisa tu correo.';
+        status.style.color = 'var(--status-green)';
+        status.style.display = 'block';
+        form.reset();
+        setTimeout(function() {
+          btn.textContent = 'Enviar Solicitud';
+          btn.style.background = '';
+          btn.disabled = false;
+          status.style.display = 'none';
+        }, 5000);
+      }
+      iframe.addEventListener('load', onLoad);
+
+      // Timeout fallback (if iframe load doesn't fire in 10s)
+      setTimeout(function() {
+        if (btn.disabled && btn.textContent === 'Enviando...') {
+          iframe.removeEventListener('load', onLoad);
+          btn.textContent = 'Error al enviar';
+          btn.style.background = 'var(--status-red)';
+          btn.style.opacity = '1';
+          status.textContent = 'Intenta de nuevo o escr\u00edbenos por WhatsApp.';
+          status.style.color = 'var(--status-red)';
+          status.style.display = 'block';
+          setTimeout(function() {
+            btn.textContent = 'Enviar Solicitud';
+            btn.style.background = '';
+            btn.disabled = false;
+          }, 4000);
+        }
+      }, 10000);
+
+      // Allow the native form POST to proceed (don't preventDefault)
+      return true;
+    }
+
+    // ── Smooth Scroll for anchor links ─────────────────────────
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+
+</body>
+
+</html>
