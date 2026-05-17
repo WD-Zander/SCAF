@@ -82,7 +82,7 @@ export const createFile = async (req, res) => {
           const scopeRes = await db.request()
             .input('pid', sql.VarChar, parentId)
             .query(`
-              WITH Ancestors AS (
+              WITH RECURSIVE Ancestors AS (
                 SELECT ID, ID_PADRE, ID_SCOPE FROM CATEGORIA WHERE ID = @pid
                 UNION ALL
                 SELECT c.ID, c.ID_PADRE, c.ID_SCOPE FROM CATEGORIA c
