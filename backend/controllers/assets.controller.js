@@ -28,19 +28,24 @@ export const getAssets = async (req, res) => {
     const result = await req_.query(`
       SELECT
         a.ID as id, a.NOMBRE as name, a.MARCA as brand, a.MODELO as model, a.SERIAL as serial,
-        ea.NOMBRE as status, ea.COLOR as statusColor, a.DESCRIPCION as description,
-        a.ID_CATEGORIA as categoryId, c.NOMBRE AS category,
-        a.FAMILIA as family, a.SUBFAM as subFamily,
-        a.ID_DEPTO as departmentId, d.NOMBRE AS department,
-        TO_CHAR(a.FECHA_INGRESO, 'YYYY-MM-DD') as entryDate, a.COSTO_ADQUIS as acquisitionCost,
-        a.ID_CUSTODIO as assignedToId, u.NOMBRE as assignedTo,
-        a.ID_PROVEEDOR as supplierId, s.NOMBRE as supplier,
+        ea.NOMBRE as status, ea.COLOR as "statusColor", a.DESCRIPCION as description,
+        a.ID_CATEGORIA as "categoryId", c.NOMBRE AS category,
+        a.ID_SECCION as "sectionId", csec.NOMBRE as "sectionName",
+        a.ID_FAMILIA as "familyId", cfam.NOMBRE as family,
+        a.ID_SUBFAMILIA as "subFamilyId", csfam.NOMBRE as "subFamily",
+        a.ID_DEPTO as "departmentId", d.NOMBRE AS department,
+        TO_CHAR(a.FECHA_INGRESO, 'YYYY-MM-DD') as "entryDate", a.COSTO_ADQUIS as "acquisitionCost",
+        a.ID_CUSTODIO as "assignedToId", u.NOMBRE as "assignedTo",
+        a.ID_PROVEEDOR as "supplierId", s.NOMBRE as supplier,
         a.UBICACION as location, a.AREA as area,
-        a.OBSERVACIONES as observations, a.VALOR_ACTUAL as currentValue,
-        a.FOTO_URL as photoUrl, a.FACTURA_URL as invoiceUrl,
-        c.ID_SCOPE as scopeId
+        a.OBSERVACIONES as observations, a.VALOR_ACTUAL as "currentValue",
+        a.FOTO_URL as "photoUrl", a.FACTURA_URL as "invoiceUrl",
+        c.ID_SCOPE as "scopeId"
       FROM ACTIVO a
       LEFT JOIN CATEGORIA c ON a.ID_CATEGORIA = c.ID
+      LEFT JOIN CATEGORIA csec ON a.ID_SECCION = csec.ID
+      LEFT JOIN CATEGORIA cfam ON a.ID_FAMILIA = cfam.ID
+      LEFT JOIN CATEGORIA csfam ON a.ID_SUBFAMILIA = csfam.ID
       LEFT JOIN UNIDAD_ORG d ON a.ID_DEPTO = d.ID
       LEFT JOIN USUARIO u ON a.ID_CUSTODIO = u.ID
       LEFT JOIN PROVEEDOR s ON a.ID_PROVEEDOR = s.ID
@@ -79,19 +84,24 @@ export const getAssetById = async (req, res) => {
       .query(`
         SELECT
           a.ID as id, a.NOMBRE as name, a.MARCA as brand, a.MODELO as model, a.SERIAL as serial,
-          ea.NOMBRE as status, ea.COLOR as statusColor, a.DESCRIPCION as description,
-          a.ID_CATEGORIA as categoryId, c.NOMBRE AS category,
-          a.FAMILIA as family, a.SUBFAM as subFamily,
-          a.ID_DEPTO as departmentId, d.NOMBRE AS department,
-          TO_CHAR(a.FECHA_INGRESO, 'YYYY-MM-DD') as entryDate, a.COSTO_ADQUIS as acquisitionCost,
-          a.ID_CUSTODIO as assignedToId, u.NOMBRE as assignedTo,
-          a.ID_PROVEEDOR as supplierId, s.NOMBRE as supplier,
+          ea.NOMBRE as status, ea.COLOR as "statusColor", a.DESCRIPCION as description,
+          a.ID_CATEGORIA as "categoryId", c.NOMBRE AS category,
+          a.ID_SECCION as "sectionId", csec.NOMBRE as "sectionName",
+          a.ID_FAMILIA as "familyId", cfam.NOMBRE as family,
+          a.ID_SUBFAMILIA as "subFamilyId", csfam.NOMBRE as "subFamily",
+          a.ID_DEPTO as "departmentId", d.NOMBRE AS department,
+          TO_CHAR(a.FECHA_INGRESO, 'YYYY-MM-DD') as "entryDate", a.COSTO_ADQUIS as "acquisitionCost",
+          a.ID_CUSTODIO as "assignedToId", u.NOMBRE as "assignedTo",
+          a.ID_PROVEEDOR as "supplierId", s.NOMBRE as supplier,
           a.UBICACION as location, a.AREA as area,
-          a.OBSERVACIONES as observations, a.VALOR_ACTUAL as currentValue,
-          a.FOTO_URL as photoUrl, a.FACTURA_URL as invoiceUrl,
-          c.ID_SCOPE as scopeId
+          a.OBSERVACIONES as observations, a.VALOR_ACTUAL as "currentValue",
+          a.FOTO_URL as "photoUrl", a.FACTURA_URL as "invoiceUrl",
+          c.ID_SCOPE as "scopeId"
         FROM ACTIVO a
         LEFT JOIN CATEGORIA c ON a.ID_CATEGORIA = c.ID
+        LEFT JOIN CATEGORIA csec ON a.ID_SECCION = csec.ID
+        LEFT JOIN CATEGORIA cfam ON a.ID_FAMILIA = cfam.ID
+        LEFT JOIN CATEGORIA csfam ON a.ID_SUBFAMILIA = csfam.ID
         LEFT JOIN UNIDAD_ORG d ON a.ID_DEPTO = d.ID
         LEFT JOIN USUARIO u ON a.ID_CUSTODIO = u.ID
         LEFT JOIN PROVEEDOR s ON a.ID_PROVEEDOR = s.ID
@@ -114,7 +124,7 @@ export const createAsset = async (req, res) => {
   try {
     const {
       id, name, brand, model, serial, status, description,
-      categoryId,
+      categoryId, sectionId, familyId, subFamilyId,
       departmentId, supplierId,
       assignedTo, entryDate, acquisitionCost, location, area, observations, currentValue
     } = req.body;
@@ -144,6 +154,9 @@ export const createAsset = async (req, res) => {
       .input('statusId', sql.VarChar, statusId)
       .input('desc', sql.NVarChar, description || '')
       .input('catId', sql.VarChar, categoryId || null)
+      .input('secId', sql.VarChar, sectionId || null)
+      .input('famId', sql.VarChar, familyId || null)
+      .input('sfamId', sql.VarChar, subFamilyId || null)
       .input('depId', sql.VarChar, departmentId || null)
       .input('custId', sql.VarChar, custodianId)
       .input('supId', sql.VarChar, supplierId || null)
@@ -156,17 +169,14 @@ export const createAsset = async (req, res) => {
       .query(`
         INSERT INTO ACTIVO (
           ID, NOMBRE, MARCA, MODELO, SERIAL, ID_ESTADO, DESCRIPCION,
-          ID_CATEGORIA,
+          ID_CATEGORIA, ID_SECCION, ID_FAMILIA, ID_SUBFAMILIA,
           ID_DEPTO, ID_CUSTODIO, ID_PROVEEDOR, FECHA_INGRESO, COSTO_ADQUIS,
           UBICACION, AREA, OBSERVACIONES, VALOR_ACTUAL
         )
         VALUES (@id, @name, @brand, @model, @serial,
-          @statusId,
-          @desc,
-          @catId,
-          @depId,
-          @custId,
-          @supId,
+          @statusId, @desc,
+          @catId, @secId, @famId, @sfamId,
+          @depId, @custId, @supId,
           @date, @cost, @loc, @area, @obs, @currVal)
       `);
     await logAudit(req, 'POST', 'Activos', id, `Registrado nuevo activo: ${name} (Serial: ${serial || 'N/A'})`);
@@ -319,7 +329,7 @@ export const updateAsset = async (req, res) => {
   try {
     const {
       name, brand, model, serial, status, description,
-      categoryId,
+      categoryId, sectionId, familyId, subFamilyId,
       departmentId, supplierId,
       assignedTo, entryDate, acquisitionCost, location, area, observations, currentValue
     } = req.body;
@@ -349,6 +359,9 @@ export const updateAsset = async (req, res) => {
       .input('statusId', sql.VarChar, statusId)
       .input('desc', sql.NVarChar, description || '')
       .input('catId', sql.VarChar, categoryId || null)
+      .input('secId', sql.VarChar, sectionId || null)
+      .input('famId', sql.VarChar, familyId || null)
+      .input('sfamId', sql.VarChar, subFamilyId || null)
       .input('depId', sql.VarChar, departmentId || null)
       .input('custId', sql.VarChar, custodianId)
       .input('supId', sql.VarChar, supplierId || null)
@@ -363,7 +376,7 @@ export const updateAsset = async (req, res) => {
           NOMBRE=@name, MARCA=@brand, MODELO=@model, SERIAL=@serial,
           ID_ESTADO=@statusId,
           DESCRIPCION=@desc,
-          ID_CATEGORIA=@catId,
+          ID_CATEGORIA=@catId, ID_SECCION=@secId, ID_FAMILIA=@famId, ID_SUBFAMILIA=@sfamId,
           ID_DEPTO=@depId,
           ID_CUSTODIO=@custId,
           ID_PROVEEDOR=@supId,

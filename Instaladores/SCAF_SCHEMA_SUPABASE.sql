@@ -168,6 +168,9 @@ CREATE TABLE empleado (
 CREATE TABLE activo (
     id            VARCHAR(50)    NOT NULL PRIMARY KEY,
     id_categoria  VARCHAR(50)    NULL REFERENCES categoria(id),
+    id_seccion    VARCHAR(50)    NULL REFERENCES categoria(id),
+    id_familia    VARCHAR(50)    NULL REFERENCES categoria(id),
+    id_subfamilia VARCHAR(50)    NULL REFERENCES categoria(id),
     id_estado     INT            NULL REFERENCES estado_activo(id),
     id_depto      VARCHAR(50)    NULL REFERENCES unidad_org(id),
     id_custodio   VARCHAR(50)    NULL REFERENCES usuario(id),
