@@ -51,8 +51,8 @@ const InventoryView = () => {
 
   if (!asset) return null;
 
-  const photoUrl = asset.photoUrl ? `${BASE_URL}${asset.photoUrl}` : null;
-  const invoiceUrl = asset.invoiceUrl ? `${BASE_URL}${asset.invoiceUrl}` : null;
+  const photoUrl = asset.photoUrl ? (asset.photoUrl.startsWith('http') ? asset.photoUrl : `${BASE_URL}${asset.photoUrl}`) : null;
+  const invoiceUrl = asset.invoiceUrl ? (asset.invoiceUrl.startsWith('http') ? asset.invoiceUrl : `${BASE_URL}${asset.invoiceUrl}`) : null;
 
   const getStatusBadge = (status) => {
     switch (status) {

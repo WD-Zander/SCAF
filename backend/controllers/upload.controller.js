@@ -1,23 +1,18 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
 import { getPool, sql } from '../db.js';
 import { logAudit } from '../utils/auditLogger.js';
+import { createClient } from '@supabase/supabase-js';
 
-const __dir = path.dirname(fileURLToPath(import.meta.url));
-const UPLOADS_DIR = path.resolve(__dir, '..', 'uploads', 'assets');
+// Supabase Storage client
+const supabase = createClient(
+  process.env.SUPABASE_URL || 'https://vwwriqkjcramhhkyrarz.supabase.co',
+  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || ''
+);
 
-// Asegurar que la carpeta existe
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+const BUCKET = 'assets';
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-  },
-});
+// Usar memoria en vez de disco (Render no persiste archivos)
+const storage = multer.memoryStorage();
 
 const fileFilter = (_req, file, cb) => {
   const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
@@ -28,8 +23,41 @@ const fileFilter = (_req, file, cb) => {
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB max por archivo
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
 });
+
+/**
+ * Sube un archivo a Supabase Storage y retorna la URL pública.
+ */
+async function uploadToSupabase(file, folder) {
+  const ext = file.originalname.split('.').pop().toLowerCase();
+  const filename = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(filename, file.buffer, {
+      contentType: file.mimetype,
+      upsert: false,
+    });
+
+  if (error) throw new Error(`Error subiendo archivo: ${error.message}`);
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(filename);
+  return data.publicUrl;
+}
+
+/**
+ * Elimina un archivo de Supabase Storage por su URL pública.
+ */
+async function deleteFromSupabase(publicUrl) {
+  if (!publicUrl) return;
+  // Extraer el path del archivo desde la URL pública
+  // URL format: https://xxx.supabase.co/storage/v1/object/public/assets/photos/filename.jpg
+  const match = publicUrl.match(/\/storage\/v1\/object\/public\/assets\/(.+)$/);
+  if (match) {
+    await supabase.storage.from(BUCKET).remove([match[1]]);
+  }
+}
 
 export const uploadAssetFiles = async (req, res) => {
   try {
@@ -38,7 +66,6 @@ export const uploadAssetFiles = async (req, res) => {
 
     const db = await getPool();
 
-    // Obtener URLs actuales para poder borrar archivos viejos del disco
     const current = await db.request()
       .input('id', sql.VarChar, assetId)
       .query('SELECT FOTO_URL, FACTURA_URL FROM ACTIVO WHERE ID = @id');
@@ -47,28 +74,21 @@ export const uploadAssetFiles = async (req, res) => {
     const updates = {};
 
     if (req.files?.photo?.[0]) {
-      // Eliminar foto vieja si existe
-      if (row.FOTO_URL) {
-        const oldPath = path.resolve(__dir, '..', row.FOTO_URL.replace(/^\/uploads\//, 'uploads/'));
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-      }
-      updates.FOTO_URL = `/uploads/assets/${req.files.photo[0].filename}`;
+      // Eliminar foto vieja de Supabase
+      await deleteFromSupabase(row.FOTO_URL);
+      updates.FOTO_URL = await uploadToSupabase(req.files.photo[0], 'photos');
     }
 
     if (req.files?.invoice?.[0]) {
-      // Eliminar factura vieja si existe
-      if (row.FACTURA_URL) {
-        const oldPath = path.resolve(__dir, '..', row.FACTURA_URL.replace(/^\/uploads\//, 'uploads/'));
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-      }
-      updates.FACTURA_URL = `/uploads/assets/${req.files.invoice[0].filename}`;
+      // Eliminar factura vieja de Supabase
+      await deleteFromSupabase(row.FACTURA_URL);
+      updates.FACTURA_URL = await uploadToSupabase(req.files.invoice[0], 'invoices');
     }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No se recibió ningún archivo' });
     }
 
-    // Construir SET dinámico
     const setParts = [];
     const dbReq = db.request().input('id', sql.VarChar, assetId);
     if (updates.FOTO_URL)    { setParts.push('FOTO_URL = @fotoUrl');       dbReq.input('fotoUrl',    sql.VarChar, updates.FOTO_URL); }
@@ -85,7 +105,7 @@ export const uploadAssetFiles = async (req, res) => {
 
 export const deleteAssetFile = async (req, res) => {
   try {
-    const { id, type } = req.params; // type: 'photo' | 'invoice'
+    const { id, type } = req.params;
     if (!['photo', 'invoice'].includes(type)) return res.status(400).json({ error: 'Tipo inválido' });
 
     const col = type === 'photo' ? 'FOTO_URL' : 'FACTURA_URL';
@@ -96,10 +116,7 @@ export const deleteAssetFile = async (req, res) => {
       .query(`SELECT ${col} as url FROM ACTIVO WHERE ID = @id`);
 
     const fileUrl = current.recordset[0]?.url;
-    if (fileUrl) {
-      const filePath = path.resolve(__dir, '..', fileUrl.replace(/^\/uploads\//, 'uploads/'));
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
+    await deleteFromSupabase(fileUrl);
 
     await db.request()
       .input('id', sql.VarChar, id)

@@ -79,7 +79,7 @@ const InventoryForm = () => {
         const assetToEdit = assets.find(a => a.id === id);
         if (assetToEdit) {
           setFormData(prepareFormData(assetToEdit));
-          if (assetToEdit.photoUrl) setPhotoPreview(`${BASE_URL}${assetToEdit.photoUrl}`);
+          if (assetToEdit.photoUrl) setPhotoPreview(assetToEdit.photoUrl.startsWith('http') ? assetToEdit.photoUrl : `${BASE_URL}${assetToEdit.photoUrl}`);
           return;
         }
 
@@ -88,7 +88,7 @@ const InventoryForm = () => {
           if (res?.ok) {
             const data = await res.json();
             setFormData(prepareFormData(data));
-            if (data.photoUrl) setPhotoPreview(`${BASE_URL}${data.photoUrl}`);
+            if (data.photoUrl) setPhotoPreview(data.photoUrl.startsWith('http') ? data.photoUrl : `${BASE_URL}${data.photoUrl}`);
           } else {
             navigate('/inventory');
           }
@@ -394,7 +394,7 @@ const InventoryForm = () => {
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FileText size={14} /> Factura de Compra (PDF)</label>
                   {isEditMode && formData.invoiceUrl && !invoiceFile ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <a href={`${BASE_URL}${formData.invoiceUrl}`} target="_blank" rel="noreferrer"
+                      <a href={formData.invoiceUrl?.startsWith('http') ? formData.invoiceUrl : `${BASE_URL}${formData.invoiceUrl}`} target="_blank" rel="noreferrer"
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'rgba(37,99,235,0.06)', border: '1px solid var(--accent-light)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--accent-primary)', textDecoration: 'none' }}>
                         <FileText size={16} /> Ver factura actual
                       </a>

@@ -314,7 +314,7 @@ const AssetHistory = () => {
     );
   }
 
-  const photoUrl = asset.photoUrl ? `${BASE_URL}${asset.photoUrl}` : null;
+  const photoUrl = asset.photoUrl ? (asset.photoUrl.startsWith('http') ? asset.photoUrl : `${BASE_URL}${asset.photoUrl}`) : null;
 
   return (
     <>
