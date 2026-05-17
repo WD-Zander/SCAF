@@ -3,11 +3,17 @@ import { getPool, sql } from '../db.js';
 import { logAudit } from '../utils/auditLogger.js';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase Storage client
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://vwwriqkjcramhhkyrarz.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || ''
-);
+// Supabase Storage client (lazy init)
+let _supabase = null;
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.SUPABASE_URL || 'https://vwwriqkjcramhhkyrarz.supabase.co',
+      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || 'dummy'
+    );
+  }
+  return _supabase;
+}
 
 const BUCKET = 'assets';
 
@@ -33,7 +39,7 @@ async function uploadToSupabase(file, folder) {
   const ext = file.originalname.split('.').pop().toLowerCase();
   const filename = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  const { error } = await supabase.storage
+  const { error } = await getSupabase().storage
     .from(BUCKET)
     .upload(filename, file.buffer, {
       contentType: file.mimetype,
@@ -42,7 +48,7 @@ async function uploadToSupabase(file, folder) {
 
   if (error) throw new Error(`Error subiendo archivo: ${error.message}`);
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(filename);
+  const { data } = getSupabase().storage.from(BUCKET).getPublicUrl(filename);
   return data.publicUrl;
 }
 
@@ -55,7 +61,7 @@ async function deleteFromSupabase(publicUrl) {
   // URL format: https://xxx.supabase.co/storage/v1/object/public/assets/photos/filename.jpg
   const match = publicUrl.match(/\/storage\/v1\/object\/public\/assets\/(.+)$/);
   if (match) {
-    await supabase.storage.from(BUCKET).remove([match[1]]);
+    await getSupabase().storage.from(BUCKET).remove([match[1]]);
   }
 }
 
