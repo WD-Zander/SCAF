@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import {
   ChevronLeft,
@@ -11,16 +11,19 @@ import {
   ExternalLink,
   History
 } from 'lucide-react';
+import SearchableSelect from '../../components/Common/SearchableSelect';
+import Pagination from '../../components/Common/Pagination';
 
 const MaintenanceTimeline = () => {
-  const { assets, maintenances, maintenanceScopes } = useAppContext();
+  const { assets, maintenances, maintenanceScopes, getCategoriesForScope, getEntitiesForScope } = useAppContext();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const scope = searchParams.get('scope');
-  const scopeLabel = maintenanceScopes.find(s => s.slug === scope)?.nombre || '';
   const [year, setYear] = useState(new Date().getFullYear());
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
   const [searchTerm, setSearchTerm] = useState('');
+  const [scopeFilter, setScopeFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
   const [familyFilter, setFamilyFilter] = useState('');
   const [subFamilyFilter, setSubFamilyFilter] = useState('');
 
@@ -29,54 +32,141 @@ const MaintenanceTimeline = () => {
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
   ];
 
-  // Opciones de filtros derivadas de los activos
-  const categories = useMemo(() => (
-    [...new Set(assets.map(a => a.category).filter(Boolean))].sort()
-  ), [assets]);
+  const activeScopes = useMemo(() =>
+    (maintenanceScopes || []).filter(s => s.activo !== false),
+  [maintenanceScopes]);
 
-  const families = useMemo(() => {
-    if (!categoryFilter) return [...new Set(assets.map(a => a.family).filter(Boolean))].sort();
-    return [...new Set(
-      assets.filter(a => a.category === categoryFilter).map(a => a.family).filter(Boolean)
-    )].sort();
-  }, [assets, categoryFilter]);
+  // Resolve scope object and entities
+  const selectedScope = activeScopes.find(s => s.slug === scopeFilter);
+  const scopeColor = selectedScope?.color || 'var(--accent-primary)';
 
-  const subFamilies = useMemo(() => {
-    const base = categoryFilter ? assets.filter(a => a.category === categoryFilter) : assets;
-    const withFam = familyFilter ? base.filter(a => a.family === familyFilter) : base;
-    return [...new Set(withFam.map(a => a.subFamily).filter(Boolean))].sort();
-  }, [assets, categoryFilter, familyFilter]);
+  // Get the correct entities for the selected scope (assets, areas, rooms, etc.)
+  const scopeEntities = useMemo(() => {
+    if (!scopeFilter) return { type: 'activo', items: [], label: 'Activo', labelPlural: 'Activos' };
+    return getEntitiesForScope(scopeFilter);
+  }, [scopeFilter, getEntitiesForScope]);
 
-  // Resetear familia/subfamilia cuando cambia categoría
-  const handleCategoryChange = (val) => {
-    setCategoryFilter(val);
+  // For "activo" type, filter by scope via scopeId on asset
+  const scopeFilteredItems = useMemo(() => {
+    if (!scopeFilter) return [];
+    const items = scopeEntities.items;
+    if (scopeEntities.type === 'activo' && selectedScope) {
+      return items.filter(a => a.scopeId === selectedScope.id);
+    }
+    return items;
+  }, [scopeFilter, scopeEntities, selectedScope]);
+
+  // Categories for selected scope
+  const scopeTree = useMemo(() => {
+    if (!scopeFilter) return [];
+    return getCategoriesForScope(scopeFilter);
+  }, [scopeFilter, getCategoriesForScope]);
+
+  // Root categories (level 1)
+  const rootCategories = useMemo(() =>
+    scopeTree.map(c => ({ value: c.name, label: c.name })),
+  [scopeTree]);
+
+  // Sections (level 2)
+  const sections = useMemo(() => {
+    if (!categoryFilter) return [];
+    const cat = scopeTree.find(c => c.name === categoryFilter);
+    return (cat?.children || []).map(s => ({ value: s.name, label: s.name }));
+  }, [scopeTree, categoryFilter]);
+
+  // Families (level 3)
+  const familiesOpts = useMemo(() => {
+    if (!sectionFilter) return [];
+    const cat = scopeTree.find(c => c.name === categoryFilter);
+    const sec = (cat?.children || []).find(s => s.name === sectionFilter);
+    return (sec?.children || []).map(f => ({ value: f.name, label: f.name }));
+  }, [scopeTree, categoryFilter, sectionFilter]);
+
+  // SubFamilies (level 4)
+  const subFamiliesOpts = useMemo(() => {
+    if (!familyFilter) return [];
+    const cat = scopeTree.find(c => c.name === categoryFilter);
+    const sec = (cat?.children || []).find(s => s.name === sectionFilter);
+    const fam = (sec?.children || []).find(f => f.name === familyFilter);
+    return (fam?.children || []).map(sf => ({ value: sf.name, label: sf.name }));
+  }, [scopeTree, categoryFilter, sectionFilter, familyFilter]);
+
+  // Cascade resets
+  const handleScopeChange = (val) => {
+    setScopeFilter(val);
+    setCategoryFilter('');
+    setSectionFilter('');
     setFamilyFilter('');
     setSubFamilyFilter('');
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (val) => {
+    setCategoryFilter(val);
+    setSectionFilter('');
+    setFamilyFilter('');
+    setSubFamilyFilter('');
+    setCurrentPage(1);
+  };
+
+  const handleSectionChange = (val) => {
+    setSectionFilter(val);
+    setFamilyFilter('');
+    setSubFamilyFilter('');
+    setCurrentPage(1);
   };
 
   const handleFamilyChange = (val) => {
     setFamilyFilter(val);
     setSubFamilyFilter('');
+    setCurrentPage(1);
   };
 
-  const filteredAssets = useMemo(() => {
-    return assets.filter(a => {
-      const matchesSearch = a.name?.toLowerCase().includes(searchTerm.toLowerCase()) || a.id?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCat = !categoryFilter || a.category === categoryFilter;
-      const matchesFam = !familyFilter || a.family === familyFilter;
-      const matchesSub = !subFamilyFilter || a.subFamily === subFamilyFilter;
-      return matchesSearch && matchesCat && matchesFam && matchesSub;
-    });
-  }, [assets, searchTerm, categoryFilter, familyFilter, subFamilyFilter]);
-
+  // Filter maintenances by scope
   const scopedMaintenances = useMemo(() => {
-    if (!scope) return maintenances;
-    return maintenances.filter(m => m.scope === scope);
-  }, [maintenances, scope]);
+    if (!scopeFilter) return maintenances;
+    return maintenances.filter(m => m.scope === scopeFilter);
+  }, [maintenances, scopeFilter]);
 
-  const getMaintenanceInMonth = (assetId, monthIdx) => {
+  // Filter items by search + category chain + must have at least one maintenance
+  const filteredItems = useMemo(() => {
+    return scopeFilteredItems.filter(item => {
+      const id = item.id || '';
+
+      // Only show entities that have at least one maintenance/task scheduled
+      const hasMaintenance = scopedMaintenances.some(m => {
+        const mEntityId = m.entityId || m.assetId;
+        return mEntityId === id;
+      });
+      if (!hasMaintenance) return false;
+
+      // Generic name/id search — works for assets and infra items
+      const name = item.name || item.nombre || '';
+      const matchesSearch = !searchTerm || name.toLowerCase().includes(searchTerm.toLowerCase()) || id.toLowerCase?.().includes(searchTerm.toLowerCase());
+
+      // Category filters (for assets)
+      const matchesCat = !categoryFilter || item.category === categoryFilter;
+      const matchesSec = !sectionFilter || item.sectionName === sectionFilter;
+      const matchesFam = !familyFilter || item.family === familyFilter;
+      const matchesSub = !subFamilyFilter || item.subFamily === subFamilyFilter;
+
+      // For infra items, match by category name if available
+      if (scopeEntities.type !== 'activo') {
+        const itemCat = item.categoryName || item.categoria || '';
+        const matchesInfraCat = !categoryFilter || itemCat === categoryFilter;
+        return matchesSearch && matchesInfraCat;
+      }
+
+      return matchesSearch && matchesCat && matchesSec && matchesFam && matchesSub;
+    });
+  }, [scopeFilteredItems, searchTerm, categoryFilter, sectionFilter, familyFilter, subFamilyFilter, scopeEntities.type, scopedMaintenances]);
+
+  const getMaintenanceInMonth = (entityId, monthIdx) => {
     return scopedMaintenances.filter(m => {
-      if (!m.startDate || m.assetId !== assetId) return false;
+      if (!m.startDate) return false;
+      // Match by assetId (for activos) or entityId (for infra items)
+      const mEntityId = m.entityId || m.assetId;
+      if (mEntityId !== entityId) return false;
       const parts = m.startDate.split('-');
       const mYear = parseInt(parts[0], 10);
       const mMonth = parseInt(parts[1], 10) - 1;
@@ -90,8 +180,24 @@ const MaintenanceTimeline = () => {
     return '#ef4444';
   };
 
-  const activeFiltersCount = [categoryFilter, familyFilter, subFamilyFilter, searchTerm].filter(Boolean).length;
-  const hasFilters = activeFiltersCount > 0;
+  const activeFiltersCount = [scopeFilter, categoryFilter, sectionFilter, familyFilter, subFamilyFilter, searchTerm].filter(Boolean).length;
+  const hasFilters = scopeFilter; // At minimum, scope must be selected
+
+  const clearAll = () => {
+    setScopeFilter('');
+    setCategoryFilter('');
+    setSectionFilter('');
+    setFamilyFilter('');
+    setSubFamilyFilter('');
+    setSearchTerm('');
+  };
+
+  // Determine if current scope is asset-based
+  const isAssetScope = scopeEntities.type === 'activo';
+
+  // Pagination
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
@@ -99,9 +205,9 @@ const MaintenanceTimeline = () => {
         <div>
           <h1 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Columns4 className="text-accent" size={32} /> Cronograma Anual
-            {scopeLabel && <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent-primary)', fontWeight: 600 }}>{scopeLabel}</span>}
+            {selectedScope && <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: `${scopeColor}18`, color: scopeColor, fontWeight: 600 }}>{selectedScope.nombre}</span>}
           </h1>
-          <p className="text-muted">Vista ejecutiva de la programación preventiva de activos.</p>
+          <p className="text-muted">Vista ejecutiva de la programación preventiva por módulo.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <div style={{ display: 'flex', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--glass-border)', overflow: 'hidden' }}>
@@ -121,70 +227,102 @@ const MaintenanceTimeline = () => {
 
       {/* Panel de Filtros */}
       <div className="glass-panel" style={{ padding: '20px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Buscador */}
-          <div className="input-group" style={{ margin: 0, minWidth: '240px', flex: '1 1 240px' }}>
+          <div style={{ margin: 0, minWidth: '200px', flex: '1 1 200px' }}>
             <div style={{ position: 'relative' }}>
               <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 type="text"
                 className="input-control"
                 style={{ paddingLeft: '38px' }}
-                placeholder="Buscar activo o ID..."
+                placeholder={`Buscar ${scopeEntities.label?.toLowerCase() || 'activo'} o ID...`}
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               />
             </div>
           </div>
 
-          {/* Categoría */}
-          <div className="input-group" style={{ margin: 0, minWidth: '180px', flex: '1 1 180px' }}>
-            <select className="input-control" value={categoryFilter} onChange={e => handleCategoryChange(e.target.value)}>
-              <option value="">Todas las Categorías</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+          {/* Módulo / Scope */}
+          <div style={{ margin: 0, minWidth: '180px', flex: '1 1 180px' }}>
+            <SearchableSelect
+              value={scopeFilter}
+              onChange={(value) => handleScopeChange(value)}
+              options={activeScopes.map(s => ({ value: s.slug, label: s.nombre }))}
+              placeholder="Tipo de Mantenimiento"
+              clearable
+              color={scopeColor}
+            />
           </div>
+
+          {/* Categoría */}
+          <div style={{ margin: 0, minWidth: '160px', flex: '1 1 160px' }}>
+            <SearchableSelect
+              value={categoryFilter}
+              onChange={(value) => handleCategoryChange(value)}
+              options={rootCategories}
+              placeholder="Categoría"
+              disabled={!scopeFilter || rootCategories.length === 0}
+              clearable
+              color={scopeColor}
+            />
+          </div>
+
+          {/* Sección — only for asset scopes with sections */}
+          {isAssetScope && (
+            <div style={{ margin: 0, minWidth: '140px', flex: '1 1 140px' }}>
+              <SearchableSelect
+                value={sectionFilter}
+                onChange={(value) => handleSectionChange(value)}
+                options={sections}
+                placeholder="Sección"
+                disabled={sections.length === 0}
+                clearable
+                color={scopeColor}
+              />
+            </div>
+          )}
 
           {/* Familia */}
-          <div className="input-group" style={{ margin: 0, minWidth: '160px', flex: '1 1 160px' }}>
-            <select
-              className="input-control"
-              value={familyFilter}
-              onChange={e => handleFamilyChange(e.target.value)}
-              disabled={families.length === 0}
-            >
-              <option value="">Todas las Familias</option>
-              {families.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
+          {isAssetScope && (
+            <div style={{ margin: 0, minWidth: '140px', flex: '1 1 140px' }}>
+              <SearchableSelect
+                value={familyFilter}
+                onChange={(value) => handleFamilyChange(value)}
+                options={familiesOpts}
+                placeholder="Familia"
+                disabled={familiesOpts.length === 0}
+                clearable
+                color={scopeColor}
+              />
+            </div>
+          )}
 
           {/* SubFamilia */}
-          <div className="input-group" style={{ margin: 0, minWidth: '160px', flex: '1 1 160px' }}>
-            <select
-              className="input-control"
-              value={subFamilyFilter}
-              onChange={e => setSubFamilyFilter(e.target.value)}
-              disabled={subFamilies.length === 0}
-            >
-              <option value="">Todas las SubFamilias</option>
-              {subFamilies.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
+          {isAssetScope && (
+            <div style={{ margin: 0, minWidth: '140px', flex: '1 1 140px' }}>
+              <SearchableSelect
+                value={subFamilyFilter}
+                onChange={(value) => setSubFamilyFilter(value)}
+                options={subFamiliesOpts}
+                placeholder="SubFamilia"
+                disabled={subFamiliesOpts.length === 0}
+                clearable
+                color={scopeColor}
+              />
+            </div>
+          )}
 
           {/* Contador + limpiar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
             <span className="text-muted" style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Filter size={15} />
-              Mostrando <strong>{filteredAssets.length}</strong> activos
-              {activeFiltersCount > 0 && <span style={{ background: 'var(--accent-primary)', color: '#fff', borderRadius: '10px', padding: '1px 7px', fontSize: '0.75rem' }}>{activeFiltersCount}</span>}
+              <strong>{filteredItems.length}</strong> {scopeEntities.labelPlural?.toLowerCase() || 'activos'}
+              {activeFiltersCount > 0 && <span style={{ background: scopeColor, color: '#fff', borderRadius: '10px', padding: '1px 7px', fontSize: '0.75rem' }}>{activeFiltersCount}</span>}
             </span>
             {activeFiltersCount > 0 && (
-              <button
-                className="btn-secondary"
-                style={{ fontSize: '0.78rem', padding: '5px 10px' }}
-                onClick={() => { setCategoryFilter(''); setFamilyFilter(''); setSubFamilyFilter(''); setSearchTerm(''); }}
-              >
-                Limpiar filtros
+              <button className="btn-secondary" style={{ fontSize: '0.78rem', padding: '5px 10px' }} onClick={clearAll}>
+                Limpiar
               </button>
             )}
           </div>
@@ -198,7 +336,7 @@ const MaintenanceTimeline = () => {
             <thead>
               <tr style={{ background: 'var(--bg-secondary)' }}>
                 <th style={{ padding: '16px 24px', textAlign: 'left', borderBottom: '1px solid var(--glass-border)', width: '260px', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 10 }}>
-                  Activo / Equipo
+                  {scopeEntities.label || 'Activo'} / Equipo
                 </th>
                 {months.map((m) => (
                   <th key={m} style={{ padding: '16px 8px', textAlign: 'center', borderBottom: '1px solid var(--glass-border)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -212,77 +350,91 @@ const MaintenanceTimeline = () => {
                 <tr>
                   <td colSpan="13" style={{ padding: '80px 20px', textAlign: 'center' }} className="text-muted">
                     <Filter size={36} style={{ opacity: 0.2, marginBottom: '16px', display: 'block', margin: '0 auto 16px' }} />
-                    <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>Aplica un filtro para ver el cronograma</p>
-                    <p style={{ fontSize: '0.85rem' }}>Usa los filtros de arriba para buscar por nombre, categoría, familia o subfamilia.</p>
+                    <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>Selecciona un tipo de mantenimiento</p>
+                    <p style={{ fontSize: '0.85rem' }}>Elige el módulo y luego filtra por categoría, sección, familia o subfamilia.</p>
                   </td>
                 </tr>
-              ) : filteredAssets.length === 0 ? (
+              ) : filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan="13" style={{ padding: '60px', textAlign: 'center' }} className="text-muted">
-                    No se encontraron activos para los filtros seleccionados.
+                    No se encontraron {scopeEntities.labelPlural?.toLowerCase() || 'elementos'} con mantenimientos programados.
                   </td>
                 </tr>
               ) : (
-                filteredAssets.map(asset => (
-                  <tr key={asset.id} className="hoverable-row">
-                    <td style={{ padding: '12px 24px', borderBottom: '1px solid var(--glass-border)', position: 'sticky', left: 0, background: '#fff', zIndex: 9 }}>
-                      <div
-                        style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--accent-primary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                        onClick={() => navigate(`/inventory/history/${asset.id}`)}
-                        title="Ver historial completo del activo"
-                      >
-                        <History size={13} />
-                        {asset.name}
-                      </div>
-                      <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '2px' }}>{asset.id}</div>
-                      {(asset.family || asset.subFamily) && (
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px', opacity: 0.75 }}>
-                          {[asset.family, asset.subFamily].filter(Boolean).join(' › ')}
+                paginatedItems.map(item => {
+                  const itemName = item.name || item.nombre || '';
+                  const itemId = item.id || '';
+                  return (
+                    <tr key={itemId} className="hoverable-row">
+                      <td style={{ padding: '12px 24px', borderBottom: '1px solid var(--glass-border)', position: 'sticky', left: 0, background: '#fff', zIndex: 9 }}>
+                        <div
+                          style={{ fontWeight: 600, fontSize: '0.9rem', color: scopeColor, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                          onClick={() => isAssetScope ? navigate(`/inventory/history/${itemId}`) : null}
+                          title={isAssetScope ? 'Ver historial completo' : itemName}
+                        >
+                          {isAssetScope && <History size={13} />}
+                          {itemName}
                         </div>
-                      )}
-                    </td>
-                    {months.map((_, mIdx) => {
-                      const mnts = getMaintenanceInMonth(asset.id, mIdx);
-                      return (
-                        <td key={mIdx} style={{ padding: '8px', borderBottom: '1px solid var(--glass-border)', borderLeft: '1px solid var(--glass-border)', minHeight: '60px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {mnts.map(m => (
-                              <div
-                                key={m.id}
-                                onClick={() => navigate(`/maintenances/view/${m.id}`)}
-                                style={{
-                                  background: getStatusColor(m.status),
-                                  color: '#fff',
-                                  padding: '4px 6px',
-                                  borderRadius: '4px',
-                                  fontSize: '0.65rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  textAlign: 'center',
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                  transition: 'transform 0.1s ease',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '4px'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                                title={`${m.id}: ${m.title}`}
-                              >
-                                <ExternalLink size={10} /> {m.id}
-                              </div>
-                            ))}
+                        <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '2px' }}>{itemId}</div>
+                        {isAssetScope && (item.sectionName || item.family || item.subFamily) && (
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px', opacity: 0.75 }}>
+                            {[item.sectionName, item.family, item.subFamily].filter(Boolean).join(' › ')}
                           </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
+                        )}
+                      </td>
+                      {months.map((_, mIdx) => {
+                        const mnts = getMaintenanceInMonth(itemId, mIdx);
+                        return (
+                          <td key={mIdx} style={{ padding: '8px', borderBottom: '1px solid var(--glass-border)', borderLeft: '1px solid var(--glass-border)', minHeight: '60px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {mnts.map(m => (
+                                <div
+                                  key={m.id}
+                                  onClick={() => navigate(`/maintenances/view/${m.id}`)}
+                                  style={{
+                                    background: getStatusColor(m.status),
+                                    color: '#fff',
+                                    padding: '4px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    textAlign: 'center',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                    transition: 'transform 0.1s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px'
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+                                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                  title={`${m.id}: ${m.title}`}
+                                >
+                                  <ExternalLink size={10} /> {m.id}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+        {hasFilters && filteredItems.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredItems.length}
+            onPageChange={setCurrentPage}
+            itemsPerPage={ITEMS_PER_PAGE}
+            label={scopeEntities.labelPlural?.toLowerCase() || 'elementos'}
+          />
+        )}
       </div>
 
       {/* Leyenda */}
@@ -297,10 +449,12 @@ const MaintenanceTimeline = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
           <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#ef4444' }}></div> Pendiente / Vencido
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', marginLeft: 'auto' }}>
-          <History size={14} color="var(--accent-primary)" />
-          <span className="text-muted">Clic en el nombre del activo para ver su historial completo</span>
-        </div>
+        {isAssetScope && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', marginLeft: 'auto' }}>
+            <History size={14} color={scopeColor} />
+            <span className="text-muted">Clic en el nombre del activo para ver su historial completo</span>
+          </div>
+        )}
       </div>
     </div>
   );

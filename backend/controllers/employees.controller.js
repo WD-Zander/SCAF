@@ -71,8 +71,8 @@ export const createEmployee = async (req, res) => {
       .input('activo',   sql.Bit,      activo !== false ? 1 : 0)
       .query(`
         INSERT INTO EMPLEADO (NOMBRE, APELLIDO, CEDULA, CARGO, ID_DEPTO, ACTIVO)
-        OUTPUT INSERTED.ID
         VALUES (@nombre, @apellido, @cedula, @cargo, @deptoId, @activo)
+        RETURNING ID
       `);
     const newId = result.recordset[0].ID;
     await logAudit(req, 'POST', 'Empleados', newId, `Empleado creado: ${nombre} ${apellido}`);

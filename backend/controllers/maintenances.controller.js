@@ -28,19 +28,25 @@ export const getMaintenances = async (req, res) => {
     try {
       result = await r.query(`
         SELECT
-          m.ID as id, m.ID_ACTIVO as assetId, m.TITULO as title,
+          m.ID as id, m.ID_ACTIVO as assetId,
+          ISNULL(m.TIPO_ENTIDAD, 'activo') as entityType,
+          ISNULL(m.ID_ENTIDAD, m.ID_ACTIVO) as entityId,
+          m.TITULO as title,
           m.ID_TIPO_MANT as typeId, t.NOMBRE as type,
           m.ID_PROVEEDOR as providerId, ISNULL(s.NOMBRE, 'Interno') as provider,
           u.NOMBRE as assignedTo,
           FORMAT(m.FECHA_INICIO, 'yyyy-MM-dd') as startDate, FORMAT(m.FECHA_FIN, 'yyyy-MM-dd') as endDate,
           m.ESTADO as status, m.COSTO as cost, m.DESCRIPCION as description,
           m.ID_PLAN as planId, m.ID_ORDEN_TRAB as workOrderId,
-          m.ID_SCOPE as scopeId, sc.SLUG as scope
+          m.ID_SCOPE as scopeId, sc.SLUG as scope,
+          COALESCE(a.NOMBRE, inf.NOMBRE) as entityName
         FROM TICKET_MANT m
         LEFT JOIN TIPO_MANT t ON m.ID_TIPO_MANT = t.ID
         LEFT JOIN PROVEEDOR s ON m.ID_PROVEEDOR = s.ID
         LEFT JOIN USUARIO u ON m.ID_ASIGNADO = u.ID
         LEFT JOIN SCOPE_MANT sc ON m.ID_SCOPE = sc.ID
+        LEFT JOIN ACTIVO a ON ISNULL(m.TIPO_ENTIDAD, 'activo') = 'activo' AND ISNULL(m.ID_ENTIDAD, m.ID_ACTIVO) = a.ID
+        LEFT JOIN INFRAESTRUCTURA_ITEM inf ON m.TIPO_ENTIDAD != 'activo' AND m.ID_ENTIDAD = inf.ID
         WHERE m.BORRADO = 0
         ${dateFilter}
         ORDER BY m.FECHA_INICIO ASC
@@ -79,20 +85,71 @@ export const getMaintenances = async (req, res) => {
 
 export const createMaintenance = async (req, res) => {
   try {
-    const { id, assetId, title, typeId, type, providerId, provider, assignedTo, startDate, endDate, status, cost, description, planId, workOrderId, scope } = req.body;
+    const { id, assetId, title, typeId, type, providerId, provider, assignedTo, startDate, endDate, status, cost, description, planId, workOrderId, scope, entityType, entityId } = req.body;
     const db = await getPool();
+
+    // Resolve subquery values in JS before the INSERT
+    const resolvedEntityType = entityType || 'activo';
+    const resolvedEntityId = entityId || assetId;
+
+    // Resolve typeId via lookup if not provided
+    let resolvedTypeId = typeId || null;
+    if (!resolvedTypeId && type) {
+      const typeSearch = await db.request()
+        .input('type', sql.VarChar, '%' + (type || '') + '%')
+        .query(`SELECT ID FROM TIPO_MANT WHERE NOMBRE LIKE @type LIMIT 1`);
+      if (typeSearch.recordset.length > 0) {
+        resolvedTypeId = typeSearch.recordset[0].ID;
+      }
+    }
+    if (!resolvedTypeId) {
+      const fallbackType = await db.request()
+        .query(`SELECT ID FROM TIPO_MANT LIMIT 1`);
+      if (fallbackType.recordset.length > 0) {
+        resolvedTypeId = fallbackType.recordset[0].ID;
+      }
+    }
+
+    // Resolve providerId via lookup if not provided
+    let resolvedProviderId = providerId || null;
+    if (!resolvedProviderId && provider) {
+      const provSearch = await db.request()
+        .input('provider', sql.VarChar, provider)
+        .query(`SELECT ID FROM PROVEEDOR WHERE NOMBRE = @provider LIMIT 1`);
+      if (provSearch.recordset.length > 0) {
+        resolvedProviderId = provSearch.recordset[0].ID;
+      }
+    }
+
+    // Resolve assignedTo user ID
+    let resolvedAssignedId = null;
+    if (assignedTo) {
+      const userSearch = await db.request()
+        .input('assignedTo', sql.VarChar, assignedTo)
+        .query(`SELECT ID FROM USUARIO WHERE NOMBRE = @assignedTo LIMIT 1`);
+      if (userSearch.recordset.length > 0) {
+        resolvedAssignedId = userSearch.recordset[0].ID;
+      }
+    }
 
     // Intentar con columna ID_SCOPE. Si la migración no se ejecutó aún, usar INSERT sin esa columna.
     try {
+      // Resolve scope ID
+      let resolvedScopeId = null;
+      const scopeSearch = await db.request()
+        .input('scope', sql.VarChar, scope || 'activo')
+        .query(`SELECT ID FROM SCOPE_MANT WHERE SLUG = @scope LIMIT 1`);
+      if (scopeSearch.recordset.length > 0) {
+        resolvedScopeId = scopeSearch.recordset[0].ID;
+      }
+
       await db.request()
         .input('id', sql.VarChar, id)
-        .input('assetId', sql.VarChar, assetId)
+        .input('assetId', sql.VarChar, resolvedEntityType === 'activo' ? resolvedEntityId : null)
         .input('title', sql.VarChar, title)
-        .input('typeId', sql.VarChar, typeId || null)
-        .input('type', sql.VarChar, type || '')
-        .input('providerId', sql.VarChar, providerId || null)
-        .input('provider', sql.VarChar, provider || '')
-        .input('assignedTo', sql.VarChar, assignedTo || '')
+        .input('typeId', sql.VarChar, resolvedTypeId)
+        .input('providerId', sql.VarChar, resolvedProviderId)
+        .input('assignedId', sql.VarChar, resolvedAssignedId)
         .input('startDate', sql.Date, startDate)
         .input('endDate', sql.Date, endDate || null)
         .input('status', sql.VarChar, status)
@@ -100,18 +157,14 @@ export const createMaintenance = async (req, res) => {
         .input('desc', sql.NVarChar, description || '')
         .input('planId', sql.VarChar, planId || null)
         .input('workOrderId', sql.VarChar, workOrderId || null)
-        .input('scope', sql.VarChar, scope || 'activo')
+        .input('scopeId', sql.VarChar, resolvedScopeId)
+        .input('entityType', sql.VarChar, resolvedEntityType)
+        .input('entityId', sql.VarChar, resolvedEntityId)
         .query(`
-          INSERT INTO TICKET_MANT (ID, ID_ACTIVO, TITULO, ID_TIPO_MANT, ID_PROVEEDOR, ID_ASIGNADO, FECHA_INICIO, FECHA_FIN, ESTADO, COSTO, DESCRIPCION, ID_PLAN, ID_ORDEN_TRAB, ID_SCOPE)
-          VALUES (@id, @assetId, @title,
-            COALESCE(@typeId, COALESCE(
-              (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
-              (SELECT TOP 1 ID FROM TIPO_MANT)
-            )),
-            COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
-            (SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
+          INSERT INTO TICKET_MANT (ID, ID_ACTIVO, TITULO, ID_TIPO_MANT, ID_PROVEEDOR, ID_ASIGNADO, FECHA_INICIO, FECHA_FIN, ESTADO, COSTO, DESCRIPCION, ID_PLAN, ID_ORDEN_TRAB, ID_SCOPE, TIPO_ENTIDAD, ID_ENTIDAD)
+          VALUES (@id, @assetId, @title, @typeId, @providerId, @assignedId,
             @startDate, @endDate, @status, @cost, @desc, @planId, @workOrderId,
-            (SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG = @scope))
+            @scopeId, @entityType, @entityId)
         `);
     } catch {
       // Fallback: sin columna ID_SCOPE
@@ -119,11 +172,9 @@ export const createMaintenance = async (req, res) => {
         .input('id', sql.VarChar, id)
         .input('assetId', sql.VarChar, assetId)
         .input('title', sql.VarChar, title)
-        .input('typeId', sql.VarChar, typeId || null)
-        .input('type', sql.VarChar, type || '')
-        .input('providerId', sql.VarChar, providerId || null)
-        .input('provider', sql.VarChar, provider || '')
-        .input('assignedTo', sql.VarChar, assignedTo || '')
+        .input('typeId', sql.VarChar, resolvedTypeId)
+        .input('providerId', sql.VarChar, resolvedProviderId)
+        .input('assignedId', sql.VarChar, resolvedAssignedId)
         .input('startDate', sql.Date, startDate)
         .input('endDate', sql.Date, endDate || null)
         .input('status', sql.VarChar, status)
@@ -133,13 +184,7 @@ export const createMaintenance = async (req, res) => {
         .input('workOrderId', sql.VarChar, workOrderId || null)
         .query(`
           INSERT INTO TICKET_MANT (ID, ID_ACTIVO, TITULO, ID_TIPO_MANT, ID_PROVEEDOR, ID_ASIGNADO, FECHA_INICIO, FECHA_FIN, ESTADO, COSTO, DESCRIPCION, ID_PLAN, ID_ORDEN_TRAB)
-          VALUES (@id, @assetId, @title,
-            COALESCE(@typeId, COALESCE(
-              (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
-              (SELECT TOP 1 ID FROM TIPO_MANT)
-            )),
-            COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
-            (SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
+          VALUES (@id, @assetId, @title, @typeId, @providerId, @assignedId,
             @startDate, @endDate, @status, @cost, @desc, @planId, @workOrderId)
         `);
     }
@@ -194,34 +239,75 @@ export const updateMaintenance = async (req, res) => {
       return res.status(400).json({ error: 'Debes indicar el motivo de la reprogramación al cambiar las fechas.' });
     }
 
+    // Resolve subquery values in JS before the UPDATE
+    let resolvedTypeId = typeId || null;
+    if (!resolvedTypeId && type) {
+      const typeSearch = await db.request()
+        .input('type', sql.VarChar, '%' + (type || '') + '%')
+        .query(`SELECT ID FROM TIPO_MANT WHERE NOMBRE LIKE @type LIMIT 1`);
+      if (typeSearch.recordset.length > 0) {
+        resolvedTypeId = typeSearch.recordset[0].ID;
+      }
+    }
+    if (!resolvedTypeId) {
+      const fallbackType = await db.request()
+        .query(`SELECT ID FROM TIPO_MANT LIMIT 1`);
+      if (fallbackType.recordset.length > 0) {
+        resolvedTypeId = fallbackType.recordset[0].ID;
+      }
+    }
+
+    let resolvedProviderId = providerId || null;
+    if (!resolvedProviderId && provider) {
+      const provSearch = await db.request()
+        .input('provider', sql.VarChar, provider)
+        .query(`SELECT ID FROM PROVEEDOR WHERE NOMBRE = @provider LIMIT 1`);
+      if (provSearch.recordset.length > 0) {
+        resolvedProviderId = provSearch.recordset[0].ID;
+      }
+    }
+
+    let resolvedAssignedId = null;
+    if (assignedTo) {
+      const userSearch = await db.request()
+        .input('assignedTo', sql.VarChar, assignedTo)
+        .query(`SELECT ID FROM USUARIO WHERE NOMBRE = @assignedTo LIMIT 1`);
+      if (userSearch.recordset.length > 0) {
+        resolvedAssignedId = userSearch.recordset[0].ID;
+      }
+    }
+
     // Intentar UPDATE con ID_SCOPE; fallback sin esa columna
     try {
+      let resolvedScopeId = null;
+      const scopeSearch = await db.request()
+        .input('scope', sql.VarChar, scope || 'activo')
+        .query(`SELECT ID FROM SCOPE_MANT WHERE SLUG = @scope LIMIT 1`);
+      if (scopeSearch.recordset.length > 0) {
+        resolvedScopeId = scopeSearch.recordset[0].ID;
+      }
+
       await db.request()
         .input('id', sql.VarChar, ticketId)
         .input('assetId', sql.VarChar, assetId)
         .input('title', sql.VarChar, title)
-        .input('typeId', sql.VarChar, typeId || null)
-        .input('type', sql.VarChar, type || '')
-        .input('providerId', sql.VarChar, providerId || null)
-        .input('provider', sql.VarChar, provider || '')
-        .input('assignedTo', sql.VarChar, assignedTo || '')
+        .input('typeId', sql.VarChar, resolvedTypeId)
+        .input('providerId', sql.VarChar, resolvedProviderId)
+        .input('assignedId', sql.VarChar, resolvedAssignedId)
         .input('startDate', sql.Date, startDate)
         .input('endDate', sql.Date, endDate || null)
         .input('status', sql.VarChar, status)
         .input('cost', sql.Decimal, cost || 0)
         .input('desc', sql.NVarChar, description || '')
-        .input('scope', sql.VarChar, scope || 'activo')
+        .input('scopeId', sql.VarChar, resolvedScopeId)
         .query(`
           UPDATE TICKET_MANT SET
             ID_ACTIVO=@assetId, TITULO=@title,
-            ID_TIPO_MANT=COALESCE(@typeId, COALESCE(
-              (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
-              (SELECT TOP 1 ID FROM TIPO_MANT)
-            )),
-            ID_PROVEEDOR=COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
-            ID_ASIGNADO=(SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
+            ID_TIPO_MANT=@typeId,
+            ID_PROVEEDOR=@providerId,
+            ID_ASIGNADO=@assignedId,
             FECHA_INICIO=@startDate, FECHA_FIN=@endDate, ESTADO=@status, COSTO=@cost, DESCRIPCION=@desc,
-            ID_SCOPE=(SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG = @scope),
+            ID_SCOPE=@scopeId,
             FECHA_ACT=GETUTCDATE()
           WHERE ID=@id
         `);
@@ -231,11 +317,9 @@ export const updateMaintenance = async (req, res) => {
         .input('id', sql.VarChar, ticketId)
         .input('assetId', sql.VarChar, assetId)
         .input('title', sql.VarChar, title)
-        .input('typeId', sql.VarChar, typeId || null)
-        .input('type', sql.VarChar, type || '')
-        .input('providerId', sql.VarChar, providerId || null)
-        .input('provider', sql.VarChar, provider || '')
-        .input('assignedTo', sql.VarChar, assignedTo || '')
+        .input('typeId', sql.VarChar, resolvedTypeId)
+        .input('providerId', sql.VarChar, resolvedProviderId)
+        .input('assignedId', sql.VarChar, resolvedAssignedId)
         .input('startDate', sql.Date, startDate)
         .input('endDate', sql.Date, endDate || null)
         .input('status', sql.VarChar, status)
@@ -244,12 +328,9 @@ export const updateMaintenance = async (req, res) => {
         .query(`
           UPDATE TICKET_MANT SET
             ID_ACTIVO=@assetId, TITULO=@title,
-            ID_TIPO_MANT=COALESCE(@typeId, COALESCE(
-              (SELECT TOP 1 ID FROM TIPO_MANT WHERE NOMBRE LIKE '%' + @type + '%'),
-              (SELECT TOP 1 ID FROM TIPO_MANT)
-            )),
-            ID_PROVEEDOR=COALESCE(@providerId, (SELECT TOP 1 ID FROM PROVEEDOR WHERE @provider != '' AND NOMBRE = @provider)),
-            ID_ASIGNADO=(SELECT TOP 1 ID FROM USUARIO WHERE @assignedTo IS NOT NULL AND @assignedTo != '' AND NOMBRE = @assignedTo),
+            ID_TIPO_MANT=@typeId,
+            ID_PROVEEDOR=@providerId,
+            ID_ASIGNADO=@assignedId,
             FECHA_INICIO=@startDate, FECHA_FIN=@endDate, ESTADO=@status, COSTO=@cost, DESCRIPCION=@desc,
             FECHA_ACT=GETUTCDATE()
           WHERE ID=@id
@@ -312,14 +393,17 @@ export const deleteMaintenance = async (req, res) => {
     const db = await getPool();
     const ticketId = req.params.id;
 
-    const refs = await db.request().input('id', sql.VarChar, ticketId).query(`
-      SELECT
-        ISNULL((SELECT TOP 1 ESTADO FROM TICKET_MANT WHERE ID = @id), '') as estado,
-        (SELECT COUNT(*) FROM TAREA_TICKET  WHERE ID_TICKET = @id AND COMPLETADO = 1) as tareasCompletadas,
-        (SELECT COUNT(*) FROM REPROGRAMACION WHERE ID_TICKET = @id)                   as reprogramaciones
-    `);
+    const estadoRes = await db.request().input('id', sql.VarChar, ticketId)
+      .query(`SELECT ISNULL(ESTADO, '') as estado FROM TICKET_MANT WHERE ID = @id LIMIT 1`);
+    const estado = estadoRes.recordset.length > 0 ? estadoRes.recordset[0].estado : '';
 
-    const { estado, tareasCompletadas, reprogramaciones } = refs.recordset[0];
+    const tareasRes = await db.request().input('id', sql.VarChar, ticketId)
+      .query(`SELECT COUNT(*) as cnt FROM TAREA_TICKET WHERE ID_TICKET = @id AND COMPLETADO = 1`);
+    const tareasCompletadas = tareasRes.recordset[0].cnt;
+
+    const reprogRes = await db.request().input('id', sql.VarChar, ticketId)
+      .query(`SELECT COUNT(*) as cnt FROM REPROGRAMACION WHERE ID_TICKET = @id`);
+    const reprogramaciones = reprogRes.recordset[0].cnt;
 
     if (estado === 'COMPLETADO') {
       return res.status(409).json({ error: 'Este mantenimiento ya fue completado y forma parte del historial operacional.' });

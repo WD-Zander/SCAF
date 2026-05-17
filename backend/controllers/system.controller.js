@@ -40,19 +40,9 @@ export const factoryReset = async (req, res) => {
 };
 
 export const testDb = async (req, res) => {
-  const { server, user, password, database } = req.body;
   try {
-    const testConfig = {
-      server: server || process.env.SQL_SERVER,
-      user: user || process.env.SQL_USER,
-      password: password || process.env.SQL_PASSWORD,
-      database: database || process.env.SQL_DATABASE,
-      options: { encrypt: false, trustServerCertificate: true, enableArithAbort: true },
-    };
-    const testPool = new sql.ConnectionPool(testConfig);
-    await testPool.connect();
-    await testPool.request().query("SELECT 1 AS Result");
-    testPool.close();
+    const db = await getPool();
+    await db.request().query("SELECT 1 AS Result");
     res.json({ message: 'Conexión Exitosa', success: true });
   } catch (error) {
     res.status(500).json({ error: error.message, success: false });

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Wrench, Calendar, Box, User, Activity, CheckCircle, FileText, Clock, CalendarClock, MapPin } from 'lucide-react';
+import { ArrowLeft, Wrench, Calendar, Box, User, Activity, CheckCircle, Check, FileText, Clock, CalendarClock, MapPin, ExternalLink, XCircle, RefreshCw } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../api';
 
@@ -20,6 +20,12 @@ const MaintenanceView = () => {
   const [rescheduleForm, setRescheduleForm] = useState({ startDate: '', endDate: '', reason: '' });
   const [savingReschedule, setSavingReschedule] = useState(false);
 
+  // Acciones masivas para tareas del plan
+  const [bulkAction, setBulkAction] = useState(null); // 'reschedule' | 'cancel' | null
+  const [bulkRescheduleDate, setBulkRescheduleDate] = useState('');
+  const [bulkRescheduleReason, setBulkRescheduleReason] = useState('');
+  const [savingBulk, setSavingBulk] = useState(false);
+
   useEffect(() => {
     const found = maintenances.find(m => m.id === id);
     if (found) {
@@ -35,6 +41,19 @@ const MaintenanceView = () => {
       navigate('/maintenances');
     }
   }, [id, maintenances, assets, navigate]);
+
+  // Tareas hermanas del mismo plan (workOrder) para el mismo activo y fecha
+  const dayTasks = useMemo(() => {
+    if (!maintenance?.workOrderId) return [];
+    const dateStr = maintenance.startDate?.split('T')[0];
+    const assetKey = maintenance.entityId || maintenance.assetId;
+    if (!dateStr || !assetKey) return [];
+    return maintenances.filter(m =>
+      m.workOrderId === maintenance.workOrderId &&
+      m.startDate?.startsWith(dateStr) &&
+      (m.entityId || m.assetId) === assetKey
+    );
+  }, [maintenance, maintenances]);
 
   if (!maintenance || !assetDetails) return null;
 
@@ -108,6 +127,52 @@ const MaintenanceView = () => {
 
   const canStatus = hasPermission('maintenances_status') || hasPermission('maintenances_edit');
   const canEdit = hasPermission('maintenances_edit');
+
+  const handleToggleDayTask = async (task) => {
+    const newStatus = task.status === 'COMPLETADO' ? 'PENDIENTE' : 'COMPLETADO';
+    await updateMaintenance({ ...task, status: newStatus });
+    if (task.id === maintenance.id) {
+      setMaintenance(prev => ({ ...prev, status: newStatus }));
+    }
+  };
+
+  const getPendingDayTasks = () => dayTasks.filter(t => t.status !== 'COMPLETADO' && t.status !== 'CANCELADO');
+
+  const handleBulkReschedule = async () => {
+    const pending = getPendingDayTasks();
+    if (!bulkRescheduleDate || !bulkRescheduleReason.trim() || pending.length === 0) return;
+    setSavingBulk(true);
+    for (const task of pending) {
+      await updateMaintenance({
+        ...task,
+        startDate: bulkRescheduleDate,
+        endDate: bulkRescheduleDate,
+        reprogramReason: bulkRescheduleReason,
+        changedBy: currentUser?.name,
+      });
+      if (task.id === maintenance.id) {
+        setMaintenance(prev => ({ ...prev, startDate: bulkRescheduleDate, endDate: bulkRescheduleDate }));
+      }
+    }
+    setSavingBulk(false);
+    setBulkAction(null);
+    setBulkRescheduleDate('');
+    setBulkRescheduleReason('');
+  };
+
+  const handleBulkCancel = async () => {
+    const pending = getPendingDayTasks();
+    if (pending.length === 0) return;
+    setSavingBulk(true);
+    for (const task of pending) {
+      await updateMaintenance({ ...task, status: 'CANCELADO' });
+      if (task.id === maintenance.id) {
+        setMaintenance(prev => ({ ...prev, status: 'CANCELADO' }));
+      }
+    }
+    setSavingBulk(false);
+    setBulkAction(null);
+  };
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
@@ -364,6 +429,219 @@ const MaintenanceView = () => {
               </label>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Tareas del Plan para este día */}
+      {dayTasks.length > 0 && (
+        <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+          <h3 style={{
+            marginBottom: '16px', borderBottom: '1px solid var(--glass-border)',
+            paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px'
+          }}>
+            <Wrench size={18} className="text-accent" /> Tareas del Plan &mdash; {maintenance.startDate?.split('T')[0]}
+            <span className="badge" style={{ marginLeft: 'auto', background: 'var(--accent-light)', color: 'var(--accent-primary)' }}>
+              {dayTasks.filter(t => t.status === 'COMPLETADO').length} / {dayTasks.length} COMPLETADAS
+            </span>
+          </h3>
+
+          {/* Barra de progreso */}
+          {(() => {
+            const completed = dayTasks.filter(t => t.status === 'COMPLETADO').length;
+            const pct = dayTasks.length > 0 ? Math.round((completed / dayTasks.length) * 100) : 0;
+            return (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ height: '6px', background: 'var(--bg-tertiary)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', width: `${pct}%`,
+                    background: pct === 100 ? 'var(--success)' : 'var(--accent-primary)',
+                    borderRadius: '3px', transition: 'width 0.3s'
+                  }} />
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', textAlign: 'right' }}>{pct}%</div>
+              </div>
+            );
+          })()}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {dayTasks.map(task => {
+              const isCurrent = task.id === maintenance.id;
+              const isDone = task.status === 'COMPLETADO';
+              return (
+                <div key={task.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '12px 16px', borderRadius: '10px',
+                  background: isCurrent ? 'var(--accent-light)' : isDone ? 'rgba(34,197,94,0.05)' : 'var(--bg-tertiary)',
+                  border: isCurrent ? '2px solid var(--accent-primary)' : isDone ? '1px solid rgba(34,197,94,0.2)' : '1px solid transparent',
+                  transition: 'all 0.15s',
+                }}>
+                  {/* Checkbox */}
+                  <div
+                    onClick={() => handleToggleDayTask(task)}
+                    style={{
+                      width: '22px', height: '22px', borderRadius: '6px',
+                      border: `2px solid ${isDone ? 'var(--success)' : '#cbd5e1'}`,
+                      background: isDone ? 'var(--success)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                    }}
+                    title={isDone ? 'Marcar pendiente' : 'Marcar completado'}
+                  >
+                    {isDone && <Check size={13} color="#fff" strokeWidth={3} />}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontWeight: 600, fontSize: '0.88rem',
+                      textDecoration: isDone ? 'line-through' : 'none',
+                      opacity: isDone ? 0.6 : 1,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {task.title}
+                    </div>
+                    <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontFamily: 'monospace' }}>{task.id}</span>
+                      {isCurrent && <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>&larr; Actual</span>}
+                    </div>
+                  </div>
+
+                  {/* Status badge */}
+                  <span style={{
+                    padding: '3px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0,
+                    background: getStatusBg(task.status), color: getStatusColor(task.status),
+                  }}>
+                    {task.status || 'PENDIENTE'}
+                  </span>
+
+                  {/* Navigate button */}
+                  {!isCurrent && (
+                    <button
+                      onClick={() => navigate(`/maintenances/view/${task.id}`)}
+                      style={{
+                        background: 'transparent', border: '1px solid var(--glass-border)',
+                        borderRadius: '6px', padding: '5px 8px', cursor: 'pointer',
+                        color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+                      }}
+                      title="Ver detalles"
+                    >
+                      <ExternalLink size={14} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Acciones masivas para pendientes */}
+          {(() => {
+            const pending = getPendingDayTasks();
+            if (pending.length === 0) return null;
+            return (
+              <div style={{ marginTop: '20px', borderTop: '1px solid var(--glass-border)', paddingTop: '18px' }}>
+
+                {/* Formulario de reprogramación */}
+                {bulkAction === 'reschedule' && (
+                  <div className="animate-fade-in" style={{
+                    padding: '18px', borderRadius: '10px', marginBottom: '12px',
+                    background: 'rgba(234,179,8,0.04)', border: '1px solid var(--warning)',
+                  }}>
+                    <h4 style={{ margin: '0 0 14px', fontSize: '0.92rem', fontWeight: 700, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CalendarClock size={16} /> Reprogramar {pending.length} tarea{pending.length !== 1 ? 's' : ''} pendiente{pending.length !== 1 ? 's' : ''}
+                    </h4>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                      <div style={{ flex: '1 1 180px' }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Nueva Fecha *</label>
+                        <input
+                          type="date"
+                          className="input-control"
+                          value={bulkRescheduleDate}
+                          onChange={e => setBulkRescheduleDate(e.target.value)}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Motivo de Reprogramación *</label>
+                      <textarea
+                        className="input-control"
+                        rows={2}
+                        placeholder="Ej: Falta de repuestos, equipo en uso crítico..."
+                        value={bulkRescheduleReason}
+                        onChange={e => setBulkRescheduleReason(e.target.value)}
+                        style={{ width: '100%', borderColor: !bulkRescheduleReason.trim() ? 'var(--danger)' : 'var(--glass-border)' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button className="btn-secondary" onClick={() => { setBulkAction(null); setBulkRescheduleDate(''); setBulkRescheduleReason(''); }} disabled={savingBulk}>
+                        Cancelar
+                      </button>
+                      <button
+                        className="btn-primary"
+                        onClick={handleBulkReschedule}
+                        disabled={savingBulk || !bulkRescheduleDate || !bulkRescheduleReason.trim()}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <RefreshCw size={14} /> {savingBulk ? 'Reprogramando...' : 'Confirmar Reprogramación'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirmación de cancelación */}
+                {bulkAction === 'cancel' && (
+                  <div className="animate-fade-in" style={{
+                    padding: '18px', borderRadius: '10px', marginBottom: '12px',
+                    background: 'rgba(239,68,68,0.04)', border: '1px solid var(--danger)',
+                  }}>
+                    <h4 style={{ margin: '0 0 8px', fontSize: '0.92rem', fontWeight: 700, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <XCircle size={16} /> Cancelar {pending.length} tarea{pending.length !== 1 ? 's' : ''} pendiente{pending.length !== 1 ? 's' : ''}
+                    </h4>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 14px' }}>
+                      Las tareas pendientes ser&aacute;n marcadas como <strong style={{ color: 'var(--danger)' }}>CANCELADO</strong> y no se contar&aacute;n como mantenimiento realizado. Esta acci&oacute;n no se puede deshacer f&aacute;cilmente.
+                    </p>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button className="btn-secondary" onClick={() => setBulkAction(null)} disabled={savingBulk}>
+                        No, Volver
+                      </button>
+                      <button
+                        onClick={handleBulkCancel}
+                        disabled={savingBulk}
+                        style={{
+                          background: 'var(--danger)', color: '#fff', border: 'none',
+                          padding: '8px 18px', borderRadius: '8px', fontWeight: 700,
+                          fontSize: '0.85rem', cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', gap: '6px', opacity: savingBulk ? 0.6 : 1,
+                        }}
+                      >
+                        <XCircle size={14} /> {savingBulk ? 'Cancelando...' : 'Sí, Cancelar Pendientes'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botones de acción */}
+                {!bulkAction && (
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setBulkAction('reschedule')}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--warning)', borderColor: 'var(--warning)' }}
+                    >
+                      <CalendarClock size={16} /> Reprogramar Pendientes ({pending.length})
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setBulkAction('cancel')}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                    >
+                      <XCircle size={16} /> Cancelar Pendientes ({pending.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

@@ -2,13 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AlertModal from '../components/Common/AlertModal';
 import { api } from '../api';
 
-// Roles System (RBAC)
-export const ROLES = {
-  SUPERADMIN: { id: 'SUPERADMIN', name: 'Super Administrador', permissions: ['dashboard', 'inventory', 'suppliers', 'assignments', 'files', 'settings', 'maintenances', 'audit', 'calendar'] },
-  GESTOR: { id: 'GESTOR', name: 'Gestor de Activos', permissions: ['dashboard', 'inventory', 'suppliers', 'assignments', 'maintenances', 'calendar'] },
-  AUDITOR: { id: 'AUDITOR', name: 'Auditor de Sistemas', permissions: ['dashboard', 'inventory', 'suppliers', 'maintenances', 'audit', 'calendar'] },
-};
-
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
@@ -34,6 +27,10 @@ export const AppProvider = ({ children }) => {
   const [planFrequencies, setPlanFrequencies] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [maintenanceScopes, setMaintenanceScopes] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [infraTypes, setInfraTypes] = useState([]);
+  const [infraItems, setInfraItems] = useState([]);
 
   useEffect(() => {
     if (currentUser) fetchGlobalState();
@@ -57,7 +54,7 @@ export const AppProvider = ({ children }) => {
       if (mainRes?.ok) setMaintenances(await mainRes.json());
       if (plansRes?.ok) setMaintenancePlans(await plansRes.json());
 
-      const [catRes, orgRes, mtTypesRes, statusRes, payRes, motRes, freqRes, empRes, scopesRes] = await Promise.all([
+      const [catRes, orgRes, mtTypesRes, statusRes, payRes, motRes, freqRes, empRes, scopesRes, areasRes, roomsRes, infraTypesRes, infraItemsRes] = await Promise.all([
         api.get('/api/files/categories'),
         api.get('/api/files/organization'),
         api.get('/api/files/maintenanceTypes'),
@@ -67,6 +64,10 @@ export const AppProvider = ({ children }) => {
         api.get('/api/files/planFrequencies'),
         api.get('/api/employees'),
         api.get('/api/maintenance-scopes'),
+        api.get('/api/areas'),
+        api.get('/api/rooms'),
+        api.get('/api/infrastructure/types'),
+        api.get('/api/infrastructure/items'),
       ]);
       if (catRes?.ok) setAssetCategoriesTree(await catRes.json());
       if (orgRes?.ok) setOrganizationalTree(await orgRes.json());
@@ -77,6 +78,10 @@ export const AppProvider = ({ children }) => {
       if (freqRes?.ok) setPlanFrequencies(await freqRes.json());
       if (empRes?.ok) setEmployees(await empRes.json());
       if (scopesRes?.ok) setMaintenanceScopes(await scopesRes.json());
+      if (areasRes?.ok) setAreas(await areasRes.json());
+      if (roomsRes?.ok) setRooms(await roomsRes.json());
+      if (infraTypesRes?.ok) setInfraTypes(await infraTypesRes.json());
+      if (infraItemsRes?.ok) setInfraItems(await infraItemsRes.json());
 
       if (setRes?.ok) {
         setDbConnected(true);
@@ -280,12 +285,38 @@ export const AppProvider = ({ children }) => {
     return assetCategoriesTree.filter(root => root.scopeId === scopeObj.id);
   }, [assetCategoriesTree, maintenanceScopes]);
 
+  // ─── Entity resolver for polymorphic scopes ────────────────────
+  const getEntitiesForScope = useCallback((scopeSlug) => {
+    const scope = maintenanceScopes.find(s => s.slug === scopeSlug);
+    const tipoEntidad = scope?.tipoEntidad || 'activo';
+
+    // "activo" always points to inventory assets
+    if (tipoEntidad === 'activo') {
+      return { type: 'activo', items: assets, label: 'Activo', labelPlural: 'Activos' };
+    }
+
+    // Dynamic infrastructure type lookup
+    const infraType = infraTypes.find(t => t.slug === tipoEntidad);
+    if (infraType) {
+      const items = infraItems.filter(i => i.tipoSlug === tipoEntidad);
+      const singular = infraType.nombre.replace(/s$/, '');
+      return { type: tipoEntidad, items, label: singular, labelPlural: infraType.nombre };
+    }
+
+    // Fallback: legacy areas/rooms
+    if (tipoEntidad === 'area') return { type: 'area', items: areas, label: 'Área', labelPlural: 'Áreas' };
+    if (tipoEntidad === 'habitacion') return { type: 'habitacion', items: rooms, label: 'Habitación', labelPlural: 'Habitaciones' };
+
+    return { type: tipoEntidad, items: [], label: tipoEntidad, labelPlural: tipoEntidad };
+  }, [maintenanceScopes, assets, areas, rooms, infraTypes, infraItems]);
+
   // ─── Permission Checker ────────────────────────────────────────
   const hasPermission = useCallback((permId) => {
     if (!currentUser?.role) return false;
     const perms = currentUser.role.permissions || [];
     if (perms.includes('all')) return true;
-    return perms.includes(permId);
+    if (perms.includes(permId)) return true;
+    return perms.some(p => p.startsWith(permId + '_'));
   }, [currentUser]);
 
   return (
@@ -306,7 +337,9 @@ export const AppProvider = ({ children }) => {
       planFrequencies, setPlanFrequencies,
       employees, setEmployees, refreshEmployees,
       maintenanceScopes, setMaintenanceScopes,
-      getCategoriesForScope,
+      areas, setAreas, rooms, setRooms,
+      infraTypes, setInfraTypes, infraItems, setInfraItems,
+      getCategoriesForScope, getEntitiesForScope,
       getNextSeqId, setGlobalAlert,
       dbConnected, setDbConnected,
       hasPermission,

@@ -1,16 +1,16 @@
 import express from 'express';
-import { requireRole } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permissions.js';
 import { factoryReset, testDb, saveDb, getSettings, updateSettings } from '../controllers/system.controller.js';
 
 const router = express.Router();
 
 // Solo SUPERADMIN puede ejecutar acciones destructivas
-router.post('/factory-reset', requireRole('SUPERADMIN'), factoryReset);
-router.post('/db/test', requireRole('SUPERADMIN', 'ROL-ADMIN'), testDb);
-router.post('/db/save', requireRole('SUPERADMIN'), saveDb);
+router.post('/factory-reset', requirePermission('all'), factoryReset);
+router.post('/db/test', requirePermission('settings_edit'), testDb);
+router.post('/db/save', requirePermission('all'), saveDb);
 
 // Configuración de empresa: cualquier usuario autenticado puede leer, solo admins modificar
 router.get('/settings', getSettings);
-router.put('/settings', requireRole('SUPERADMIN', 'ROL-ADMIN'), updateSettings);
+router.put('/settings', requirePermission('settings_edit'), updateSettings);
 
 export default router;

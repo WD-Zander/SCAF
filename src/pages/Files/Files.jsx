@@ -4,7 +4,7 @@ import { useAppContext } from '../../context/AppContext';
 import ConfirmModal from '../../components/Common/ConfirmModal';
 import { api } from '../../api';
 
-const TreeNode = ({ node, level = 0, onUpdateName, onAddChild, onDeleteRequest, expandTrigger, collapseTrigger, scopes, isAssetTab, onUpdateScope }) => {
+const TreeNode = ({ node, level = 0, onUpdateName, onAddChild, onDeleteRequest, expandTrigger, collapseTrigger }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(node.name);
@@ -72,25 +72,6 @@ const TreeNode = ({ node, level = 0, onUpdateName, onAddChild, onDeleteRequest, 
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, cursor: 'pointer' }} onClick={() => setIsOpen(!isOpen)}>
               <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{node.name}</span>
-              {/* Scope selector for root-level asset categories */}
-              {isAssetTab && level === 0 && scopes?.length > 0 && (
-                <select
-                  value={node.scopeId || ''}
-                  onClick={e => e.stopPropagation()}
-                  onChange={e => { e.stopPropagation(); onUpdateScope(node.id, e.target.value ? parseInt(e.target.value) : null); }}
-                  style={{
-                    padding: '2px 6px', fontSize: '0.75rem', borderRadius: '6px',
-                    border: '1px solid var(--glass-border)', background: 'var(--bg-primary)',
-                    color: scopes.find(s => s.id === node.scopeId)?.color || 'var(--text-muted)',
-                    fontWeight: 600, cursor: 'pointer', minWidth: '140px'
-                  }}
-                >
-                  <option value="">Sin módulo</option>
-                  {scopes.map(s => (
-                    <option key={s.id} value={s.id}>{s.nombre}</option>
-                  ))}
-                </select>
-              )}
             </div>
           )}
         </div>
@@ -139,9 +120,6 @@ const TreeNode = ({ node, level = 0, onUpdateName, onAddChild, onDeleteRequest, 
               onDeleteRequest={onDeleteRequest}
               expandTrigger={expandTrigger}
               collapseTrigger={collapseTrigger}
-              scopes={scopes}
-              isAssetTab={isAssetTab}
-              onUpdateScope={onUpdateScope}
             />
           ))}
         </div>
@@ -151,8 +129,8 @@ const TreeNode = ({ node, level = 0, onUpdateName, onAddChild, onDeleteRequest, 
 };
 
 const Files = () => {
-  const { assetCategoriesTree, setAssetCategoriesTree, organizationalTree, setOrganizationalTree, maintenanceTypesTree, setMaintenanceTypesTree, assetStatuses, setAssetStatuses, paymentMethods, setPaymentMethods, movementReasons, setMovementReasons, maintenanceScopes, setGlobalAlert } = useAppContext();
-  const [activeTab, setActiveTab] = useState('assets');
+  const { organizationalTree, setOrganizationalTree, maintenanceTypesTree, setMaintenanceTypesTree, assetStatuses, setAssetStatuses, paymentMethods, setPaymentMethods, movementReasons, setMovementReasons, setGlobalAlert } = useAppContext();
+  const [activeTab, setActiveTab] = useState('organization');
   const [expandTrigger, setExpandTrigger] = useState(0);
   const [collapseTrigger, setCollapseTrigger] = useState(0);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, idToDelete: null, itemName: '' });
@@ -163,15 +141,13 @@ const Files = () => {
   // que ahora vienen directamente desde la Base de Datos SQL, 
   // eliminando cualquier "hardcodeo" en memoria.
   // --------------------------------------------------------------------------
-  const currentTree = activeTab === 'assets' ? assetCategoriesTree
-    : activeTab === 'organization' ? organizationalTree
+  const currentTree = activeTab === 'organization' ? organizationalTree
     : activeTab === 'maintenanceTypes' ? maintenanceTypesTree
     : activeTab === 'assetStatuses' ? assetStatuses
     : activeTab === 'movementReasons' ? movementReasons
     : paymentMethods;
 
-  const setCurrentTree = activeTab === 'assets' ? setAssetCategoriesTree
-    : activeTab === 'organization' ? setOrganizationalTree
+  const setCurrentTree = activeTab === 'organization' ? setOrganizationalTree
     : activeTab === 'maintenanceTypes' ? setMaintenanceTypesTree
     : activeTab === 'assetStatuses' ? setAssetStatuses
     : activeTab === 'movementReasons' ? setMovementReasons
@@ -210,25 +186,17 @@ const Files = () => {
    * Esto garantiza que los endpoints dinámicos (/api/files/:entity) sepan qué tabla usar.
    */
   const getEntity = () => {
-    if (activeTab === 'assets') return 'categories';
     if (activeTab === 'organization') return 'organization';
     if (activeTab === 'maintenanceTypes') return 'maintenanceTypes';
     if (activeTab === 'assetStatuses') return 'assetStatuses';
     if (activeTab === 'paymentMethods') return 'paymentMethods';
     if (activeTab === 'movementReasons') return 'movementReasons';
-    return 'categories';
+    return 'organization';
   };
 
   const handleUpdateName = async (id, newName) => {
     setCurrentTree(traverseAndUpdateName(currentTree, id, newName));
     await api.put(`/api/files/${getEntity()}/${id}`, { name: newName });
-  };
-
-  const handleUpdateScope = async (id, scopeId) => {
-    const node = assetCategoriesTree.find(n => n.id === id);
-    if (!node) return;
-    setAssetCategoriesTree(assetCategoriesTree.map(n => n.id === id ? { ...n, scopeId } : n));
-    await api.put(`/api/files/categories/${id}`, { name: node.name, scopeId });
   };
 
   const handleAddChild = async (parentId) => {
@@ -240,8 +208,7 @@ const Files = () => {
   };
 
   const handleAddRoot = async () => {
-    let prefix = 'CAT';
-    if (activeTab === 'organization') prefix = 'ORG';
+    let prefix = 'ORG';
     if (activeTab === 'maintenanceTypes') prefix = 'MT';
     if (activeTab === 'assetStatuses') prefix = 'EST';
     if (activeTab === 'paymentMethods') prefix = 'FP';
@@ -284,14 +251,7 @@ const Files = () => {
 
       {/* Tabs */}
       <div style={{ marginBottom: '24px', display: 'flex', gap: '8px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '16px' }}>
-        <button 
-          className={`btn ${activeTab === 'assets' ? 'btn-primary' : 'btn-secondary'}`} 
-          style={{ border: 'none', boxShadow: 'none' }}
-          onClick={() => setActiveTab('assets')}
-        >
-          Categorías de Inventario
-        </button>
-        <button 
+        <button
           className={`btn ${activeTab === 'organization' ? 'btn-primary' : 'btn-secondary'}`} 
           style={{ border: 'none', boxShadow: 'none' }}
           onClick={() => setActiveTab('organization')}
@@ -355,9 +315,6 @@ const Files = () => {
               onDeleteRequest={handleDeleteRequest}
               expandTrigger={expandTrigger}
               collapseTrigger={collapseTrigger}
-              scopes={maintenanceScopes}
-              isAssetTab={activeTab === 'assets'}
-              onUpdateScope={handleUpdateScope}
             />
           ))}
 
@@ -369,8 +326,7 @@ const Files = () => {
               onClick={handleAddRoot}
             >
               <Plus size={16} /> Crear {
-                activeTab === 'assets' ? 'Categoría Principal'
-                : activeTab === 'organization' ? 'Sede Principal'
+                activeTab === 'organization' ? 'Sede Principal'
                 : activeTab === 'maintenanceTypes' ? 'Tipo de Mantenimiento'
                 : activeTab === 'assetStatuses' ? 'Estado'
                 : activeTab === 'movementReasons' ? 'Motivo'

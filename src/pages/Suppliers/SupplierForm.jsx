@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit2, ArrowLeft } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import SearchableSelect from '../../components/Common/SearchableSelect';
 
 const SupplierForm = () => {
   const { suppliers, addSupplier, updateSupplier, paymentMethods, hasPermission, setGlobalAlert } = useAppContext();
@@ -121,12 +122,13 @@ const SupplierForm = () => {
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Forma de Pago</label>
-                  <select className="input-control" value={formData.paymentMethod} onChange={e => setFormData({...formData, paymentMethod: e.target.value})}>
-                    <option value="">-- Seleccionar --</option>
-                    {paymentMethods.map(p => (
-                      <option key={p.id} value={p.name}>{p.name}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    value={formData.paymentMethod}
+                    onChange={(value) => setFormData({...formData, paymentMethod: value})}
+                    options={paymentMethods.map(p => ({ value: p.name, label: p.name }))}
+                    placeholder="-- Seleccionar --"
+                    clearable
+                  />
                 </div>
               </div>
             </div>

@@ -1,9 +1,10 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import { UploadCloud, Plus, Calendar, Trash2, Edit2, Activity, AlignLeft, ArrowUpDown, ClipboardList } from 'lucide-react';
+import { UploadCloud, Plus, Calendar, Trash2, Edit2, Activity, AlignLeft, ArrowUpDown, ClipboardList, Search } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api } from '../../api';
+import Pagination from '../../components/Common/Pagination';
 
 const toTitleCase = (str) => {
   if (!str) return '';
@@ -11,7 +12,7 @@ const toTitleCase = (str) => {
 };
 
 const MaintenanceRoutines = () => {
-  const { maintenancePlans, setMaintenancePlans, setGlobalAlert, hasPermission, maintenanceScopes } = useAppContext();
+  const { maintenancePlans, setMaintenancePlans, setGlobalAlert, hasPermission, maintenanceScopes, getEntitiesForScope } = useAppContext();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const scope = searchParams.get('scope');
@@ -21,6 +22,9 @@ const MaintenanceRoutines = () => {
   const [viewingPlan, setViewingPlan] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'Id', direction: 'asc' });
   const [expandedId, setExpandedId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -29,21 +33,34 @@ const MaintenanceRoutines = () => {
   };
 
   const processedPlans = useMemo(() => {
-    let sorted = scope
+    let filtered = scope
       ? maintenancePlans.filter(p => p.scope === scope)
       : [...maintenancePlans];
-    sorted.sort((a, b) => {
+    // Search filter
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase();
+      filtered = filtered.filter(p =>
+        (p.Code || '').toLowerCase().includes(s) ||
+        (p.Description || '').toLowerCase().includes(s) ||
+        (p.Category || '').toLowerCase().includes(s) ||
+        (p.FamilyName || '').toLowerCase().includes(s)
+      );
+    }
+    filtered.sort((a, b) => {
       let aVal = a[sortConfig.key] || '';
       let bVal = b[sortConfig.key] || '';
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
       if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-      
+
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-    return sorted;
-  }, [maintenancePlans, sortConfig]);
+    return filtered;
+  }, [maintenancePlans, sortConfig, scope, searchTerm]);
+
+  const totalPages = Math.ceil(processedPlans.length / ITEMS_PER_PAGE);
+  const paginatedPlans = processedPlans.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -97,7 +114,12 @@ const MaintenanceRoutines = () => {
             Programación de Rutinas
             {scopeLabel && <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent-primary)', fontWeight: 600 }}>{scopeLabel}</span>}
           </h1>
-          <p className="text-muted">Protocolos de mantenimiento agrupados por categoría de activos.</p>
+          <p className="text-muted">
+            {scope
+              ? `Protocolos de mantenimiento del módulo ${scopeLabel}.`
+              : 'Protocolos de mantenimiento agrupados por categoría.'
+            }
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           {hasPermission('maintenances_create') && (
@@ -120,6 +142,24 @@ const MaintenanceRoutines = () => {
         </div>
       </div>
 
+      {/* Search + count */}
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: '360px' }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            className="input-control"
+            style={{ paddingLeft: '38px' }}
+            placeholder="Buscar por código, título, categoría..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+          />
+        </div>
+        <span className="text-muted" style={{ fontSize: '0.82rem' }}>
+          {processedPlans.length} {processedPlans.length === 1 ? 'plan' : 'planes'}
+        </span>
+      </div>
+
       <div className="glass-panel" style={{ overflow: 'hidden' }}>
         <table className="data-table">
           <thead>
@@ -132,14 +172,14 @@ const MaintenanceRoutines = () => {
             </tr>
           </thead>
           <tbody>
-            {maintenancePlans.length === 0 ? (
+            {processedPlans.length === 0 ? (
               <tr>
                 <td colSpan="5" className="text-center text-muted" style={{ padding: '60px' }}>
-                  No hay protocolos en el catálogo.<br />Crea uno nuevo o importa un archivo Excel.
+                  {searchTerm ? 'No se encontraron planes que coincidan con la búsqueda.' : 'No hay protocolos en el catálogo. Crea uno nuevo o importa un archivo Excel.'}
                 </td>
               </tr>
             ) : (
-              processedPlans.map(plan => (
+              paginatedPlans.map(plan => (
                 <tr 
                   key={plan.Id} 
                   className={`hoverable-row mobile-list-format ${expandedId === plan.Id ? 'is-expanded' : ''}`}
@@ -168,9 +208,20 @@ const MaintenanceRoutines = () => {
                     )}
                   </td>
                   <td data-label="CATEGORÍA">
-                    <span className="badge" style={{ background: 'var(--accent-light)', color: 'var(--accent-primary)' }}>
-                      {toTitleCase(plan.Category || plan.SubFamily || 'General')}
-                    </span>
+                    {(() => {
+                      const planScope = maintenanceScopes.find(s => s.slug === plan.scope);
+                      const scopeColor = planScope?.color || 'var(--accent-primary)';
+                      const catLabel = plan.FamilyName || plan.Category || plan.SubFamily || '';
+                      return (
+                        <span className="badge" style={{
+                          background: `${scopeColor}14`,
+                          color: scopeColor,
+                          border: `1px solid ${scopeColor}30`,
+                        }}>
+                          {toTitleCase(catLabel || 'General')}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td data-label="TAREAS" style={{ textAlign: 'center' }}>
                     <strong>{plan.tasks?.length || 0}</strong>
@@ -200,6 +251,14 @@ const MaintenanceRoutines = () => {
             )}
           </tbody>
         </table>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={processedPlans.length}
+          onPageChange={setCurrentPage}
+          itemsPerPage={ITEMS_PER_PAGE}
+          label="planes"
+        />
       </div>
     </div>
   );

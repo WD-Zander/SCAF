@@ -20,7 +20,7 @@ import {
   MapPin, DoorOpen, Home, Package,
   Warehouse, Zap, Star, LayoutGrid,
   Hammer, ShieldCheck, Thermometer, Droplets, Bolt, Wind,
-  ClipboardList, ChevronRight
+  ClipboardList, ChevronRight, FileText, Database, BarChart3, ScanLine, Shield
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
@@ -36,7 +36,7 @@ const ScopeIcon = ({ name, size = 14 }) => {
 };
 
 const Sidebar = ({ isOpen }) => {
-  const { currentUser, dbConnected, maintenanceScopes } = useAppContext();
+  const { currentUser, dbConnected, maintenanceScopes, hasPermission } = useAppContext();
   const location = useLocation();
 
   const [expanded, setExpanded] = React.useState({ maintenances: false, settings: false });
@@ -81,11 +81,37 @@ const Sidebar = ({ isOpen }) => {
     { id: 'inventory', path: '/inventory', name: 'Inventario', icon: <Box className="nav-icon" /> },
     { id: 'movements', path: '/movements', name: 'Movimientos', icon: <PackageOpen className="nav-icon" /> },
     { id: 'calendar', path: '/calendar', name: 'Calendario', icon: <CalendarDays className="nav-icon" /> },
+    { id: 'timeline', path: '/maintenances/timeline', name: 'Cronograma', icon: <Columns4 className="nav-icon" /> },
+    {
+      id: 'forms', name: 'Formularios', icon: <FileText className="nav-icon" />,
+      isGroup: true,
+      children: [
+        { id: 'forms_view', path: '/forms', name: 'Gestionar', icon: <Settings className="nav-icon" size={14} /> },
+        { id: 'forms_fill', path: '/forms/records', name: 'Registros', icon: <ClipboardList className="nav-icon" size={14} /> },
+      ]
+    },
+    {
+      id: 'reports', name: 'Informes', icon: <BarChart3 className="nav-icon" />,
+      isGroup: true,
+      children: [
+        hasPermission('reports_create') && { id: 'reports_create', path: '/reports/new', name: 'Crear Informe', icon: <Database className="nav-icon" size={14} /> },
+        { id: 'reports_view', path: '/reports', name: 'Ver Informes', icon: <BarChart3 className="nav-icon" size={14} /> },
+      ].filter(Boolean)
+    },
     {
       id: 'maintenances', name: 'Operaciones', icon: <Wrench className="nav-icon" />,
       isGroup: true,
       hasScopeChildren: true,
     },
+    hasPermission('infrastructure_manage') && {
+      id: 'infrastructure', name: 'Infraestructura', icon: <Home className="nav-icon" />,
+      isGroup: true,
+      children: [
+        { id: 'infrastructure_manage', path: '/infrastructure', name: 'Gestionar', icon: <Building2 className="nav-icon" size={14} /> },
+      ]
+    },
+    { id: 'scanner', path: '/scanner', name: 'Escaner', icon: <ScanLine className="nav-icon" /> },
+    { id: 'audit', path: '/audit', name: 'Auditoria', icon: <Shield className="nav-icon" /> },
     {
       id: 'settings', name: 'Sistema y Config', icon: <Building2 className="nav-icon" />,
       isGroup: true,
@@ -93,28 +119,19 @@ const Sidebar = ({ isOpen }) => {
         { id: 'suppliers', path: '/suppliers', name: 'Proveedores', icon: <Truck className="nav-icon" size={14} /> },
         { id: 'employees', path: '/employees', name: 'Empleados', icon: <UserCheck className="nav-icon" size={14} /> },
         { id: 'users', path: '/users', name: 'Usuarios', icon: <Users className="nav-icon" size={14} /> },
+        { id: 'roles', path: '/roles', name: 'Roles', icon: <Shield className="nav-icon" size={14} /> },
         { id: 'files', path: '/files', name: 'Ficheros', icon: <FolderTree className="nav-icon" size={14} /> },
-        { id: 'audit', path: '/audit', name: 'Auditoría', icon: <Activity className="nav-icon" size={14} /> },
         { id: 'settings', path: '/settings', name: 'Configuración', icon: <Settings className="nav-icon" size={14} /> },
       ]
     }
-  ];
+  ].filter(Boolean);
 
   const scopeSubModules = [
-    { suffix: 'list',         name: 'Lista General',    icon: <ClipboardList size={13} /> },
     { suffix: 'routines',     name: 'Programación',     icon: <Activity size={13} /> },
     { suffix: 'work-orders',  name: 'Planes en Marcha', icon: <Layers size={13} /> },
-    { suffix: 'timeline',     name: 'Cronograma',       icon: <Columns4 size={13} /> },
     { suffix: 'daily',        name: 'Mi Agenda Diaria', icon: <ListTodo size={13} /> },
     { suffix: 'rescheduled',  name: 'Reprogramados',    icon: <CalendarClock size={13} /> },
   ];
-
-  const hasPermission = (id) => {
-    const perms = currentUser.role?.permissions || [];
-    if (perms.includes('all')) return true;
-    if (perms.includes(id)) return true;
-    return perms.some(p => p.startsWith(id + '_'));
-  };
 
   const renderScopeChildren = () => {
     return (
@@ -199,16 +216,18 @@ const Sidebar = ({ isOpen }) => {
           <div style={{ height: '1px', background: 'var(--glass-border)', margin: '6px 12px 6px 0' }} />
         )}
 
-        {/* Config link */}
-        <NavLink
-          to="/maintenances"
-          end
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          style={{ padding: '7px 10px', minHeight: '32px', borderRadius: '6px', gap: '8px' }}
-        >
-          <Settings size={13} style={{ opacity: 0.6 }} />
-          <span className="nav-label" style={{ fontSize: '0.82rem' }}>Configurar Módulos</span>
-        </NavLink>
+        {/* Config link — solo visible para quienes pueden configurar scopes */}
+        {hasPermission('maintenances_scopes') && (
+          <NavLink
+            to="/maintenances"
+            end
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            style={{ padding: '7px 10px', minHeight: '32px', borderRadius: '6px', gap: '8px' }}
+          >
+            <Settings size={13} style={{ opacity: 0.6 }} />
+            <span className="nav-label" style={{ fontSize: '0.82rem' }}>Configurar Módulos</span>
+          </NavLink>
+        )}
       </>
     );
   };

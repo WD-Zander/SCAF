@@ -6,6 +6,7 @@ import {
   Search, X, Package
 } from 'lucide-react';
 import { api } from '../../api';
+import SearchableSelect from '../../components/Common/SearchableSelect';
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
 
@@ -168,11 +169,13 @@ const WorkOrderPlanner = () => {
   const navigate = useNavigate();
   const { planId } = useParams();
   const [searchParams] = useSearchParams();
-  const { assets, maintenancePlans, assetCategoriesTree, setGlobalAlert, refreshMaintenances, maintenanceTypesTree, employees, getCategoriesForScope } = useAppContext();
+  const { assets, maintenancePlans, assetCategoriesTree, setGlobalAlert, refreshMaintenances, maintenanceTypesTree, employees, getCategoriesForScope, getEntitiesForScope } = useAppContext();
 
   // Scope: from plan, or from URL ?scope=
   const plan = maintenancePlans.find(p => p.Id === planId);
   const currentScope = plan?.scope || searchParams.get('scope') || 'activo';
+  const entityInfo = getEntitiesForScope(currentScope);
+  const isAssetScope = entityInfo.type === 'activo';
 
   const flattenTypes = (nodes) => {
     let types = [];
@@ -196,9 +199,12 @@ const WorkOrderPlanner = () => {
     return allTypes.filter(t => t.name.toLowerCase().includes('correctivo'));
   }, [allTypes, planId]);
 
-  // ── Filtrar activos por scope del módulo + categoría del plan ─────────────
-  const filteredAssets = useMemo(() => {
-    // 1) Filtrar por scope: solo activos cuya categoría raíz pertenece al módulo
+  // ── Filtrar entidades por scope del módulo + categoría del plan ─────────────
+  const filteredEntities = useMemo(() => {
+    // Para scopes no-activo, retornar las entidades directamente (areas o habitaciones)
+    if (!isAssetScope) return entityInfo.items;
+
+    // Scope tipo activo: filtrar por categorías del scope
     const scopeCategories = getCategoriesForScope(currentScope);
     const scopeCatIds = new Set();
     const collectIds = (nodes) => {
@@ -213,7 +219,7 @@ const WorkOrderPlanner = () => {
       ? assets.filter(a => scopeCatIds.has(a.categoryId || a.CategoryId || ''))
       : assets;
 
-    // 2) Si hay plan con categoría específica, filtrar más
+    // Si hay plan con categoría específica, filtrar más
     if (!plan) return baseAssets;
     const catId = plan.CategoryId;
     const famId = plan.FamilyId;
@@ -232,7 +238,7 @@ const WorkOrderPlanner = () => {
       }
       return true;
     });
-  }, [assets, plan, currentScope, getCategoriesForScope]);
+  }, [assets, plan, currentScope, getCategoriesForScope, isAssetScope, entityInfo.items]);
 
   // El tipo por defecto es el primero de la lista filtrada
   const defaultType = availableTypes[0] || null;
@@ -284,19 +290,21 @@ const WorkOrderPlanner = () => {
   const assetDropdownRef = React.useRef(null);
 
   const selectedAsset = useMemo(() => {
-    return filteredAssets.find(a => a.id === generalTask.assetId) || null;
-  }, [filteredAssets, generalTask.assetId]);
+    return filteredEntities.find(a => a.id === generalTask.assetId) || null;
+  }, [filteredEntities, generalTask.assetId]);
 
   const assetSuggestions = useMemo(() => {
-    if (!assetSearch.trim()) return filteredAssets;
+    if (!assetSearch.trim()) return filteredEntities;
     const q = assetSearch.toLowerCase();
-    return filteredAssets.filter(a =>
+    return filteredEntities.filter(a =>
       (a.id || '').toLowerCase().includes(q) ||
-      (a.name || '').toLowerCase().includes(q) ||
+      (a.name || a.nombre || '').toLowerCase().includes(q) ||
       (a.serial || a.serialNumber || '').toLowerCase().includes(q) ||
-      (a.location || '').toLowerCase().includes(q)
+      (a.location || a.ubicacion || '').toLowerCase().includes(q) ||
+      (a.numero || '').toLowerCase().includes(q) ||
+      (a.piso || '').toLowerCase().includes(q)
     );
-  }, [filteredAssets, assetSearch]);
+  }, [filteredEntities, assetSearch]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -411,7 +419,7 @@ const WorkOrderPlanner = () => {
   // Guardar como orden de trabajo
   const handleSave = async () => {
     if (!generalTask.name || !generalTask.startDate || !generalTask.endDate || !generalTask.assetId) {
-      setGlobalAlert({ isOpen: true, title: 'Campos Requeridos', message: 'Completa el nombre, fechas y activo de la tarea general.' });
+      setGlobalAlert({ isOpen: true, title: 'Campos Requeridos', message: `Completa el nombre, fechas y ${entityInfo.label.toLowerCase()} de la tarea general.` });
       return;
     }
     const invalidSub = subTasks.find(st => st.date && !validateSubDate(st.date));
@@ -426,7 +434,9 @@ const WorkOrderPlanner = () => {
       const resMain = await api.post('/api/work-orders', {
         id: mainId,
         name: generalTask.name,
-        assetId: generalTask.assetId,
+        assetId: isAssetScope ? generalTask.assetId : null,
+        entityType: entityInfo.type,
+        entityId: generalTask.assetId,
         startDate: generalTask.startDate,
         endDate: generalTask.endDate,
         assignedTo: generalTask.assignedTo || '',
@@ -439,13 +449,44 @@ const WorkOrderPlanner = () => {
         throw new Error(`Error guardando Work Order: ${errData?.error || 'Error de red'}`);
       }
 
-      // Crear sub-tickets para cada tarea específica directamente
-      for (let idx = 0; idx < subTasks.length; idx++) {
-        const st = subTasks[idx];
-        if (!st.name || !st.date) continue;
+      // Crear sub-tickets para cada tarea específica
+      // Si no tiene fecha, usar la fecha de inicio del plan general
+      const validSubs = subTasks
+        .filter(st => st.name)
+        .map(st => ({ ...st, date: st.date || generalTask.startDate }));
+
+      if (validSubs.length === 0) {
+        // Sin sub-tareas: crear ticket principal para que aparezca en calendario y listas
+        const resMain2 = await api.post('/api/maintenances', {
+          id: `${mainId}-T1`,
+          assetId: isAssetScope ? generalTask.assetId : null,
+          entityType: entityInfo.type,
+          entityId: generalTask.assetId,
+          title: generalTask.name,
+          typeId: generalTask.typeId || null,
+          type: generalTask.typeName || 'Preventivo',
+          provider: '',
+          assignedTo: generalTask.assignedTo || '',
+          startDate: generalTask.startDate,
+          endDate: generalTask.endDate,
+          status: 'PENDIENTE',
+          description: generalTask.notes || '',
+          workOrderId: mainId,
+          scope: currentScope
+        });
+        if (!resMain2?.ok) {
+          const errData = await resMain2?.json();
+          throw new Error(`Error creando tarea: ${errData?.error || 'Error de red'}`);
+        }
+      }
+
+      for (let idx = 0; idx < validSubs.length; idx++) {
+        const st = validSubs[idx];
         const resSub = await api.post('/api/maintenances', {
           id: `${mainId}-T${idx+1}`,
-          assetId: generalTask.assetId,
+          assetId: isAssetScope ? generalTask.assetId : null,
+          entityType: entityInfo.type,
+          entityId: generalTask.assetId,
           title: `${st.name}`,
           typeId: generalTask.typeId || null,
           type: generalTask.typeName || 'Preventivo',
@@ -572,9 +613,9 @@ const WorkOrderPlanner = () => {
             )}
 
             <div className="input-group" style={{ marginBottom:'14px' }}>
-              <label>Activo *</label>
+              <label>{entityInfo.label} *</label>
               {/* Badge de alcance del plan */}
-              {plan && (plan.Category || plan.CategoryName) && (
+              {isAssetScope && plan && (plan.Category || plan.CategoryName) && (
                 <div style={{
                   marginBottom: '8px', padding: '6px 12px',
                   background: 'rgba(59,130,246,0.08)',
@@ -589,7 +630,7 @@ const WorkOrderPlanner = () => {
                     {(plan.FamilyName || plan.SubFamily) ? ` → ${plan.FamilyName || plan.SubFamily}` : ''}
                   </strong>
                   <span className="text-muted" style={{ marginLeft: 'auto' }}>
-                    {filteredAssets.length} activo{filteredAssets.length !== 1 ? 's' : ''} disponible{filteredAssets.length !== 1 ? 's' : ''}
+                    {filteredEntities.length} {entityInfo.label.toLowerCase()}{filteredEntities.length !== 1 ? 's' : ''} disponible{filteredEntities.length !== 1 ? 's' : ''}
                   </span>
                 </div>
               )}
@@ -616,11 +657,14 @@ const WorkOrderPlanner = () => {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {selectedAsset.name}
+                        {selectedAsset.name || selectedAsset.nombre}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '8px' }}>
                         <span style={{ fontFamily: 'monospace', background: 'var(--bg-tertiary)', padding: '1px 6px', borderRadius: '4px' }}>{selectedAsset.id}</span>
-                        {(selectedAsset.serial || selectedAsset.serialNumber) && <span>S/N: {selectedAsset.serial || selectedAsset.serialNumber}</span>}
+                        {isAssetScope && (selectedAsset.serial || selectedAsset.serialNumber) && <span>S/N: {selectedAsset.serial || selectedAsset.serialNumber}</span>}
+                        {!isAssetScope && selectedAsset.ubicacion && <span>{selectedAsset.ubicacion}</span>}
+                        {!isAssetScope && selectedAsset.piso && <span>Piso: {selectedAsset.piso}</span>}
+                        {!isAssetScope && selectedAsset.numero && <span>#{selectedAsset.numero}</span>}
                       </div>
                     </div>
                     <button
@@ -644,7 +688,7 @@ const WorkOrderPlanner = () => {
                       value={assetSearch}
                       onChange={e => { setAssetSearch(e.target.value); setAssetDropdownOpen(true); }}
                       onFocus={() => setAssetDropdownOpen(true)}
-                      placeholder="Buscar por nombre, ID o serial..."
+                      placeholder={isAssetScope ? "Buscar por nombre, ID o serial..." : `Buscar ${entityInfo.label.toLowerCase()} por nombre, ID...`}
                       style={{
                         flex: 1, border: 'none', background: 'transparent',
                         padding: '11px 0', fontSize: '0.88rem', outline: 'none',
@@ -672,7 +716,7 @@ const WorkOrderPlanner = () => {
                   }}>
                     {assetSuggestions.length === 0 ? (
                       <div style={{ padding: '16px', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                        No se encontraron activos
+                        No se encontraron {entityInfo.labelPlural.toLowerCase()}
                       </div>
                     ) : (
                       assetSuggestions.map(a => (
@@ -701,15 +745,16 @@ const WorkOrderPlanner = () => {
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {a.name}
+                              {a.name || a.nombre}
                             </div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '2px' }}>
                               <span style={{ fontFamily: 'monospace', background: 'var(--bg-tertiary)', padding: '0 5px', borderRadius: '3px' }}>{a.id}</span>
-                              {(a.serial || a.serialNumber) && <span style={{ opacity: 0.8 }}>S/N: {a.serial || a.serialNumber}</span>}
-                              {(a.area || a.location) && (
+                              {isAssetScope && (a.serial || a.serialNumber) && <span style={{ opacity: 0.8 }}>S/N: {a.serial || a.serialNumber}</span>}
+                              {!isAssetScope && a.numero && <span style={{ opacity: 0.8 }}>#{a.numero}</span>}
+                              {(a.area || a.location || a.ubicacion) && (
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', opacity: 0.8 }}>
                                   <span style={{ color: 'var(--accent-primary)' }}>|</span>
-                                  {a.area}{a.area && a.location ? ' · ' : ''}{a.location}
+                                  {a.ubicacion || a.area}{(a.ubicacion || a.area) && (a.location || a.piso) ? ' · ' : ''}{a.location || (a.piso ? `Piso ${a.piso}` : '')}
                                 </span>
                               )}
                             </div>
@@ -721,38 +766,37 @@ const WorkOrderPlanner = () => {
                 )}
               </div>
 
-              {plan && (plan.Category || plan.CategoryName) && filteredAssets.length === 0 && (
+              {filteredEntities.length === 0 && (
                 <p style={{ fontSize: '0.78rem', color: 'var(--warning)', marginTop: '6px' }}>
-                  No hay activos registrados en este alcance. Verifica las categorías en Inventario.
+                  {isAssetScope
+                    ? 'No hay activos registrados en este alcance. Verifica las categorías en Inventario.'
+                    : `No hay ${entityInfo.labelPlural.toLowerCase()} registradas. Créalas desde la sección Infraestructura.`}
                 </p>
               )}
             </div>
 
             <div className="input-group" style={{ marginBottom:'14px' }}>
               <label>Tipo de Mantenimiento *</label>
-              <select className="input-control"
+              <SearchableSelect
                 value={generalTask.typeId}
-                onChange={e => {
-                  const t = availableTypes.find(t => t.id === e.target.value);
-                  setGeneralTask(p => ({ ...p, typeId: e.target.value, typeName: t?.name || '' }));
-                }}>
-                {availableTypes.length === 0 && <option value="">— Sin tipos configurados —</option>}
-                {availableTypes.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+                onChange={(value, label) => {
+                  setGeneralTask(p => ({ ...p, typeId: value, typeName: label || '' }));
+                }}
+                options={availableTypes.map(t => ({ value: t.id, label: t.name }))}
+                placeholder={availableTypes.length === 0 ? '— Sin tipos configurados —' : 'Seleccionar tipo...'}
+                disabled={availableTypes.length === 0}
+              />
             </div>
 
             <div className="input-group" style={{ marginBottom:'14px' }}>
               <label>Responsable</label>
-              <select className="input-control"
+              <SearchableSelect
                 value={generalTask.assignedTo}
-                onChange={e => setGeneralTask(p => ({ ...p, assignedTo: e.target.value }))}>
-                <option value="">-- Seleccionar --</option>
-                {employees.map(e => (
-                  <option key={e.id} value={`${e.nombre} ${e.apellido}`}>{e.apellido}, {e.nombre}</option>
-                ))}
-              </select>
+                onChange={(value) => setGeneralTask(p => ({ ...p, assignedTo: value }))}
+                options={employees.map(e => ({ value: `${e.nombre} ${e.apellido}`, label: `${e.apellido}, ${e.nombre}` }))}
+                placeholder="-- Seleccionar --"
+                clearable={true}
+              />
             </div>
 
             <div className="input-group">
@@ -867,12 +911,13 @@ const WorkOrderPlanner = () => {
             </p>
             <div className="input-group" style={{ marginBottom:'10px' }}>
               <label>Activo Destino</label>
-              <select className="input-control" value={copyTarget} onChange={e => setCopyTarget(e.target.value)}>
-                <option value="">— Seleccionar —</option>
-                {filteredAssets.filter(a => a.id !== generalTask.assetId).map(a => (
-                  <option key={a.id} value={a.id}>{a.id} — {a.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={copyTarget}
+                onChange={(value) => setCopyTarget(value)}
+                options={filteredAssets.filter(a => a.id !== generalTask.assetId).map(a => ({ value: a.id, label: `${a.id} — ${a.name}` }))}
+                placeholder="— Seleccionar —"
+                clearable={true}
+              />
             </div>
             <p style={{ fontSize:'0.78rem', color:'var(--text-muted)', marginBottom:'10px' }}>
               Asegúrate de que la "Fecha Inicio" esté definida para calcular las fechas relativas.

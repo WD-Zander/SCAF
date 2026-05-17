@@ -75,12 +75,28 @@ export const createFile = async (req, res) => {
     } else {
       // TIPO_MANT, CATEGORIA, UNIDAD_ORG: usan ID alfanumérico con jerarquía
       const { id, scopeId } = req.body;
-      if (table === 'CATEGORIA' && !parentId && scopeId) {
+      if (table === 'CATEGORIA') {
+        // Resolver ID_SCOPE: si viene explícito usarlo, si no heredar del ancestro raíz
+        let resolvedScopeId = scopeId || null;
+        if (!resolvedScopeId && parentId) {
+          const scopeRes = await db.request()
+            .input('pid', sql.VarChar, parentId)
+            .query(`
+              WITH Ancestors AS (
+                SELECT ID, ID_PADRE, ID_SCOPE FROM CATEGORIA WHERE ID = @pid
+                UNION ALL
+                SELECT c.ID, c.ID_PADRE, c.ID_SCOPE FROM CATEGORIA c
+                INNER JOIN Ancestors a ON c.ID = a.ID_PADRE
+              )
+              SELECT ID_SCOPE FROM Ancestors WHERE ID_SCOPE IS NOT NULL LIMIT 1
+            `);
+          resolvedScopeId = scopeRes.recordset[0]?.ID_SCOPE || null;
+        }
         await db.request()
           .input('id',   sql.VarChar, id)
           .input('name', sql.VarChar, name)
-          .input('pid',  sql.VarChar, null)
-          .input('scopeId', sql.Int, scopeId)
+          .input('pid',  sql.VarChar, parentId || null)
+          .input('scopeId', sql.Int, resolvedScopeId)
           .query(`INSERT INTO CATEGORIA (ID, NOMBRE, ID_PADRE, ID_SCOPE) VALUES (@id, @name, @pid, @scopeId)`);
       } else {
         await db.request()
@@ -128,29 +144,46 @@ export const createFileBatch = async (req, res) => {
         if (isNameAsPk) {
           const color = item['COLOR'] || item['Color'] || null;
           const hasColor = table === 'ESTADO_ACTIVO' && color;
-          const r = db.request()
-            .input('name',  sql.VarChar, name)
-            .input('color', sql.VarChar, color || null);
-          await r.query(hasColor
-            ? `IF NOT EXISTS (SELECT 1 FROM ${table} WHERE NOMBRE = @name)
-                 INSERT INTO ${table} (NOMBRE, COLOR) VALUES (@name, @color)
-               ELSE
-                 UPDATE ${table} SET COLOR = @color WHERE NOMBRE = @name`
-            : `IF NOT EXISTS (SELECT 1 FROM ${table} WHERE NOMBRE = @name)
-                 INSERT INTO ${table} (NOMBRE) VALUES (@name)`
-          );
+          const existingByName = await db.request()
+            .input('name', sql.VarChar, name)
+            .query(`SELECT 1 FROM ${table} WHERE NOMBRE = @name`);
+
+          if (existingByName.recordset.length === 0) {
+            if (hasColor) {
+              await db.request()
+                .input('name', sql.VarChar, name)
+                .input('color', sql.VarChar, color)
+                .query(`INSERT INTO ${table} (NOMBRE, COLOR) VALUES (@name, @color)`);
+            } else {
+              await db.request()
+                .input('name', sql.VarChar, name)
+                .query(`INSERT INTO ${table} (NOMBRE) VALUES (@name)`);
+            }
+          } else if (hasColor) {
+            await db.request()
+              .input('name', sql.VarChar, name)
+              .input('color', sql.VarChar, color)
+              .query(`UPDATE ${table} SET COLOR = @color WHERE NOMBRE = @name`);
+          }
         } else {
           // Tablas jerárquicas: CATEGORIA, UNIDAD_ORG, TIPO_MANT
-          await db.request()
-            .input('id',   sql.VarChar, id)
-            .input('name', sql.VarChar, name)
-            .input('pid',  sql.VarChar, pid)
-            .query(`
-              IF NOT EXISTS (SELECT 1 FROM ${table} WHERE ID = @id)
-                INSERT INTO ${table} (ID, NOMBRE, ID_PADRE) VALUES (@id, @name, @pid)
-              ELSE
-                UPDATE ${table} SET NOMBRE = @name, ID_PADRE = @pid WHERE ID = @id
-            `);
+          const existingById = await db.request()
+            .input('id', sql.VarChar, id)
+            .query(`SELECT 1 FROM ${table} WHERE ID = @id`);
+
+          if (existingById.recordset.length === 0) {
+            await db.request()
+              .input('id',   sql.VarChar, id)
+              .input('name', sql.VarChar, name)
+              .input('pid',  sql.VarChar, pid)
+              .query(`INSERT INTO ${table} (ID, NOMBRE, ID_PADRE) VALUES (@id, @name, @pid)`);
+          } else {
+            await db.request()
+              .input('id',   sql.VarChar, id)
+              .input('name', sql.VarChar, name)
+              .input('pid',  sql.VarChar, pid)
+              .query(`UPDATE ${table} SET NOMBRE = @name, ID_PADRE = @pid WHERE ID = @id`);
+          }
         }
         count++;
       } catch (rowError) {

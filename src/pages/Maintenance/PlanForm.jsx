@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import { Check, ArrowLeft, Plus, X, ChevronDown } from 'lucide-react';
+import { Check, ArrowLeft, Plus, X, Folder, Box } from 'lucide-react';
 import { api } from '../../api';
+import SearchableSelect from '../../components/Common/SearchableSelect';
 
 const toTitleCase = (str) => {
   if (!str) return '';
@@ -13,12 +14,10 @@ const PlanForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { maintenancePlans, setMaintenancePlans, assetCategoriesTree, planFrequencies, setGlobalAlert, maintenanceScopes, getCategoriesForScope } = useAppContext();
-  // Inherit scope from the routines page URL (passed via navigate state or searchParams)
+  const { maintenancePlans, setMaintenancePlans, assetCategoriesTree, planFrequencies, setGlobalAlert, maintenanceScopes, getCategoriesForScope, getEntitiesForScope } = useAppContext();
   const inheritedScope = searchParams.get('scope') || null;
   const isEditing = Boolean(id);
 
-  // Frecuencia por defecto: la primera de la BD o 'Mensual' como fallback
   const defaultFreq = (freqs) => freqs?.find(f => f.active !== false)?.name || 'Mensual';
 
   const [formData, setFormData] = useState({
@@ -46,21 +45,45 @@ const PlanForm = () => {
     navigate(-1);
   };
 
-  // ── Derivar árbol de categorías desde el contexto ──────────────────
-  // Si hay inheritedScope, filtra solo categorías raíz de ese módulo
-  const rootCategories = useMemo(() => {
-    if (inheritedScope) return getCategoriesForScope(inheritedScope);
-    return assetCategoriesTree;
-  }, [assetCategoriesTree, inheritedScope, getCategoriesForScope]);
+  // ── Determinar si el scope actual es tipo activo ────────────────
+  const currentScopeObj = useMemo(() =>
+    maintenanceScopes.find(s => s.slug === formData.scope)
+  , [maintenanceScopes, formData.scope]);
 
-  // Familias: children del nodo raíz seleccionado
+  const isAssetScope = useMemo(() => {
+    if (!currentScopeObj) return true;
+    return (currentScopeObj.tipoEntidad || 'activo') === 'activo';
+  }, [currentScopeObj]);
+
+  const entityInfo = useMemo(() => {
+    if (!formData.scope) return null;
+    return getEntitiesForScope(formData.scope);
+  }, [formData.scope, getEntitiesForScope]);
+
+  // ── Categorías filtradas por scope ──
+  const rootCategories = useMemo(() => {
+    if (formData.scope) return getCategoriesForScope(formData.scope);
+    return assetCategoriesTree;
+  }, [assetCategoriesTree, formData.scope, getCategoriesForScope]);
+
   const families = useMemo(() => {
     if (!formData.CategoryId) return [];
-    const selectedCat = assetCategoriesTree.find(c => c.id === formData.CategoryId);
+    const allCats = formData.scope ? getCategoriesForScope(formData.scope) : assetCategoriesTree;
+    const selectedCat = allCats.find(c => c.id === formData.CategoryId) ||
+                        assetCategoriesTree.find(c => c.id === formData.CategoryId);
     return selectedCat?.children || [];
-  }, [assetCategoriesTree, formData.CategoryId]);
+  }, [assetCategoriesTree, formData.CategoryId, formData.scope, getCategoriesForScope]);
 
-  // ── Auto-generate code & preload on edit ──────────────────────────
+  // ── Opciones para searchable selects ────────────────────────────
+  const categoryOptions = useMemo(() =>
+    rootCategories.map(c => ({ value: c.id, label: c.name }))
+  , [rootCategories]);
+
+  const familyOptions = useMemo(() =>
+    families.map(f => ({ value: f.id, label: f.name }))
+  , [families]);
+
+  // ── Auto-generate code & preload on edit ────────────────────────
   useEffect(() => {
     if (isEditing) {
       const plan = maintenancePlans.find(p => p.Id === id);
@@ -82,7 +105,6 @@ const PlanForm = () => {
         );
       }
     } else {
-      // Auto-fill next code
       let maxNum = 0;
       for (const p of maintenancePlans) {
         const match = (p.Code || '').match(/^PLAN-(\d+)$/i);
@@ -92,11 +114,22 @@ const PlanForm = () => {
     }
   }, [id, maintenancePlans]);
 
-  // ── Handlers de selección de categoría en cascada ─────────────────
-  const handleCategoryChange = (e) => {
-    const selectedId = e.target.value;
-    const selectedCat = rootCategories.find(c => c.id === selectedId);
-    // Auto-derive scope from category's scopeId
+  // ── Handlers ────────────────────────────────────────────────────
+  const handleScopeChange = (e) => {
+    const newScope = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      scope: newScope,
+      CategoryId: '',
+      CategoryName: '',
+      FamilyId: '',
+      FamilyName: '',
+    }));
+    setIsDirty(true);
+  };
+
+  const handleCategoryChange = (val, label) => {
+    const selectedCat = rootCategories.find(c => c.id === val);
     let autoScope = formData.scope;
     if (selectedCat?.scopeId) {
       const scopeObj = maintenanceScopes.find(s => s.id === selectedCat.scopeId);
@@ -104,21 +137,19 @@ const PlanForm = () => {
     }
     setFormData(prev => ({
       ...prev,
-      CategoryId: selectedId,
-      CategoryName: selectedCat?.name || '',
+      CategoryId: val,
+      CategoryName: label,
       FamilyId: '',
       FamilyName: '',
       scope: autoScope
     }));
   };
 
-  const handleFamilyChange = (e) => {
-    const selectedId = e.target.value;
-    const selectedFam = families.find(c => c.id === selectedId);
+  const handleFamilyChange = (val, label) => {
     setFormData(prev => ({
       ...prev,
-      FamilyId: selectedId,
-      FamilyName: selectedFam?.name || ''
+      FamilyId: val,
+      FamilyName: label
     }));
   };
 
@@ -129,7 +160,6 @@ const PlanForm = () => {
     }
     setSaving(true);
     try {
-      // Scope label: si hay familia la usamos, sino la categoría raíz
       const scopeLabel = formData.FamilyName || formData.CategoryName || '';
 
       if (isEditing) {
@@ -179,7 +209,6 @@ const PlanForm = () => {
         setGlobalAlert({ isOpen: true, title: 'Plan Registrado', message: 'Nuevo protocolo guardado exitosamente.' });
       }
 
-      // Refetch plans
       const refetch = await api.get('/api/maintenance-plans');
       if (refetch?.ok) setMaintenancePlans(await refetch.json());
       setIsDirty(false);
@@ -189,6 +218,9 @@ const PlanForm = () => {
     }
     setSaving(false);
   };
+
+  // ── Scope badge color ──────────────────────────────────────────
+  const scopeColor = currentScopeObj?.color || 'var(--accent-primary)';
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
@@ -217,16 +249,13 @@ const PlanForm = () => {
 
         <div className="input-group" style={{ marginBottom: '20px' }}>
           <label>Módulo de Mantenimiento</label>
-          <select
-            className="input-control"
+          <SearchableSelect
             value={formData.scope || ''}
-            onChange={e => { setFormData(prev => ({ ...prev, scope: e.target.value })); setIsDirty(true); }}
-          >
-            <option value="">— Sin módulo específico —</option>
-            {maintenanceScopes.filter(s => s.activo !== false).map(s => (
-              <option key={s.id} value={s.slug}>{s.nombre}</option>
-            ))}
-          </select>
+            onChange={(val) => handleScopeChange({ target: { value: val } })}
+            options={maintenanceScopes.filter(s => s.activo !== false).map(s => ({ value: s.slug, label: s.nombre }))}
+            placeholder="— Sin módulo específico —"
+            label="Módulo"
+          />
         </div>
 
         <div className="form-grid-2">
@@ -242,113 +271,107 @@ const PlanForm = () => {
           </div>
           <div className="input-group">
             <label>Frecuencia Global del Plan</label>
-            <select
-              className="input-control"
+            <SearchableSelect
               value={formData.PlanFrequency}
-              onChange={e => setFormData({ ...formData, PlanFrequency: e.target.value })}
-            >
-              {planFrequencies.length > 0
-                ? planFrequencies.filter(f => f.active !== false).map(f => (
-                    <option key={f.id} value={f.name}>
-                      {f.name}{f.description ? ` — ${f.description}` : ''}
-                    </option>
-                  ))
-                : <option value={formData.PlanFrequency}>{formData.PlanFrequency}</option>
+              onChange={(val) => setFormData(prev => ({ ...prev, PlanFrequency: val }))}
+              options={planFrequencies.length > 0
+                ? planFrequencies.filter(f => f.active !== false).map(f => ({ value: f.name, label: f.name, sub: f.description || undefined }))
+                : [{ value: formData.PlanFrequency, label: formData.PlanFrequency }]
               }
-            </select>
+              placeholder="Seleccionar frecuencia..."
+              label="Frecuencia"
+              clearable={false}
+            />
           </div>
         </div>
 
-        {/* ── ALCANCE EN CASCADA ─────────────────────────────── */}
+        {/* ── ALCANCE EN CASCADA ─────────────────────────────────────── */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>
-            Alcance del Plan (Categoría y Familia)
+            Alcance del Plan
           </label>
           <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '12px' }}>
-            Selecciona la categoría de inventario que abarca este plan. Solo los activos de esa categoría/familia aparecerán al programar la orden de trabajo.
+            {isAssetScope
+              ? 'Selecciona la categoría de inventario que abarca este plan. Solo los activos de esa categoría/familia aparecerán al programar.'
+              : `Selecciona el alcance para ${entityInfo?.labelPlural || 'las entidades'} de este módulo.`
+            }
           </p>
+
           <div className="form-grid-2">
-            {/* Nivel 1 — Categoría Raíz */}
             <div className="input-group">
-              <label>Categoría *</label>
-              <div style={{ position: 'relative' }}>
-                <select
-                  className="input-control"
-                  value={formData.CategoryId}
-                  onChange={handleCategoryChange}
-                  style={{ paddingRight: '36px', appearance: 'none' }}
-                >
-                  <option value="">— Seleccionar Categoría —</option>
-                  {rootCategories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }} />
-              </div>
+              <label>{isAssetScope ? 'Categoría' : 'Grupo / Clasificación'}</label>
+              <SearchableSelect
+                value={formData.CategoryId}
+                onChange={handleCategoryChange}
+                options={categoryOptions}
+                placeholder={categoryOptions.length === 0
+                  ? (formData.scope ? `No hay categorías para este módulo` : 'Selecciona un módulo primero')
+                  : `Buscar ${isAssetScope ? 'categoría' : 'grupo'}...`
+                }
+                label={isAssetScope ? 'Categoría' : 'Grupo'}
+                icon={Folder}
+                disabled={categoryOptions.length === 0}
+              />
               {formData.CategoryName && (
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                  ✔ Categoría: <strong>{formData.CategoryName}</strong>
+                <span style={{ fontSize: '0.78rem', color: 'var(--success)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={13} /> {formData.CategoryName}
+                </span>
+              )}
+              {!isAssetScope && categoryOptions.length === 0 && formData.scope && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  Puedes crear categorías para este módulo desde Configurar Módulos
                 </span>
               )}
             </div>
 
-            {/* Nivel 2 — Familia (Hijo de Categoría) */}
             <div className="input-group">
-              <label>Familia / Subfamilia</label>
-              <div style={{ position: 'relative' }}>
-                <select
-                  className="input-control"
-                  value={formData.FamilyId}
-                  onChange={handleFamilyChange}
-                  disabled={!formData.CategoryId || families.length === 0}
-                  style={{
-                    paddingRight: '36px',
-                    appearance: 'none',
-                    opacity: (!formData.CategoryId || families.length === 0) ? 0.5 : 1
-                  }}
-                >
-                  <option value="">
-                    {!formData.CategoryId
-                      ? '— Primero selecciona Categoría —'
-                      : families.length === 0
-                        ? '— Sin familias disponibles —'
-                        : '— Todas las familias —'}
-                  </option>
-                  {families.map(fam => (
-                    <option key={fam.id} value={fam.id}>{fam.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }} />
-              </div>
+              <label>{isAssetScope ? 'Familia / Subfamilia' : 'Subcategoría'}</label>
+              <SearchableSelect
+                value={formData.FamilyId}
+                onChange={handleFamilyChange}
+                options={familyOptions}
+                placeholder={!formData.CategoryId
+                  ? `Primero selecciona ${isAssetScope ? 'categoría' : 'grupo'}`
+                  : familyOptions.length === 0
+                    ? `Sin ${isAssetScope ? 'familias' : 'subcategorías'} disponibles`
+                    : `Buscar ${isAssetScope ? 'familia' : 'subcategoría'}...`
+                }
+                label={isAssetScope ? 'Familia' : 'Subcategoría'}
+                disabled={!formData.CategoryId || familyOptions.length === 0}
+                icon={Box}
+              />
               {formData.FamilyName && (
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                  ✔ Familia: <strong>{formData.FamilyName}</strong>
+                <span style={{ fontSize: '0.78rem', color: 'var(--success)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={13} /> {formData.FamilyName}
                 </span>
               )}
             </div>
           </div>
 
           {/* Badge de alcance actual */}
-          {formData.CategoryName && (
+          {(formData.CategoryName || formData.scope) && (
             <div style={{
               marginTop: '12px',
               padding: '10px 16px',
-              background: 'rgba(59,130,246,0.08)',
-              border: '1px solid rgba(59,130,246,0.25)',
+              background: `${scopeColor}0d`,
+              border: `1px solid ${scopeColor}30`,
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
               fontSize: '0.85rem'
             }}>
-              <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>📂 Alcance:</span>
+              <span style={{ color: scopeColor, fontWeight: 700 }}>Alcance:</span>
               <span>
-                <strong>{formData.CategoryName}</strong>
-                {formData.FamilyName && <> → <strong>{formData.FamilyName}</strong></>}
+                {currentScopeObj?.nombre && <>{currentScopeObj.nombre} &rarr; </>}
+                {formData.CategoryName ? <strong>{formData.CategoryName}</strong> : <span className="text-muted">Sin categoría</span>}
+                {formData.FamilyName && <> &rarr; <strong>{formData.FamilyName}</strong></>}
               </span>
-              <span className="text-muted" style={{ marginLeft: 'auto', fontSize: '0.78rem' }}>
-                Solo se mostrarán activos de este scope al programar
-              </span>
+              {!isAssetScope && entityInfo && (
+                <span className="text-muted" style={{ marginLeft: 'auto', fontSize: '0.78rem' }}>
+                  {entityInfo.items?.length || 0} {entityInfo.labelPlural?.toLowerCase()} disponibles
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -396,21 +419,18 @@ const PlanForm = () => {
                 }}
               />
               <div style={{ flex: 1 }}>
-                <select
-                  className="input-control"
-                  style={{ background: 'var(--bg-primary)' }}
+                <SearchableSelect
                   value={task.Frequency}
-                  onChange={e => {
-                    const t = [...tasks]; t[index].Frequency = e.target.value; setTasks(t);
+                  onChange={(val) => {
+                    const t = [...tasks]; t[index].Frequency = val; setTasks(t);
                   }}
-                >
-                  {planFrequencies.length > 0
-                    ? planFrequencies.filter(f => f.active !== false).map(f => (
-                        <option key={f.id} value={f.name}>{f.name}</option>
-                      ))
-                    : <option value={task.Frequency}>{task.Frequency}</option>
+                  options={planFrequencies.length > 0
+                    ? planFrequencies.filter(f => f.active !== false).map(f => ({ value: f.name, label: f.name }))
+                    : [{ value: task.Frequency, label: task.Frequency }]
                   }
-                </select>
+                  placeholder="Frecuencia"
+                  clearable={false}
+                />
               </div>
               <button
                 className="btn-secondary"

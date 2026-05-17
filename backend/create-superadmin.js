@@ -51,7 +51,7 @@ async function createSuperAdmin() {
         .input('hash', sql.VarChar, hash)
         .query(`
           INSERT INTO USUARIO (ID, NOMBRE, USERNAME, CORREO, ID_ROL, PASSWORD_HASH, ACTIVO)
-          VALUES (@id, @nombre, @username, '', @roleId, @hash, 1)
+          VALUES (@id, @nombre, @username, '', @roleId, @hash, TRUE)
         `);
       console.log('✅ Usuario Super Administrador creado exitosamente.');
     } else {
@@ -63,7 +63,7 @@ async function createSuperAdmin() {
         .input('nombre', sql.VarChar, NOMBRE)
         .query(`
           UPDATE USUARIO
-          SET PASSWORD_HASH = @hash, ID_ROL = @roleId, NOMBRE = @nombre, ACTIVO = 1
+          SET PASSWORD_HASH = @hash, ID_ROL = @roleId, NOMBRE = @nombre, ACTIVO = TRUE
           WHERE USERNAME = @username
         `);
       console.log('✅ Usuario existente actualizado con nueva contraseña y rol SUPERADMIN.');

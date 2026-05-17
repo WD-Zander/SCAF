@@ -60,14 +60,14 @@ const MobileBottomNav = () => {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {[
-              hasPermission('calendar') && { path: '/calendar', label: 'Calendario', Icon: CalendarRange },
+              hasPermission('calendar_view') && { path: '/calendar', label: 'Calendario', Icon: CalendarRange },
               hasPermission('maintenances_view') && { path: '/maintenances/routines', label: 'Rutinas', Icon: CalendarDays },
               hasPermission('maintenances_view') && { path: '/maintenances/work-orders', label: 'En Marcha', Icon: Layers },
               hasPermission('suppliers_view') && { path: '/suppliers', label: 'Proveedores', Icon: Truck },
               hasPermission('users_view') && { path: '/users', label: 'Usuarios', Icon: Users },
-              hasPermission('files') && { path: '/files', label: 'Ficheros', Icon: FolderTree },
-              hasPermission('audit') && { path: '/audit', label: 'Auditoría', Icon: Activity },
-              hasPermission('settings') && { path: '/settings', label: 'Config.', Icon: Settings },
+              hasPermission('files_view') && { path: '/files', label: 'Ficheros', Icon: FolderTree },
+              hasPermission('audit_view') && { path: '/audit', label: 'Auditoría', Icon: Activity },
+              hasPermission('settings_view') && { path: '/settings', label: 'Config.', Icon: Settings },
             ].filter(Boolean).map(item => (
               <NavLink key={item.path} to={item.path} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',

@@ -26,6 +26,11 @@ import movementsRoutes from './routes/movements.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import employeesRoutes from './routes/employees.routes.js';
 import maintenanceScopesRoutes from './routes/maintenanceScopes.routes.js';
+import areasRoutes from './routes/areas.routes.js';
+import roomsRoutes from './routes/rooms.routes.js';
+import infrastructureRoutes from './routes/infrastructure.routes.js';
+import formsRoutes from './routes/forms.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
 
 const app = express();
 
@@ -74,7 +79,12 @@ app.use('/api/maintenance-plans', maintenancePlansRoutes);
 app.use('/api/movements', movementsRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/maintenance-scopes', maintenanceScopesRoutes);
+app.use('/api/areas', areasRoutes);
+app.use('/api/rooms', roomsRoutes);
+app.use('/api/infrastructure', infrastructureRoutes);
 app.use('/api/assets', uploadRoutes);
+app.use('/api/forms', formsRoutes);
+app.use('/api/reports', reportsRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 SCAF Backend operando en el puerto http://0.0.0.0:${PORT}`);

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Layers, Calendar as CalendarIcon, ChevronDown, ChevronUp, CheckCircle2, Circle, ExternalLink, Wrench, Trash2 } from 'lucide-react';
+import { Plus, Search, Layers, Calendar as CalendarIcon, ChevronDown, ChevronUp, Check, ExternalLink, Wrench, Trash2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../api';
 import ConfirmModal from '../../components/Common/ConfirmModal';
+import Pagination from '../../components/Common/Pagination';
 
 const StatusBadge = ({ status, progress }) => {
   const isDone = progress === 100 || status === 'COMPLETADO';
@@ -22,16 +23,21 @@ const WorkOrdersList = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const scope = searchParams.get('scope');
+  const asset = searchParams.get('asset');
+  const date = searchParams.get('date');
   const { setGlobalAlert, hasPermission, maintenances, maintenanceScopes } = useAppContext();
   const scopeLabel = maintenanceScopes.find(s => s.slug === scope)?.nombre || '';
 
   const [workOrders, setWorkOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
   const [expandedId, setExpandedId] = useState(null);
   const [woTickets, setWoTickets] = useState({});
   const [loadingTickets, setLoadingTickets] = useState({});
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, idToDelete: null, name: '' });
+  const autoExpandedRef = useRef(false);
 
   const fetchWorkOrders = async () => {
     setLoading(true);
@@ -106,13 +112,55 @@ const WorkOrdersList = () => {
       w.AssetSerial?.toLowerCase().includes(term)
     );
     const matchesScope = !scope || w.Scope === scope;
-    return matchesSearch && matchesScope;
-  }), [workOrders, searchTerm, scope]);
+    const matchesAsset = !asset || w.AssetId === asset || w.AssetSerial === asset;
+    return matchesSearch && matchesScope && matchesAsset;
+  }), [workOrders, searchTerm, scope, asset]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // Auto-expand first matching work order when navigating from calendar
+  useEffect(() => {
+    if (asset && !loading && filteredOrders.length > 0 && !autoExpandedRef.current) {
+      autoExpandedRef.current = true;
+      toggleExpand(filteredOrders[0].Id);
+    }
+  }, [asset, loading, filteredOrders.length]);
 
   const ticketStatusColor = (status) => {
     if (status === 'COMPLETADO') return 'var(--success)';
     if (status === 'EN PROGRESO') return 'var(--warning)';
     return 'var(--danger)';
+  };
+
+  const handleToggleTicketStatus = async (ticket) => {
+    const newStatus = ticket.status === 'COMPLETADO' ? 'PENDIENTE' : 'COMPLETADO';
+    try {
+      const res = await api.put(`/api/maintenances/${ticket.id}`, {
+        ...ticket,
+        status: newStatus,
+      });
+      if (res?.ok) {
+        // Actualizar en local
+        setWoTickets(prev => ({
+          ...prev,
+          [ticket.workOrderId]: (prev[ticket.workOrderId] || []).map(t =>
+            t.id === ticket.id ? { ...t, status: newStatus } : t
+          ),
+        }));
+        // Actualizar contadores de la work order
+        setWorkOrders(prev => prev.map(w => {
+          if (w.Id !== ticket.workOrderId) return w;
+          const delta = newStatus === 'COMPLETADO' ? 1 : -1;
+          return { ...w, CompletedTasks: (w.CompletedTasks || 0) + delta };
+        }));
+      } else {
+        const data = await res?.json().catch(() => ({}));
+        setGlobalAlert({ isOpen: true, title: 'Error', message: data.error || 'No se pudo actualizar el ticket.' });
+      }
+    } catch (e) {
+      setGlobalAlert({ isOpen: true, title: 'Error', message: e.message });
+    }
   };
 
   return (
@@ -124,6 +172,37 @@ const WorkOrdersList = () => {
             {scopeLabel && <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent-primary)', fontWeight: 600 }}>{scopeLabel}</span>}
           </h1>
           <p className="text-muted">Supervisión de planes generales y su progreso.</p>
+          {(asset || date) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+              {asset && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
+                  background: 'var(--accent-light)', color: 'var(--accent-primary)',
+                }}>
+                  Activo: {workOrders.find(w => w.AssetId === asset)?.AssetName || asset}
+                </span>
+              )}
+              {date && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
+                  background: '#fffbeb', color: '#d97706',
+                }}>
+                  Fecha: {date}
+                </span>
+              )}
+              <button
+                onClick={() => navigate(`/maintenances/work-orders${scope ? `?scope=${scope}` : ''}`)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: '0.78rem', color: 'var(--text-muted)', textDecoration: 'underline',
+                }}
+              >
+                Ver todos
+              </button>
+            </div>
+          )}
         </div>
         {hasPermission('maintenances_create') && (
           <button className="btn-primary" onClick={() => navigate(`/maintenances/routines${scope ? `?scope=${scope}` : ''}`)}>
@@ -141,7 +220,7 @@ const WorkOrdersList = () => {
               placeholder="Buscar por ID, Plan o Activo..."
               style={{ border: 'none', outline: 'none', width: '100%', background: 'transparent' }}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
           </div>
         </div>
@@ -164,12 +243,13 @@ const WorkOrdersList = () => {
             Cargando planes en marcha...
           </div>
         ) : filteredOrders.length > 0 ? (
-          filteredOrders.map((w) => {
+          paginatedOrders.map((w) => {
             const total = w.TotalTasks || 0;
             const completed = w.CompletedTasks || 0;
             const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
             const isExpanded = expandedId === w.Id;
-            const tickets = woTickets[w.Id] || [];
+            const allTickets = woTickets[w.Id] || [];
+            const tickets = date ? allTickets.filter(t => t.startDate?.startsWith(date)) : allTickets;
             const isLoadingT = loadingTickets[w.Id];
 
             return (
@@ -240,7 +320,7 @@ const WorkOrdersList = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                       <Wrench size={15} className="text-muted" />
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Tickets del plan
+                        {date ? `Tareas del ${date}` : 'Tickets del plan'}
                       </span>
                     </div>
 
@@ -264,43 +344,61 @@ const WorkOrdersList = () => {
                       </p>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {tickets.map(t => (
-                          <div
-                            key={t.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '12px',
-                              padding: '10px 14px',
-                              background: 'var(--bg-secondary)',
-                              border: '1px solid var(--glass-border)',
-                              borderRadius: '8px',
-                            }}
-                          >
-                            {t.status === 'COMPLETADO'
-                              ? <CheckCircle2 size={16} style={{ color: 'var(--success)', flexShrink: 0 }} />
-                              : <Circle size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                            }
-                            <span className="code-font" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{t.id}</span>
-                            <span style={{ flex: 1, fontSize: '0.88rem', fontWeight: 500 }}>{t.title}</span>
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{t.startDate}</span>
-                            <span style={{
-                              padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0,
-                              color: ticketStatusColor(t.status),
-                              background: t.status === 'COMPLETADO' ? 'var(--success-bg)' : t.status === 'EN PROGRESO' ? 'var(--warning-bg)' : 'rgba(248,81,73,0.1)',
-                            }}>
-                              {t.status || 'PENDIENTE'}
-                            </span>
-                            <button
-                              className="btn-secondary"
-                              style={{ padding: '4px 8px', fontSize: '0.78rem', flexShrink: 0 }}
-                              onClick={(e) => { e.stopPropagation(); navigate(`/maintenances/view/${t.id}`); }}
-                              title="Ver detalles"
+                        {tickets.map(t => {
+                          const isDone = t.status === 'COMPLETADO';
+                          return (
+                            <div
+                              key={t.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '10px 14px',
+                                background: isDone ? 'rgba(34,197,94,0.03)' : 'var(--bg-secondary)',
+                                border: `1px solid ${isDone ? 'rgba(34,197,94,0.2)' : 'var(--glass-border)'}`,
+                                borderRadius: '8px',
+                                transition: 'all 0.2s',
+                              }}
                             >
-                              <ExternalLink size={13} />
-                            </button>
-                          </div>
-                        ))}
+                              {/* Checkbox interactivo */}
+                              <div
+                                onClick={(e) => { e.stopPropagation(); handleToggleTicketStatus(t); }}
+                                style={{
+                                  width: '22px', height: '22px', borderRadius: '6px',
+                                  border: `2px solid ${isDone ? 'var(--success)' : '#cbd5e1'}`,
+                                  background: isDone ? 'var(--success)' : 'transparent',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                                }}
+                                title={isDone ? 'Marcar como pendiente' : 'Marcar como completado'}
+                              >
+                                {isDone && <Check size={14} color="#fff" strokeWidth={3} />}
+                              </div>
+                              <span className="code-font" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{t.id}</span>
+                              <span style={{
+                                flex: 1, fontSize: '0.88rem', fontWeight: 500,
+                                textDecoration: isDone ? 'line-through' : 'none',
+                                opacity: isDone ? 0.6 : 1,
+                              }}>{t.title}</span>
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{t.startDate}</span>
+                              <span style={{
+                                padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0,
+                                color: ticketStatusColor(t.status),
+                                background: isDone ? 'var(--success-bg)' : t.status === 'EN PROGRESO' ? 'var(--warning-bg)' : 'rgba(248,81,73,0.1)',
+                              }}>
+                                {t.status || 'PENDIENTE'}
+                              </span>
+                              <button
+                                className="btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '0.78rem', flexShrink: 0 }}
+                                onClick={(e) => { e.stopPropagation(); navigate(`/maintenances/view/${t.id}`); }}
+                                title="Ver detalles"
+                              >
+                                <ExternalLink size={13} />
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -314,6 +412,14 @@ const WorkOrdersList = () => {
             <p>No hay planes en marcha registrados.</p>
           </div>
         )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredOrders.length}
+          onPageChange={setCurrentPage}
+          itemsPerPage={ITEMS_PER_PAGE}
+          label="planes"
+        />
       </div>
 
       <ConfirmModal

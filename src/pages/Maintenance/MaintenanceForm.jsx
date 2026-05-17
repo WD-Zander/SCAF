@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Check, Search } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import SearchableSelect from '../../components/Common/SearchableSelect';
 
 const MaintenanceForm = () => {
   const navigate = useNavigate();
@@ -194,32 +195,37 @@ const MaintenanceForm = () => {
                </div>
                <div className="input-group">
                  <label>Tipo de Mantenimiento</label>
-                 <select className="input-control" value={formData.typeId || ''} onChange={e => {
-                   const t = availableTypes.find(t => t.id === e.target.value);
-                   setFormData(prev => ({...prev, typeId: e.target.value, type: t?.name || ''}));
-                 }} required>
-                   {availableTypes.map(t => (
-                     <option key={t.id} value={t.id}>{t.name}</option>
-                   ))}
-                   {availableTypes.length === 0 && <option value="">Generico</option>}
-                 </select>
+                 <SearchableSelect
+                   value={formData.typeId || ''}
+                   onChange={(value, label) => {
+                     setFormData(prev => ({...prev, typeId: value, type: label || ''}));
+                   }}
+                   options={availableTypes.map(t => ({ value: t.id, label: t.name }))}
+                   placeholder="Seleccionar tipo"
+                   label="Tipo de Mantenimiento"
+                 />
                </div>
              </div>
              <div className="form-grid-2">
                <div className="input-group">
                  <label>Módulo / Categoría</label>
-                 <select className="input-control" name="scope" value={formData.scope || 'activo'} onChange={handleChange} required>
-                   {maintenanceScopes.filter(s => s.activo !== false).map(s => (
-                     <option key={s.id} value={s.slug}>{s.nombre}</option>
-                   ))}
-                   {maintenanceScopes.length === 0 && (
-                     <>
-                       <option value="activo">Mantenimiento de Activo</option>
-                       <option value="area">Mantenimiento de Área</option>
-                       <option value="habitacion">Mantenimiento de Habitación</option>
-                     </>
-                   )}
-                 </select>
+                 <SearchableSelect
+                   value={formData.scope || 'activo'}
+                   onChange={(value) => {
+                     setFormData(prev => ({...prev, scope: value}));
+                   }}
+                   options={
+                     maintenanceScopes.length > 0
+                       ? maintenanceScopes.filter(s => s.activo !== false).map(s => ({ value: s.slug, label: s.nombre }))
+                       : [
+                           { value: 'activo', label: 'Mantenimiento de Activo' },
+                           { value: 'area', label: 'Mantenimiento de Área' },
+                           { value: 'habitacion', label: 'Mantenimiento de Habitación' },
+                         ]
+                   }
+                   placeholder="Seleccionar módulo"
+                   label="Módulo / Categoría"
+                 />
                </div>
              </div>
           </div>
@@ -294,33 +300,50 @@ const MaintenanceForm = () => {
              <div className="form-grid-3">
                <div className="input-group">
                  <label>Estado Trabajo (Semáforo)</label>
-                 <select className="input-control" name="status" value={formData.status} onChange={handleChange} required>
-                   <option value="PENDIENTE">🔴 Pendiente</option>
-                   <option value="EN PROGRESO">🟡 En Progreso</option>
-                   <option value="COMPLETADO">🟢 Completado</option>
-                   <option value="CANCELADO">⚫ Cancelado</option>
-                 </select>
+                 <SearchableSelect
+                   value={formData.status}
+                   onChange={(value) => {
+                     setFormData(prev => ({...prev, status: value}));
+                   }}
+                   options={[
+                     { value: 'PENDIENTE', label: '🔴 Pendiente' },
+                     { value: 'EN PROGRESO', label: '🟡 En Progreso' },
+                     { value: 'COMPLETADO', label: '🟢 Completado' },
+                     { value: 'CANCELADO', label: '⚫ Cancelado' },
+                   ]}
+                   placeholder="Seleccionar estado"
+                   label="Estado Trabajo (Semáforo)"
+                 />
                </div>
                <div className="input-group">
                  <label>Técnico / Persona a Cargo</label>
-                 <select className="input-control" name="assignedTo" value={formData.assignedTo} onChange={handleChange} required>
-                   <option value="">-- Seleccionar --</option>
-                   {employees.map(e => (
-                     <option key={e.id} value={`${e.nombre} ${e.apellido}`}>{e.apellido}, {e.nombre}</option>
-                   ))}
-                 </select>
+                 <SearchableSelect
+                   value={formData.assignedTo}
+                   onChange={(value) => {
+                     setFormData(prev => ({...prev, assignedTo: value}));
+                   }}
+                   options={employees.map(e => ({ value: `${e.nombre} ${e.apellido}`, label: `${e.apellido}, ${e.nombre}` }))}
+                   placeholder="-- Seleccionar --"
+                   label="Técnico / Persona a Cargo"
+                   clearable={true}
+                 />
                </div>
                <div className="input-group">
                  <label>Proveedor Contratado (Opcional)</label>
-                 <select className="input-control" value={formData.providerId || ''} onChange={e => {
-                   const s = suppliers.find(s => s.id === e.target.value);
-                   setFormData(prev => ({...prev, providerId: e.target.value || null, provider: s?.name || 'Interno'}));
-                 }}>
-                   <option value="">Personal Interno</option>
-                   {suppliers.map(s => (
-                     <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
-                   ))}
-                 </select>
+                 <SearchableSelect
+                   value={formData.providerId || ''}
+                   onChange={(value, label) => {
+                     const s = suppliers.find(s => s.id === value);
+                     setFormData(prev => ({...prev, providerId: value || null, provider: s?.name || 'Interno'}));
+                   }}
+                   options={[
+                     { value: '', label: 'Personal Interno' },
+                     ...suppliers.map(s => ({ value: s.id, label: s.name, sub: s.id }))
+                   ]}
+                   placeholder="Seleccionar proveedor"
+                   label="Proveedor Contratado (Opcional)"
+                   clearable={true}
+                 />
                </div>
              </div>
              

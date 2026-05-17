@@ -34,7 +34,7 @@ export const createSupplier = async (req, res) => {
       .query(`
         INSERT INTO PROVEEDOR (ID, NOMBRE, CONTACTO, TEL, CORREO, DIR, RIF, ID_FORMA_PAGO)
         VALUES (@id, @name, @contact, @phone, @email, @address, @rif,
-          (SELECT TOP 1 ID FROM FORMA_PAGO WHERE NOMBRE = @paymentMethod))
+          (SELECT ID FROM FORMA_PAGO WHERE NOMBRE = @paymentMethod LIMIT 1))
       `);
     await logAudit(req, 'POST', 'Proveedores', id, `Proveedor de servicio añadido: ${name}`);
     res.json({ success: true });
@@ -58,7 +58,7 @@ export const updateSupplier = async (req, res) => {
         UPDATE PROVEEDOR
         SET NOMBRE=@name, CONTACTO=@contact, TEL=@phone, CORREO=@email,
             DIR=@address, RIF=@rif,
-            ID_FORMA_PAGO=(SELECT TOP 1 ID FROM FORMA_PAGO WHERE NOMBRE = @paymentMethod)
+            ID_FORMA_PAGO=(SELECT ID FROM FORMA_PAGO WHERE NOMBRE = @paymentMethod LIMIT 1)
         WHERE ID=@id
       `);
     await logAudit(req, 'PUT', 'Proveedores', req.params.id, `Se han modificado los datos del proveedor: ${name}`);
@@ -80,27 +80,43 @@ export const createSupplierBatch = async (req, res) => {
       if (!name) continue;
 
       try {
-        await db.request()
-          .input('id',            sql.VarChar, id)
-          .input('name',          sql.VarChar, name)
-          .input('contact',       sql.VarChar, (row.contact       || row.CONTACTO       || '').toString().trim())
-          .input('phone',         sql.VarChar, (row.phone         || row.TEL            || '').toString().trim())
-          .input('email',         sql.VarChar, (row.email         || row.CORREO         || '').toString().trim())
-          .input('address',       sql.VarChar, (row.address       || row.DIR            || '').toString().trim())
-          .input('rif',           sql.VarChar, (row.rif           || row.RIF            || null))
-          .input('paymentMethod', sql.VarChar, (row.paymentMethod || row.ID_FORMA_PAGO  || null))
-          .query(`
-            IF NOT EXISTS (SELECT 1 FROM PROVEEDOR WHERE ID = @id)
+        const existing = await db.request()
+          .input('id', sql.VarChar, id)
+          .query(`SELECT 1 FROM PROVEEDOR WHERE ID = @id`);
+
+        if (existing.recordset.length === 0) {
+          await db.request()
+            .input('id',            sql.VarChar, id)
+            .input('name',          sql.VarChar, name)
+            .input('contact',       sql.VarChar, (row.contact       || row.CONTACTO       || '').toString().trim())
+            .input('phone',         sql.VarChar, (row.phone         || row.TEL            || '').toString().trim())
+            .input('email',         sql.VarChar, (row.email         || row.CORREO         || '').toString().trim())
+            .input('address',       sql.VarChar, (row.address       || row.DIR            || '').toString().trim())
+            .input('rif',           sql.VarChar, (row.rif           || row.RIF            || null))
+            .input('paymentMethod', sql.VarChar, (row.paymentMethod || row.ID_FORMA_PAGO  || null))
+            .query(`
               INSERT INTO PROVEEDOR (ID, NOMBRE, CONTACTO, TEL, CORREO, DIR, RIF, ID_FORMA_PAGO)
               VALUES (@id, @name, @contact, @phone, @email, @address, @rif,
-                (SELECT TOP 1 ID FROM FORMA_PAGO WHERE NOMBRE = @paymentMethod))
-            ELSE
+                (SELECT ID FROM FORMA_PAGO WHERE NOMBRE = @paymentMethod LIMIT 1))
+            `);
+        } else {
+          await db.request()
+            .input('id',            sql.VarChar, id)
+            .input('name',          sql.VarChar, name)
+            .input('contact',       sql.VarChar, (row.contact       || row.CONTACTO       || '').toString().trim())
+            .input('phone',         sql.VarChar, (row.phone         || row.TEL            || '').toString().trim())
+            .input('email',         sql.VarChar, (row.email         || row.CORREO         || '').toString().trim())
+            .input('address',       sql.VarChar, (row.address       || row.DIR            || '').toString().trim())
+            .input('rif',           sql.VarChar, (row.rif           || row.RIF            || null))
+            .input('paymentMethod', sql.VarChar, (row.paymentMethod || row.ID_FORMA_PAGO  || null))
+            .query(`
               UPDATE PROVEEDOR
               SET NOMBRE=@name, CONTACTO=@contact, TEL=@phone, CORREO=@email,
                   DIR=@address, RIF=@rif,
-                  ID_FORMA_PAGO=(SELECT TOP 1 ID FROM FORMA_PAGO WHERE NOMBRE = @paymentMethod)
+                  ID_FORMA_PAGO=(SELECT ID FROM FORMA_PAGO WHERE NOMBRE = @paymentMethod LIMIT 1)
               WHERE ID=@id
-          `);
+            `);
+        }
         count++;
       } catch (rowErr) {
         throw new Error(`Error en proveedor '${name}' (Fila ${index + 2}): ${rowErr.message}`);

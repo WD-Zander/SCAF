@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit2, ArrowLeft, Image, FileText, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import SearchableSelect from '../../components/Common/SearchableSelect';
 import { api, BASE_URL } from '../../api';
 
 const InventoryForm = () => {
-  const { assets, addAsset, updateAsset, refreshAssets, suppliers, assetCategoriesTree, organizationalTree, maintenancePlans, assetStatuses, employees, hasPermission, setGlobalAlert, maintenanceScopes } = useAppContext();
+  const { assets, addAsset, updateAsset, refreshAssets, suppliers, assetCategoriesTree, organizationalTree, assetStatuses, employees, hasPermission, setGlobalAlert, maintenanceScopes } = useAppContext();
   const navigate = useNavigate();
   const { id } = useParams(); // to know if we are editing
   const isEditMode = Boolean(id);
@@ -24,11 +25,15 @@ const InventoryForm = () => {
   }, []);
 
   const initialFormState = {
-    id: '', name: '', categoryId: '', category: '', brand: '', model: '',
+    id: '', name: '', categoryId: '', category: '',
+    sectionId: '', sectionName: '',
+    familyId: '', family: '',
+    subFamilyId: '', subFamily: '',
+    brand: '', model: '',
     serial: '', loadedBy: '', entryDate: new Date().toISOString().split('T')[0],
     observations: '', supplierId: '', supplier: '', description: '',
     departmentId: '', department: '',
-    family: '', familyId: '', subFamily: '', area: '', acquisitionCost: '',
+    area: '', acquisitionCost: '',
     location: '', status: 'Activo', assignedTo: '',
   };
 
@@ -50,12 +55,30 @@ const InventoryForm = () => {
     navigate('/inventory');
   };
 
+  const prepareFormData = (data) => ({
+    ...initialFormState,
+    ...data,
+    categoryId: data.categoryId || '',
+    category: data.category || '',
+    sectionId: data.sectionId || '',
+    sectionName: data.sectionName || '',
+    familyId: data.familyId || '',
+    family: data.family || '',
+    subFamilyId: data.subFamilyId || '',
+    subFamily: data.subFamily || '',
+    departmentId: data.departmentId || '',
+    department: data.department || '',
+    supplierId: data.supplierId || '',
+    supplier: data.supplier || '',
+    assignedTo: data.assignedTo || '',
+  });
+
   useEffect(() => {
     if (isEditMode) {
       const fetchAsset = async () => {
         const assetToEdit = assets.find(a => a.id === id);
         if (assetToEdit) {
-          setFormData(assetToEdit);
+          setFormData(prepareFormData(assetToEdit));
           if (assetToEdit.photoUrl) setPhotoPreview(`${BASE_URL}${assetToEdit.photoUrl}`);
           return;
         }
@@ -64,17 +87,7 @@ const InventoryForm = () => {
           const res = await api.get(`/api/assets/${id}`);
           if (res?.ok) {
             const data = await res.json();
-            const preparedData = {
-              ...data,
-              categoryId: data.categoryId || '',
-              category: data.category || '',
-              departmentId: data.departmentId || '',
-              department: data.department || '',
-              supplierId: data.supplierId || '',
-              supplier: data.supplier || '',
-              assignedTo: data.assignedTo || ''
-            };
-            setFormData(preparedData);
+            setFormData(prepareFormData(data));
             if (data.photoUrl) setPhotoPreview(`${BASE_URL}${data.photoUrl}`);
           } else {
             navigate('/inventory');
@@ -174,67 +187,59 @@ const InventoryForm = () => {
 
             {/* Clasificación */}
             <div className="form-section">
-              <h3 className="form-section-title">Clasificación Estratégica (Módulo Ficheros)</h3>
+              <h3 className="form-section-title">Clasificación del Activo</h3>
 
-              <div className="form-grid form-grid-3">
+              <div className="form-grid form-grid-2">
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Categoría *</label>
-                  <select
-                    required
-                    className="input-control"
+                  <SearchableSelect
                     value={formData.categoryId || ''}
-                    onChange={e => {
-                      const cat = assetCategoriesTree.find(c => c.id === e.target.value);
-                      setFormData({ ...formData, categoryId: e.target.value, category: cat?.name || '', family: '', familyId: '', subFamily: '' });
+                    onChange={(value, label) => {
+                      setFormData(prev => ({ ...prev, categoryId: value, category: label || '', sectionId: '', sectionName: '', familyId: '', family: '', subFamilyId: '', subFamily: '' }));
                     }}
-                  >
-                    <option value="">-- Seleccionar --</option>
-                    {assetCategoriesTree.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Familia</label>
-                  <select
-                    className="input-control"
-                    value={formData.familyId || ''}
-                    disabled={!formData.categoryId}
-                    onChange={e => {
-                      const fam = assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.find(f => f.id === e.target.value);
-                      setFormData({ ...formData, familyId: e.target.value, family: fam?.name || '', subFamily: '' });
-                    }}
-                  >
-                    <option value="">-- Seleccionar --</option>
-                    {assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.map(fam => (
-                      <option key={fam.id} value={fam.id}>{fam.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Sublínea (Vincular a Plan)</label>
-                  <input
-                    type="text"
-                    list="subfamilies"
-                    className="input-control"
-                    value={formData.subFamily}
-                    onChange={e => setFormData({ ...formData, subFamily: e.target.value })}
-                    placeholder="Ej. Aire Acondicionado"
+                    options={assetCategoriesTree.map(cat => ({ value: cat.id, label: cat.name }))}
+                    placeholder="Seleccionar categoría..."
                   />
-                  <datalist id="subfamilies">
-                    {[...new Set(maintenancePlans.map(p => (p.SubFamily || '').toUpperCase()))].map(sf => (
-                      <option key={sf} value={sf} />
-                    ))}
-                  </datalist>
+                </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Sección</label>
+                  <SearchableSelect
+                    value={formData.sectionId || ''}
+                    disabled={!formData.categoryId || (assetCategoriesTree.find(c => c.id === formData.categoryId)?.children || []).length === 0}
+                    onChange={(value, label) => {
+                      setFormData(prev => ({ ...prev, sectionId: value, sectionName: label || '', familyId: '', family: '', subFamilyId: '', subFamily: '' }));
+                    }}
+                    options={(assetCategoriesTree.find(c => c.id === formData.categoryId)?.children || []).map(s => ({ value: s.id, label: s.name }))}
+                    placeholder={!formData.categoryId ? 'Primero selecciona categoría' : 'Seleccionar sección...'}
+                  />
                 </div>
               </div>
-
-              {maintenancePlans.some(p => p.SubFamily && p.SubFamily.toLowerCase() === (formData.subFamily || '').toLowerCase()) && (
-                <div style={{ padding: '8px 12px', background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success)', borderRadius: '6px', fontSize: '0.85rem', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <strong>✓ Protocolo de Mantenimiento Detectado:</strong>
-                  Será aplicable a este activo automáticamente.
+              <div className="form-grid form-grid-2" style={{ marginTop: '12px' }}>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Familia</label>
+                  <SearchableSelect
+                    value={formData.familyId || ''}
+                    disabled={!formData.sectionId || (assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.find(s => s.id === formData.sectionId)?.children || []).length === 0}
+                    onChange={(value, label) => {
+                      setFormData(prev => ({ ...prev, familyId: value, family: label || '', subFamilyId: '', subFamily: '' }));
+                    }}
+                    options={(assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.find(s => s.id === formData.sectionId)?.children || []).map(f => ({ value: f.id, label: f.name }))}
+                    placeholder={!formData.sectionId ? 'Primero selecciona sección' : 'Seleccionar familia...'}
+                  />
                 </div>
-              )}
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Subfamilia</label>
+                  <SearchableSelect
+                    value={formData.subFamilyId || ''}
+                    disabled={!formData.familyId || (assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.find(s => s.id === formData.sectionId)?.children?.find(f => f.id === formData.familyId)?.children || []).length === 0}
+                    onChange={(value, label) => {
+                      setFormData(prev => ({ ...prev, subFamilyId: value, subFamily: label || '' }));
+                    }}
+                    options={(assetCategoriesTree.find(c => c.id === formData.categoryId)?.children?.find(s => s.id === formData.sectionId)?.children?.find(f => f.id === formData.familyId)?.children || []).map(sf => ({ value: sf.id, label: sf.name }))}
+                    placeholder={!formData.familyId ? 'Primero selecciona familia' : 'Seleccionar subfamilia...'}
+                  />
+                </div>
+              </div>
 
               {/* Scope badge: show which maintenance module this asset belongs to */}
               {formData.categoryId && (() => {
@@ -253,16 +258,15 @@ const InventoryForm = () => {
 
               <div className="form-grid form-grid-2" style={{ marginTop: '16px' }}>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Proveedor Asignado</label>
-                  <select required className="input-control" value={formData.supplierId || ''} onChange={e => {
-                    const s = suppliers.find(s => s.id === e.target.value);
-                    setFormData({ ...formData, supplierId: e.target.value, supplier: s?.name || '' });
-                  }}>
-                    <option value="">-- Seleccionar Proveedor --</option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    label="Proveedor Asignado"
+                    value={formData.supplierId || ''}
+                    onChange={(value, label) => {
+                      setFormData({ ...formData, supplierId: value, supplier: label || '' });
+                    }}
+                    options={suppliers.map(s => ({ value: s.id, label: s.name, sub: s.id }))}
+                    placeholder="-- Seleccionar Proveedor --"
+                  />
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Marca</label>
@@ -294,13 +298,13 @@ const InventoryForm = () => {
                   <input required type="date" className="input-control" value={formData.entryDate} onChange={e => setFormData({ ...formData, entryDate: e.target.value })} />
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Estado</label>
-                  <select className="input-control" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
-                    <option value="">-- Seleccionar --</option>
-                    {assetStatuses.map(s => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    label="Estado"
+                    value={formData.status}
+                    onChange={(value) => setFormData({ ...formData, status: value })}
+                    options={assetStatuses.map(s => ({ value: s.name, label: s.name }))}
+                    placeholder="-- Seleccionar --"
+                  />
                 </div>
               </div>
             </div>
@@ -310,62 +314,45 @@ const InventoryForm = () => {
               <h3 className="form-section-title">Estructura Organizativa (Módulo Ficheros) y Asignación</h3>
               <div className="form-grid form-grid-3">
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Area*</label>
-                  <select
-                    required
-                    className="input-control"
+                  <SearchableSelect
+                    label="Area*"
                     value={formData.location}
-                    onChange={e => setFormData({ ...formData, location: e.target.value, departmentId: '', department: '', area: '' })}
-                  >
-                    <option value="">-- Seleccionar --</option>
-                    {organizationalTree.map(sede => (
-                      <option key={sede.id} value={sede.name}>{sede.name}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, location: value, departmentId: '', department: '', area: '' })}
+                    options={organizationalTree.map(sede => ({ value: sede.name, label: sede.name }))}
+                    placeholder="-- Seleccionar --"
+                  />
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Ubicación</label>
-                  <select
-                    className="input-control"
+                  <SearchableSelect
+                    label="Ubicación"
                     value={formData.departmentId || ''}
                     disabled={!formData.location}
-                    onChange={e => {
-                      const dept = organizationalTree.find(s => s.name === formData.location)?.children?.find(d => d.id === e.target.value);
-                      setFormData({ ...formData, departmentId: e.target.value, department: dept?.name || '', area: '' });
+                    onChange={(value, label) => {
+                      setFormData({ ...formData, departmentId: value, department: label || '', area: '' });
                     }}
-                  >
-                    <option value="">-- Seleccionar --</option>
-                    {organizationalTree.find(s => s.name === formData.location)?.children?.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
+                    options={(organizationalTree.find(s => s.name === formData.location)?.children || []).map(dept => ({ value: dept.id, label: dept.name }))}
+                    placeholder="-- Seleccionar --"
+                  />
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Departamento</label>
-                  <select
-                    className="input-control"
+                  <SearchableSelect
+                    label="Departamento"
                     value={formData.area}
                     disabled={!formData.departmentId}
-                    onChange={e => setFormData({ ...formData, area: e.target.value })}
-                  >
-                    <option value="">-- Seleccionar --</option>
-                    {organizationalTree.find(s => s.name === formData.location)
-                      ?.children?.find(d => d.id === formData.departmentId)
-                      ?.children?.map(a => (
-                        <option key={a.id} value={a.name}>{a.name}</option>
-                      ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, area: value })}
+                    options={(organizationalTree.find(s => s.name === formData.location)?.children?.find(d => d.id === formData.departmentId)?.children || []).map(a => ({ value: a.name, label: a.name }))}
+                    placeholder="-- Seleccionar --"
+                  />
                 </div>
               </div>
               <div className="input-group" style={{ marginBottom: 0 }}>
-                <label>Custodio / Asignado A (Opcional)</label>
-                <select className="input-control" value={formData.assignedTo}
-                  onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}>
-                  <option value="">-- Sin asignar --</option>
-                  {employees.map(e => (
-                    <option key={e.id} value={`${e.nombre} ${e.apellido}`}>{e.apellido}, {e.nombre}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  label="Custodio / Asignado A (Opcional)"
+                  value={formData.assignedTo}
+                  onChange={(value) => setFormData({ ...formData, assignedTo: value })}
+                  options={employees.map(e => ({ value: `${e.nombre} ${e.apellido}`, label: `${e.apellido}, ${e.nombre}` }))}
+                  placeholder="-- Sin asignar --"
+                />
               </div>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label>Observaciones</label>

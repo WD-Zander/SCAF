@@ -9,17 +9,20 @@ export const getWorkOrders = async (req, res, next) => {
       result = await db.request().query(`
         SELECT
           w.ID as Id, w.TITULO as PlanName, w.ID_ACTIVO as AssetId,
+          ISNULL(w.TIPO_ENTIDAD, 'activo') as EntityType,
+          ISNULL(w.ID_ENTIDAD, w.ID_ACTIVO) as EntityId,
           FORMAT(w.FECHA_INICIO, 'yyyy-MM-dd') as StartDate,
           FORMAT(w.FECHA_FIN, 'yyyy-MM-dd') as EndDate,
           w.ID_ASIGNADO as AssignedTo, w.NOTAS as Notes, w.ESTADO as Status,
           FORMAT(w.FECHA_CREA, 'yyyy-MM-dd HH:mm') as CreatedAt,
-          a.NOMBRE as AssetName,
+          COALESCE(a.NOMBRE, inf.NOMBRE) as AssetName,
           a.SERIAL as AssetSerial,
           sc.SLUG as Scope,
           (SELECT COUNT(*) FROM TICKET_MANT m WHERE m.ID_ORDEN_TRAB = w.ID) as TotalTasks,
           (SELECT COUNT(*) FROM TICKET_MANT m WHERE m.ID_ORDEN_TRAB = w.ID AND m.ESTADO = 'COMPLETADO') as CompletedTasks
         FROM ORDEN_TRAB w
-        LEFT JOIN ACTIVO a ON w.ID_ACTIVO = a.ID
+        LEFT JOIN ACTIVO a ON ISNULL(w.TIPO_ENTIDAD, 'activo') = 'activo' AND ISNULL(w.ID_ENTIDAD, w.ID_ACTIVO) = a.ID
+        LEFT JOIN INFRAESTRUCTURA_ITEM inf ON w.TIPO_ENTIDAD != 'activo' AND w.ID_ENTIDAD = inf.ID
         LEFT JOIN SCOPE_MANT sc ON w.ID_SCOPE = sc.ID
         ORDER BY w.FECHA_CREA DESC
       `);
@@ -54,7 +57,7 @@ export const deleteWorkOrder = async (req, res, next) => {
     const woId = req.params.id;
 
     const check = await db.request().input('id', sql.VarChar, woId)
-      .query(`SELECT TOP 1 ID FROM ORDEN_TRAB WHERE ID = @id`);
+      .query(`SELECT ID FROM ORDEN_TRAB WHERE ID = @id LIMIT 1`);
     if (!check.recordset.length) {
       return res.status(404).json({ error: 'Plan en marcha no encontrado.' });
     }
@@ -78,25 +81,30 @@ export const deleteWorkOrder = async (req, res, next) => {
 
 export const createWorkOrder = async (req, res, next) => {
   try {
-    const { id, name, assetId, startDate, endDate, assignedTo, notes, scope } = req.body;
+    const { id, name, assetId, startDate, endDate, assignedTo, notes, scope, entityType, entityId } = req.body;
     const db = await getPool();
 
     try {
+      const resolvedEntityType = entityType || 'activo';
+      const resolvedEntityId = entityId || assetId;
       await db.request()
         .input('id', sql.VarChar, id)
         .input('name', sql.VarChar, name)
-        .input('assetId', sql.VarChar, assetId)
+        .input('assetId', sql.VarChar, resolvedEntityType === 'activo' ? resolvedEntityId : null)
         .input('start', sql.Date, startDate)
         .input('end', sql.Date, endDate)
         .input('assigned', sql.VarChar, assignedTo || '')
         .input('notes', sql.NVarChar, notes || '')
         .input('scope', sql.VarChar, scope || 'activo')
+        .input('entityType', sql.VarChar, resolvedEntityType)
+        .input('entityId', sql.VarChar, resolvedEntityId)
         .query(`
-          INSERT INTO ORDEN_TRAB (ID, TITULO, ID_ACTIVO, FECHA_INICIO, FECHA_FIN, ID_ASIGNADO, NOTAS, ID_SCOPE)
+          INSERT INTO ORDEN_TRAB (ID, TITULO, ID_ACTIVO, FECHA_INICIO, FECHA_FIN, ID_ASIGNADO, NOTAS, ID_SCOPE, TIPO_ENTIDAD, ID_ENTIDAD)
           VALUES (@id, @name, @assetId, @start, @end,
-            (SELECT TOP 1 ID FROM USUARIO WHERE @assigned IS NOT NULL AND @assigned != '' AND NOMBRE = @assigned),
+            (SELECT ID FROM USUARIO WHERE @assigned IS NOT NULL AND @assigned != '' AND NOMBRE = @assigned LIMIT 1),
             @notes,
-            (SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG = @scope))
+            (SELECT ID FROM SCOPE_MANT WHERE SLUG = @scope LIMIT 1),
+            @entityType, @entityId)
         `);
     } catch {
       // Fallback: ID_SCOPE column doesn't exist yet
@@ -111,7 +119,7 @@ export const createWorkOrder = async (req, res, next) => {
         .query(`
           INSERT INTO ORDEN_TRAB (ID, TITULO, ID_ACTIVO, FECHA_INICIO, FECHA_FIN, ID_ASIGNADO, NOTAS)
           VALUES (@id, @name, @assetId, @start, @end,
-            (SELECT TOP 1 ID FROM USUARIO WHERE @assigned IS NOT NULL AND @assigned != '' AND NOMBRE = @assigned),
+            (SELECT ID FROM USUARIO WHERE @assigned IS NOT NULL AND @assigned != '' AND NOMBRE = @assigned LIMIT 1),
             @notes)
         `);
     }

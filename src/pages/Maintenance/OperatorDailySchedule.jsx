@@ -3,15 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../api';
 import {
-  CheckCircle2, Circle, Box, Wrench,
+  Check, Circle, Box, Wrench,
   Calendar, ArrowRight, ChevronRight,
-  CalendarRange, LayoutGrid, Activity,
+  CalendarRange, LayoutGrid, Activity, ExternalLink,
 } from 'lucide-react';
 import { Button, Badge, Card } from '../../components/UI';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 const OperatorDailySchedule = () => {
-  const { currentUser, maintenances, maintenanceScopes } = useAppContext();
+  const { currentUser, maintenances, maintenanceScopes, assets, areas, rooms, infraItems, refreshMaintenances } = useAppContext();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
@@ -78,22 +78,12 @@ const OperatorDailySchedule = () => {
       );
     }
 
-    const tasksWithDetails = await Promise.all(filtered.map(async (m) => {
-      if (viewMode !== 'today') return { ...m, checklist: [] };
-      try {
-        const res = await api.get(`/api/maintenances/${m.id}/tasks`);
-        const checklist = res?.ok ? (await res.json()) : [];
-        return { ...m, checklist: Array.isArray(checklist) ? checklist : [] };
-      } catch (e) {
-        return { ...m, checklist: [] };
-      }
-    }));
-
-    tasksWithDetails.sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
-    setDailyTasks(tasksWithDetails);
+    filtered.sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
+    setDailyTasks(filtered);
     setLoading(false);
   };
 
+  // Agrupar por fecha
   const groupedTasks = useMemo(() => {
     const groups = {};
     dailyTasks.forEach(task => {
@@ -103,33 +93,38 @@ const OperatorDailySchedule = () => {
     return groups;
   }, [dailyTasks]);
 
-  const toggleTask = async (ticketId, taskId, currentState) => {
+  const getEntityName = (m) => {
+    const id = m.entityId || m.assetId;
+    if (!id) return '';
+    if (m.entityName) return m.entityName;
+    const asset = assets.find(a => a.id === id);
+    if (asset) return asset.name;
+    const area = areas.find(a => a.id === id);
+    if (area) return area.nombre;
+    const room = rooms.find(r => r.id === id);
+    if (room) return room.nombre;
+    const infraItem = infraItems.find(i => i.id === id);
+    if (infraItem) return infraItem.nombre;
+    return '';
+  };
+
+  const toggleTicketStatus = async (ticket) => {
+    const newStatus = ticket.status === 'COMPLETADO' ? 'PENDIENTE' : 'COMPLETADO';
     try {
-      const res = await api.put(`/api/maintenances/tasks/${taskId}`, { isCompleted: !currentState });
+      const res = await api.put(`/api/maintenances/${ticket.id}`, { ...ticket, status: newStatus });
       if (res?.ok) {
-        setDailyTasks(prev => prev.map(ticket => {
-          if (ticket.id !== ticketId) return ticket;
-          const updatedChecklist = ticket.checklist.map(t =>
-            t.Id === taskId ? { ...t, IsCompleted: !currentState } : t
-          );
-          const allDone = updatedChecklist.length > 0 && updatedChecklist.every(t => t.IsCompleted);
-          if (allDone && ticket.status !== 'COMPLETADO') {
-            api.put(`/api/maintenances/${ticketId}`, { ...ticket, status: 'COMPLETADO' });
-            return { ...ticket, checklist: updatedChecklist, status: 'COMPLETADO' };
-          }
-          return { ...ticket, checklist: updatedChecklist };
-        }));
+        setDailyTasks(prev => prev.map(t =>
+          t.id === ticket.id ? { ...t, status: newStatus } : t
+        ));
+        refreshMaintenances();
       }
     } catch (e) {
-      console.error("Error toggling task", e);
+      console.error('Error toggling ticket status', e);
     }
   };
 
-  const completedCount = dailyTasks.reduce((acc, ticket) =>
-    acc + ticket.checklist.filter(t => t.IsCompleted).length, 0
-  );
-  const totalTasksCount = dailyTasks.reduce((acc, ticket) => acc + ticket.checklist.length, 0);
-  const progressPercent = totalTasksCount > 0 ? (completedCount / totalTasksCount) * 100 : 0;
+  const completedCount = dailyTasks.filter(t => t.status === 'COMPLETADO').length;
+  const progressPercent = dailyTasks.length > 0 ? (completedCount / dailyTasks.length) * 100 : 0;
 
   const formatDateLabel = (dateStr) => {
     if (!dateStr) return "Fecha Desconocida";
@@ -142,12 +137,6 @@ const OperatorDailySchedule = () => {
     } catch(e) {
       return dateStr;
     }
-  };
-
-  const ticketStatusTone = (status) => {
-    if (status === 'COMPLETADO') return 'success';
-    if (status === 'EN_PROGRESO') return 'warning';
-    return 'neutral';
   };
 
   const todayFormatted = today.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -164,14 +153,14 @@ const OperatorDailySchedule = () => {
           </h1>
           <p style={{ color: 'var(--text-muted)', margin: '4px 0 0', fontSize: '0.9rem' }}>
             <strong>{dailyTasks.length}</strong> tarea{dailyTasks.length !== 1 ? 's' : ''} en este periodo
-            {totalTasksCount > 0 && (
+            {dailyTasks.length > 0 && (
               <> · <strong style={{ color: 'var(--success)' }}>{Math.round(progressPercent)}%</strong> completado</>
             )}
           </p>
         </div>
 
         {/* Progress indicator */}
-        {totalTasksCount > 0 && (
+        {dailyTasks.length > 0 && (
           <Card padded={false} style={{ padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
             <div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>Progreso</div>
@@ -218,127 +207,175 @@ const OperatorDailySchedule = () => {
         </div>
       ) : dailyTasks.length === 0 ? (
         <Card padded={false} style={{ padding: isMobile ? 40 : 60, textAlign: 'center' }}>
-          <CheckCircle2 size={32} style={{ color: 'var(--success)', margin: '0 auto 12px', display: 'block' }} />
+          <Check size={32} style={{ color: 'var(--success)', margin: '0 auto 12px', display: 'block' }} />
           <h3 style={{ margin: '0 0 6px' }}>Sin tareas pendientes</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>No tienes actividades programadas para este periodo.</p>
           <Button variant="secondary" style={{ marginTop: 16 }} onClick={() => navigate('/calendar')}>Ver Calendario</Button>
         </Card>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {Object.keys(groupedTasks).map(dateKey => (
-            <div key={dateKey}>
-              {/* Day header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-                <span style={{
-                  padding: '6px 14px', borderRadius: 100,
-                  background: dateKey === todayStr ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                  color: dateKey === todayStr ? '#fff' : 'var(--text-main)',
-                  fontWeight: 700, fontSize: '0.84rem',
-                }}>
-                  {formatDateLabel(dateKey)}
-                </span>
-                <div style={{ flex: 1, height: 1, background: 'var(--glass-border)' }} />
-              </div>
+          {Object.keys(groupedTasks).map(dateKey => {
+            // Sub-agrupar por activo dentro de cada fecha
+            const assetGroups = {};
+            groupedTasks[dateKey].forEach(ticket => {
+              const assetKey = ticket.entityId || ticket.assetId || 'sin-activo';
+              if (!assetGroups[assetKey]) assetGroups[assetKey] = [];
+              assetGroups[assetKey].push(ticket);
+            });
 
-              {/* Tasks for this day */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {groupedTasks[dateKey].map(ticket => {
-                  const done = ticket.checklist.filter(t => t.IsCompleted).length;
-                  const pct = ticket.checklist.length > 0 ? Math.round((done / ticket.checklist.length) * 100) : 0;
-                  const isCurrent = ticket.status === 'EN_PROGRESO';
-                  const isDone = ticket.status === 'COMPLETADO';
+            return (
+              <div key={dateKey}>
+                {/* Day header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                  <span style={{
+                    padding: '6px 14px', borderRadius: 100,
+                    background: dateKey === todayStr ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                    color: dateKey === todayStr ? '#fff' : 'var(--text-main)',
+                    fontWeight: 700, fontSize: '0.84rem',
+                  }}>
+                    {formatDateLabel(dateKey)}
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: 'var(--glass-border)' }} />
+                </div>
 
-                  return (
-                    <Card key={ticket.id} padded={false} style={{
-                      overflow: 'hidden',
-                      opacity: isDone ? 0.7 : 1,
-                      borderColor: isCurrent ? 'var(--accent-primary)' : undefined,
-                    }}>
-                      {/* Ticket header */}
-                      <div style={{
-                        padding: isMobile ? '14px 14px' : '16px 20px',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        borderBottom: ticket.checklist.length > 0 ? '1px solid var(--glass-border)' : 'none',
-                        gap: 12,
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                          <div style={{
-                            width: 38, height: 38, borderRadius: 'var(--radius-sm)', flexShrink: 0,
-                            background: 'var(--accent-light)', color: 'var(--accent-primary)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            <Wrench size={18} />
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <span className="code-font" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{ticket.id}</span>
-                              <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>{ticket.title}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--text-muted)', fontSize: '0.76rem' }}>
-                                <Box size={12} /> {ticket.assetId}
-                              </span>
-                              <Badge tone={ticketStatusTone(ticket.status)} dot>{ticket.status}</Badge>
-                              {ticket.checklist.length > 0 && (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>{done}/{ticket.checklist.length} tareas</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <Button variant="secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', flexShrink: 0 }}
-                          onClick={() => navigate(`/maintenances/view/${ticket.id}`)}>
-                          Detalles <ChevronRight size={14} style={{ marginLeft: 2 }} />
-                        </Button>
-                      </div>
+                {/* Asset groups for this day */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {Object.entries(assetGroups).map(([assetKey, tickets]) => {
+                    const assetName = getEntityName(tickets[0]) || assetKey;
+                    const doneCount = tickets.filter(t => t.status === 'COMPLETADO').length;
+                    const pct = tickets.length > 0 ? Math.round((doneCount / tickets.length) * 100) : 0;
 
-                      {/* Checklist */}
-                      {ticket.checklist.length > 0 && (
-                        <div style={{ padding: isMobile ? '12px 14px' : '14px 20px' }}>
-                          {/* Progress bar */}
-                          <div style={{ marginBottom: 12 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 5 }}>
-                              <span>Progreso de sub-tareas</span>
-                              <span style={{ fontWeight: 600, color: pct === 100 ? 'var(--success)' : 'var(--text-main)' }}>{pct}%</span>
-                            </div>
-                            <div style={{ height: 4, background: 'var(--bg-tertiary)', borderRadius: 2, overflow: 'hidden' }}>
-                              <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--success)' : 'var(--accent-primary)', transition: 'width 0.4s ease', borderRadius: 2 }} />
-                            </div>
-                          </div>
+                    // Sub-agrupar por workOrderId
+                    const planGroups = {};
+                    tickets.forEach(t => {
+                      const key = t.workOrderId || 'direct';
+                      if (!planGroups[key]) planGroups[key] = [];
+                      planGroups[key].push(t);
+                    });
 
-                          {/* Task rows */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {ticket.checklist.map((task, idx) => (
-                              <div key={task.Id} onClick={() => toggleTask(ticket.id, task.Id, task.IsCompleted)} style={{
-                                display: 'flex', alignItems: 'center', gap: 10,
-                                padding: '8px 12px', borderRadius: 'var(--radius-sm)',
-                                background: task.IsCompleted ? 'rgba(34,197,94,0.06)' : 'var(--bg-secondary)',
-                                border: `1px solid ${task.IsCompleted ? 'rgba(34,197,94,0.2)' : 'var(--glass-border)'}`,
-                                cursor: 'pointer', transition: 'background 0.15s',
-                              }}>
-                                <span className="code-font" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', minWidth: 20 }}>{String(idx + 1).padStart(2, '0')}</span>
-                                {task.IsCompleted
-                                  ? <CheckCircle2 size={16} style={{ color: 'var(--success)', flexShrink: 0 }} />
-                                  : <Circle size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                                }
-                                <span style={{
-                                  flex: 1, fontSize: '0.84rem',
-                                  color: task.IsCompleted ? 'var(--text-muted)' : 'var(--text-main)',
-                                  textDecoration: task.IsCompleted ? 'line-through' : 'none',
-                                }}>
-                                  {task.TaskDescription}
-                                </span>
-                                {task.IsCompleted && <span style={{ fontSize: '0.68rem', color: 'var(--success)', fontWeight: 600 }}>LISTO</span>}
+                    return (
+                      <Card key={assetKey} padded={false} style={{ overflow: 'hidden' }}>
+                        {/* Asset header */}
+                        <div style={{
+                          padding: isMobile ? '14px 14px' : '16px 20px',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          borderBottom: '1px solid var(--glass-border)',
+                          gap: 12,
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              width: 38, height: 38, borderRadius: 'var(--radius-sm)', flexShrink: 0,
+                              background: 'var(--accent-light)', color: 'var(--accent-primary)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <Wrench size={18} />
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {assetName}
                               </div>
-                            ))}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--text-muted)', fontSize: '0.76rem' }}>
+                                  <Box size={12} /> {assetKey}
+                                </span>
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                                  {tickets.length} tarea{tickets.length !== 1 ? 's' : ''} · {doneCount} completada{doneCount !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Progress */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                            <div style={{ width: 50, height: 4, background: 'var(--bg-tertiary)', borderRadius: 2, overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--success)' : 'var(--accent-primary)', transition: 'width 0.3s', borderRadius: 2 }} />
+                            </div>
+                            <span style={{ fontSize: '0.74rem', fontWeight: 600, color: pct === 100 ? 'var(--success)' : 'var(--text-main)', minWidth: 28 }}>{pct}%</span>
                           </div>
                         </div>
-                      )}
-                    </Card>
-                  );
-                })}
+
+                        {/* Plan groups + checklist */}
+                        <div style={{ padding: isMobile ? '12px 14px' : '14px 20px' }}>
+                          {Object.entries(planGroups).map(([woId, woTickets]) => {
+                            const planLabel = woId === 'direct' ? 'Tarea Directa'
+                              : (() => {
+                                const desc = woTickets[0]?.description || '';
+                                const match = desc.match(/\[Sub-tarea de: (.+?)\]/);
+                                return match ? match[1] : woId;
+                              })();
+
+                            return (
+                              <div key={woId} style={{ marginBottom: '10px' }}>
+                                {/* Plan label */}
+                                {Object.keys(planGroups).length > 1 && (
+                                  <div style={{
+                                    fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)',
+                                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                                    marginBottom: '6px', paddingLeft: '4px',
+                                  }}>
+                                    {planLabel}
+                                  </div>
+                                )}
+
+                                {/* Task rows */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  {woTickets.map((ticket, idx) => {
+                                    const isDone = ticket.status === 'COMPLETADO';
+                                    return (
+                                      <div key={ticket.id} style={{
+                                        display: 'flex', alignItems: 'center', gap: 10,
+                                        padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+                                        background: isDone ? 'rgba(34,197,94,0.06)' : 'var(--bg-secondary)',
+                                        border: `1px solid ${isDone ? 'rgba(34,197,94,0.2)' : 'var(--glass-border)'}`,
+                                        cursor: 'pointer', transition: 'background 0.15s',
+                                      }}
+                                        onClick={() => toggleTicketStatus(ticket)}
+                                      >
+                                        <span className="code-font" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', minWidth: 20 }}>
+                                          {String(idx + 1).padStart(2, '0')}
+                                        </span>
+                                        {/* Checkbox */}
+                                        <div style={{
+                                          width: '18px', height: '18px', borderRadius: '4px',
+                                          border: `2px solid ${isDone ? '#22c55e' : '#cbd5e1'}`,
+                                          background: isDone ? '#22c55e' : 'transparent',
+                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          flexShrink: 0, transition: 'all 0.15s',
+                                        }}>
+                                          {isDone && <Check size={11} color="#fff" strokeWidth={3} />}
+                                        </div>
+                                        <span style={{
+                                          flex: 1, fontSize: '0.84rem',
+                                          color: isDone ? 'var(--text-muted)' : 'var(--text-main)',
+                                          textDecoration: isDone ? 'line-through' : 'none',
+                                        }}>
+                                          {ticket.title}
+                                        </span>
+                                        {isDone && <span style={{ fontSize: '0.68rem', color: 'var(--success)', fontWeight: 600 }}>LISTO</span>}
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); navigate(`/maintenances/view/${ticket.id}`); }}
+                                          style={{
+                                            background: 'transparent', border: 'none', cursor: 'pointer',
+                                            color: 'var(--text-muted)', padding: '2px', flexShrink: 0,
+                                          }}
+                                          title="Ver detalles"
+                                        >
+                                          <ExternalLink size={13} />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

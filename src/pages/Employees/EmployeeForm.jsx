@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, Users } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import SearchableSelect from '../../components/Common/SearchableSelect';
 import { api } from '../../api';
 
 const EmployeeForm = () => {
@@ -141,13 +142,13 @@ const EmployeeForm = () => {
                 </div>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Departamento (Unidad Org.)</label>
-                  <select className="input-control" value={formData.deptoId}
-                    onChange={e => setFormData(f => ({ ...f, deptoId: e.target.value }))}>
-                    <option value="">-- Sin asignar --</option>
-                    {deptOptions.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    value={formData.deptoId}
+                    onChange={(value) => setFormData(f => ({ ...f, deptoId: value }))}
+                    options={deptOptions.map(d => ({ value: d.id, label: d.name }))}
+                    placeholder="-- Sin asignar --"
+                    clearable
+                  />
                 </div>
               </div>
             </div>

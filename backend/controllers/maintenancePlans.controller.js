@@ -66,45 +66,77 @@ export const batchMaintenancePlans = async (req, res) => {
         // Por cada plan, intentar con columnas de alcance; si fallan, guardar sin ellas.
         // Esto garantiza que TODOS los planes se procesen aunque falte ejecutar la migración SQL.
         try {
-          await db.request()
+          const existingPlan = await db.request()
             .input('id', sql.VarChar, p.Id_plan?.toString())
-            .input('code', sql.VarChar, p.Codigo_plan)
-            .input('desc', sql.NVarChar, p['Descripcion_del _plan'] || p.Descripcion_del_plan || '')
-            .input('sub', sql.VarChar, p.Sublinea || '')
-            .input('cat', sql.VarChar, p.Categoria || p.Sublinea || '')
-            .input('freq', sql.VarChar, p.Frecuencia || 'Mensual')
-            .input('catId', sql.VarChar, p.CategoryId || null)
-            .input('famId', sql.VarChar, p.FamilyId || null)
-            .input('famName', sql.VarChar, p.FamilyName || null)
-            .input('pscope', sql.VarChar, p.scope || p.Scope || null)
-            .query(`
-              IF NOT EXISTS (SELECT 1 FROM PLAN_MANT WHERE ID = @id)
+            .query(`SELECT 1 FROM PLAN_MANT WHERE ID = @id`);
+
+          if (existingPlan.recordset.length === 0) {
+            await db.request()
+              .input('id', sql.VarChar, p.Id_plan?.toString())
+              .input('code', sql.VarChar, p.Codigo_plan)
+              .input('desc', sql.NVarChar, p['Descripcion_del _plan'] || p.Descripcion_del_plan || '')
+              .input('sub', sql.VarChar, p.Sublinea || '')
+              .input('cat', sql.VarChar, p.Categoria || p.Sublinea || '')
+              .input('freq', sql.VarChar, p.Frecuencia || 'Mensual')
+              .input('catId', sql.VarChar, p.CategoryId || null)
+              .input('famId', sql.VarChar, p.FamilyId || null)
+              .input('famName', sql.VarChar, p.FamilyName || null)
+              .input('pscope', sql.VarChar, p.scope || p.Scope || null)
+              .query(`
                 INSERT INTO PLAN_MANT (ID, CODIGO, DESCRIPCION, SUBFAM, CATEGORIA, FRECUENCIA, ID_CATEGORIA, ID_FAMILIA, FAM_NOMBRE, ID_SCOPE)
                 VALUES (@id, @code, @desc, @sub, @cat, @freq, @catId, @famId, @famName,
-                  CASE WHEN @pscope IS NOT NULL THEN (SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG=@pscope) ELSE NULL END)
-              ELSE
+                  CASE WHEN @pscope IS NOT NULL THEN (SELECT ID FROM SCOPE_MANT WHERE SLUG=@pscope LIMIT 1) ELSE NULL END)
+              `);
+          } else {
+            await db.request()
+              .input('id', sql.VarChar, p.Id_plan?.toString())
+              .input('code', sql.VarChar, p.Codigo_plan)
+              .input('desc', sql.NVarChar, p['Descripcion_del _plan'] || p.Descripcion_del_plan || '')
+              .input('sub', sql.VarChar, p.Sublinea || '')
+              .input('cat', sql.VarChar, p.Categoria || p.Sublinea || '')
+              .input('freq', sql.VarChar, p.Frecuencia || 'Mensual')
+              .input('catId', sql.VarChar, p.CategoryId || null)
+              .input('famId', sql.VarChar, p.FamilyId || null)
+              .input('famName', sql.VarChar, p.FamilyName || null)
+              .input('pscope', sql.VarChar, p.scope || p.Scope || null)
+              .query(`
                 UPDATE PLAN_MANT SET CODIGO=@code, DESCRIPCION=@desc, SUBFAM=@sub, CATEGORIA=@cat,
                   FRECUENCIA=@freq, ID_CATEGORIA=@catId, ID_FAMILIA=@famId, FAM_NOMBRE=@famName,
-                  ID_SCOPE=CASE WHEN @pscope IS NOT NULL THEN (SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG=@pscope) ELSE ID_SCOPE END
+                  ID_SCOPE=CASE WHEN @pscope IS NOT NULL THEN (SELECT ID FROM SCOPE_MANT WHERE SLUG=@pscope LIMIT 1) ELSE ID_SCOPE END
                   WHERE ID=@id
-            `);
+              `);
+          }
         } catch {
           // Fallback: columnas de scope no existen, insertar/actualizar sin ellas
-          await db.request()
+          const existingPlan = await db.request()
             .input('id', sql.VarChar, p.Id_plan?.toString())
-            .input('code', sql.VarChar, p.Codigo_plan)
-            .input('desc', sql.NVarChar, p['Descripcion_del _plan'] || p.Descripcion_del_plan || '')
-            .input('sub', sql.VarChar, p.Sublinea || '')
-            .input('cat', sql.VarChar, p.Categoria || p.Sublinea || '')
-            .input('freq', sql.VarChar, p.Frecuencia || 'Mensual')
-            .query(`
-              IF NOT EXISTS (SELECT 1 FROM PLAN_MANT WHERE ID = @id)
+            .query(`SELECT 1 FROM PLAN_MANT WHERE ID = @id`);
+
+          if (existingPlan.recordset.length === 0) {
+            await db.request()
+              .input('id', sql.VarChar, p.Id_plan?.toString())
+              .input('code', sql.VarChar, p.Codigo_plan)
+              .input('desc', sql.NVarChar, p['Descripcion_del _plan'] || p.Descripcion_del_plan || '')
+              .input('sub', sql.VarChar, p.Sublinea || '')
+              .input('cat', sql.VarChar, p.Categoria || p.Sublinea || '')
+              .input('freq', sql.VarChar, p.Frecuencia || 'Mensual')
+              .query(`
                 INSERT INTO PLAN_MANT (ID, CODIGO, DESCRIPCION, SUBFAM, CATEGORIA, FRECUENCIA)
                 VALUES (@id, @code, @desc, @sub, @cat, @freq)
-              ELSE
+              `);
+          } else {
+            await db.request()
+              .input('id', sql.VarChar, p.Id_plan?.toString())
+              .input('code', sql.VarChar, p.Codigo_plan)
+              .input('desc', sql.NVarChar, p['Descripcion_del _plan'] || p.Descripcion_del_plan || '')
+              .input('sub', sql.VarChar, p.Sublinea || '')
+              .input('cat', sql.VarChar, p.Categoria || p.Sublinea || '')
+              .input('freq', sql.VarChar, p.Frecuencia || 'Mensual')
+              .query(`
                 UPDATE PLAN_MANT SET CODIGO=@code, DESCRIPCION=@desc, SUBFAM=@sub,
                   CATEGORIA=@cat, FRECUENCIA=@freq WHERE ID=@id
-            `);
+              `);
+          }
         }
       }
     }
@@ -121,17 +153,24 @@ export const batchMaintenancePlans = async (req, res) => {
         const taskId = (t.Id_Tarea?.toString()?.trim())
           || `TSK-${Date.now()}-${tIdx}-${Math.floor(Math.random() * 9999)}`;
 
-        await db.request()
-          .input('id',  sql.VarChar,  taskId)
-          .input('pid', sql.VarChar,  t['Descripcion del plan de Mmto']?.toString())
-          .input('td',  sql.NVarChar, taskDesc)
-          .input('tf',  sql.VarChar,  t.Frecuencia || 'Mensual')
-          .query(`
-            IF NOT EXISTS (SELECT 1 FROM TAREA_PLAN WHERE ID = @id)
-               INSERT INTO TAREA_PLAN (ID, ID_PLAN, DESCRIPCION, FRECUENCIA) VALUES (@id, @pid, @td, @tf)
-            ELSE
-               UPDATE TAREA_PLAN SET DESCRIPCION=@td, FRECUENCIA=@tf WHERE ID=@id
-          `);
+        const existingTask = await db.request()
+          .input('id', sql.VarChar, taskId)
+          .query(`SELECT 1 FROM TAREA_PLAN WHERE ID = @id`);
+
+        if (existingTask.recordset.length === 0) {
+          await db.request()
+            .input('id',  sql.VarChar,  taskId)
+            .input('pid', sql.VarChar,  t['Descripcion del plan de Mmto']?.toString())
+            .input('td',  sql.NVarChar, taskDesc)
+            .input('tf',  sql.VarChar,  t.Frecuencia || 'Mensual')
+            .query(`INSERT INTO TAREA_PLAN (ID, ID_PLAN, DESCRIPCION, FRECUENCIA) VALUES (@id, @pid, @td, @tf)`);
+        } else {
+          await db.request()
+            .input('id',  sql.VarChar,  taskId)
+            .input('td',  sql.NVarChar, taskDesc)
+            .input('tf',  sql.VarChar,  t.Frecuencia || 'Mensual')
+            .query(`UPDATE TAREA_PLAN SET DESCRIPCION=@td, FRECUENCIA=@tf WHERE ID=@id`);
+        }
       }
     }
 
@@ -158,7 +197,7 @@ export const updateMaintenancePlan = async (req, res) => {
         .input('scope', sql.VarChar, scope || null)
         .query(`UPDATE PLAN_MANT SET CODIGO=@code, DESCRIPCION=@desc, SUBFAM=@sub, CATEGORIA=@cat, FRECUENCIA=@pfreq,
                 ID_CATEGORIA=@catId, ID_FAMILIA=@famId, FAM_NOMBRE=@famName,
-                ID_SCOPE=CASE WHEN @scope IS NOT NULL THEN (SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG=@scope) ELSE ID_SCOPE END
+                ID_SCOPE=CASE WHEN @scope IS NOT NULL THEN (SELECT ID FROM SCOPE_MANT WHERE SLUG=@scope LIMIT 1) ELSE ID_SCOPE END
                 WHERE ID=@id`);
     } catch {
       // Fallback: columnas de scope no existen todavía
@@ -300,7 +339,7 @@ export const generateBatchSchedule = async (req, res) => {
     const allTasks = allTasksRes.recordset;
 
     const maxRes = await db.request()
-      .query("SELECT TOP 1 ID FROM TICKET_MANT WHERE ID LIKE 'MT-%' ORDER BY ID DESC");
+      .query("SELECT ID FROM TICKET_MANT WHERE ID LIKE 'MT-%' ORDER BY ID DESC LIMIT 1");
     let maxId = 0;
     if (maxRes.recordset.length > 0) {
       const match = maxRes.recordset[0].ID.match(/MT-(\d+)/);
@@ -309,13 +348,13 @@ export const generateBatchSchedule = async (req, res) => {
 
     // Resolver tipoId y userId UNA SOLA VEZ antes del loop
     const tipoRes = await db.request().query(`
-      SELECT TOP 1 ID as tipoId FROM TIPO_MANT WHERE NOMBRE LIKE '%Preventivo%'
+      SELECT ID as tipoId FROM TIPO_MANT WHERE NOMBRE LIKE '%Preventivo%' LIMIT 1
     `);
     const tipoId = tipoRes.recordset[0]?.tipoId || null;
 
     const userRes = await db.request()
       .input('uname', sql.VarChar, assignedTo || null)
-      .query(`SELECT TOP 1 ID FROM USUARIO WHERE @uname IS NOT NULL AND NOMBRE = @uname`);
+      .query(`SELECT ID FROM USUARIO WHERE @uname IS NOT NULL AND NOMBRE = @uname LIMIT 1`);
     const userId = userRes.recordset[0]?.ID || null;
 
     // Resolver scope del plan o del parámetro
@@ -323,12 +362,12 @@ export const generateBatchSchedule = async (req, res) => {
     try {
       if (scope) {
         const scopeRes = await db.request().input('slug', sql.VarChar, scope)
-          .query(`SELECT TOP 1 ID FROM SCOPE_MANT WHERE SLUG = @slug`);
+          .query(`SELECT ID FROM SCOPE_MANT WHERE SLUG = @slug LIMIT 1`);
         scopeId = scopeRes.recordset[0]?.ID || null;
       }
       if (!scopeId) {
         const planScopeRes = await db.request().input('pid', sql.VarChar, planId)
-          .query(`SELECT TOP 1 ID_SCOPE FROM PLAN_MANT WHERE ID = @pid`);
+          .query(`SELECT ID_SCOPE FROM PLAN_MANT WHERE ID = @pid LIMIT 1`);
         scopeId = planScopeRes.recordset[0]?.ID_SCOPE || null;
       }
     } catch { /* ID_SCOPE column may not exist yet */ }

@@ -84,7 +84,7 @@ const InventoryList = () => {
       const data = Array.isArray(json) ? json : (json.data ?? []);
       const dataToExport = data.map(a => ({
         'Código ID': a.id, 'Nombre del Activo': a.name, 'Descripción': a.description,
-        'Categoría': a.category, 'Familia': a.family, 'Subfamilia': a.subFamily,
+        'Categoría': a.category, 'Sección': a.sectionName || '', 'Familia': a.family || '', 'Subfamilia': a.subFamily || '',
         'Marca': a.brand, 'Modelo': a.model, 'Serial': a.serial, 'Proveedor': a.supplier,
         'Fecha Adquisición / Ingreso': a.entryDate || a.acquisitionDate,
         'Cargado Por': a.loadedBy, 'Valor Compra': Number(a.acquisitionCost) || 0,
@@ -284,7 +284,14 @@ const InventoryList = () => {
                       {asset.brand}{asset.model ? ` · ${asset.model}` : ''}
                     </div>
                   </td>
-                  <td style={{ padding: '11px 14px', fontSize: '0.84rem' }}>{asset.category}</td>
+                  <td style={{ padding: '11px 14px', fontSize: '0.84rem' }}>
+                    <div>{asset.category}</div>
+                    {(asset.sectionName || asset.family) && (
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                        {[asset.sectionName, asset.family, asset.subFamily].filter(Boolean).join(' › ')}
+                      </div>
+                    )}
+                  </td>
                   <td style={{ padding: '11px 14px', fontSize: '0.84rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{asset.serial || '--'}</td>
                   <td style={{ padding: '11px 14px' }}>
                     <Badge tone={statusTone(asset.status)} dot>{asset.status}</Badge>

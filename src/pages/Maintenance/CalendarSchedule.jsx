@@ -1,14 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ArrowLeft, Box } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ArrowLeft, Box, Check, ExternalLink } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../../api';
 
 const CalendarSchedule = () => {
-  const { maintenances, maintenanceScopes, assets } = useAppContext();
+  const { maintenances, maintenanceScopes, assets, areas, rooms, infraItems, refreshMaintenances } = useAppContext();
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedScope, setSelectedScope] = useState(null);
+  const [selectedAsset, setSelectedAsset] = useState(null);
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
@@ -26,7 +28,20 @@ const CalendarSchedule = () => {
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const blanksArray = Array.from({ length: firstDay }, (_, i) => i);
 
-  const getAssetName = (assetId) => assets.find(a => a.id === assetId)?.name || '';
+  const getEntityName = (m) => {
+    if (m.entityName) return m.entityName;
+    const id = m.entityId || m.assetId;
+    if (!id) return '';
+    const asset = assets.find(a => a.id === id);
+    if (asset) return asset.name;
+    const area = areas.find(a => a.id === id);
+    if (area) return area.nombre;
+    const room = rooms.find(r => r.id === id);
+    if (room) return room.nombre;
+    const infraItem = infraItems.find(i => i.id === id);
+    if (infraItem) return infraItem.nombre;
+    return '';
+  };
 
   const monthMaintenances = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -52,7 +67,23 @@ const CalendarSchedule = () => {
     return `linear-gradient(90deg, ${colors.map((c, i) => `${c} ${i*pct}%, ${c} ${(i+1)*pct}%`).join(', ')})`;
   };
 
-  const closeModal = () => { setSelectedDay(null); setSelectedScope(null); };
+  const handleToggleStatus = async (task) => {
+    const newStatus = task.status === 'COMPLETADO' ? 'PENDIENTE' : 'COMPLETADO';
+    try {
+      const res = await api.put(`/api/maintenances/${task.id}`, { ...task, status: newStatus });
+      if (res?.ok) {
+        setSelectedDay(prev => prev ? ({
+          ...prev,
+          events: prev.events.map(e => e.id === task.id ? { ...e, status: newStatus } : e)
+        }) : prev);
+        refreshMaintenances();
+      }
+    } catch (e) {
+      console.error('Error toggling status', e);
+    }
+  };
+
+  const closeModal = () => { setSelectedDay(null); setSelectedScope(null); setSelectedAsset(null); };
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
@@ -176,34 +207,56 @@ const CalendarSchedule = () => {
             }}>
 
               {/* ── Header ── */}
-              <div style={{
-                padding: '18px 22px', flexShrink: 0,
-                borderBottom: `3px solid ${accentColor}`,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {selectedScope && (
-                    <button onClick={() => setSelectedScope(null)} style={{
-                      background: 'none', border: '1px solid #e2e8f0', cursor: 'pointer',
-                      padding: '5px', borderRadius: '8px', display: 'flex',
-                    }}>
-                      <ArrowLeft size={15} color="#475569" />
-                    </button>
-                  )}
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
-                      {selectedScope ? scopeObj?.nombre || selectedScope : `${selectedDay.day} de ${monthNames[currentDate.getMonth()]}`}
-                    </h3>
-                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                      {selectedScope ? `${scopeTickets.length} orden${scopeTickets.length !== 1 ? 'es' : ''}` : `${selectedDay.events.length} tarea${selectedDay.events.length !== 1 ? 's' : ''}`}
-                    </span>
+              {(() => {
+                const canGoBack = selectedScope || selectedAsset;
+                const handleBack = () => {
+                  if (selectedAsset) setSelectedAsset(null);
+                  else if (selectedScope) setSelectedScope(null);
+                };
+                const assetName = selectedAsset ? (getEntityName({ assetId: selectedAsset }) || selectedAsset) : '';
+                const assetTasks = selectedAsset ? scopeTickets.filter(m => (m.entityId || m.assetId || 'sin-activo') === selectedAsset) : [];
+
+                let headerTitle, headerSub;
+                if (selectedAsset) {
+                  headerTitle = assetName;
+                  const done = assetTasks.filter(t => t.status === 'COMPLETADO').length;
+                  headerSub = `${assetTasks.length} tarea${assetTasks.length !== 1 ? 's' : ''}${done > 0 ? ` · ${done} completada${done !== 1 ? 's' : ''}` : ''}`;
+                } else if (selectedScope) {
+                  headerTitle = scopeObj?.nombre || selectedScope;
+                  const uniqueAssets = new Set(scopeTickets.map(m => m.entityId || m.assetId)).size;
+                  headerSub = `${uniqueAssets} activo${uniqueAssets !== 1 ? 's' : ''} · ${scopeTickets.length} tarea${scopeTickets.length !== 1 ? 's' : ''}`;
+                } else {
+                  headerTitle = `${selectedDay.day} de ${monthNames[currentDate.getMonth()]}`;
+                  headerSub = `${selectedDay.events.length} tarea${selectedDay.events.length !== 1 ? 's' : ''}`;
+                }
+
+                return (
+                  <div style={{
+                    padding: '18px 22px', flexShrink: 0,
+                    borderBottom: `3px solid ${accentColor}`,
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {canGoBack && (
+                        <button onClick={handleBack} style={{
+                          background: 'none', border: '1px solid #e2e8f0', cursor: 'pointer',
+                          padding: '5px', borderRadius: '8px', display: 'flex',
+                        }}>
+                          <ArrowLeft size={15} color="#475569" />
+                        </button>
+                      )}
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>{headerTitle}</h3>
+                        <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{headerSub}</span>
+                      </div>
+                    </div>
+                    <button onClick={closeModal} style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: '#94a3b8', fontSize: '1.3rem', lineHeight: 1, padding: '2px 4px',
+                    }}>&#x2715;</button>
                   </div>
-                </div>
-                <button onClick={closeModal} style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: '#94a3b8', fontSize: '1.3rem', lineHeight: 1, padding: '2px 4px',
-                }}>&#x2715;</button>
-              </div>
+                );
+              })()}
 
               {/* ── Body (scrollable) ── */}
               <div style={{
@@ -251,46 +304,168 @@ const CalendarSchedule = () => {
                       );
                     });
                   })()
-                ) : (
-                  /* ── STEP 2: tickets ── */
-                  scopeTickets.map(m => {
-                    const assetName = getAssetName(m.assetId);
-                    return (
-                      <div key={m.id} onClick={() => navigate(`/maintenances/view/${m.id}`)} style={{
-                        padding: '12px 14px', borderRadius: '10px', cursor: 'pointer',
-                        background: '#fff', border: '1px solid #f1f5f9',
-                        borderLeft: `4px solid ${statusColor(m.status)}`,
-                        transition: 'all 0.15s',
-                      }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = '#fafbfc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#f1f5f9'; }}
-                      >
-                        {/* Title */}
-                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a', marginBottom: '4px', lineHeight: '1.35' }}>{m.title}</div>
-
-                        {/* Asset name */}
-                        {assetName && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', color: '#64748b', marginBottom: '6px' }}>
-                            <Box size={11} color="#94a3b8" />
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{assetName}</span>
+                ) : !selectedAsset ? (
+                  /* ── STEP 2: asset cards ── */
+                  (() => {
+                    const assetGroups = {};
+                    scopeTickets.forEach(m => {
+                      const key = m.entityId || m.assetId || 'sin-activo';
+                      if (!assetGroups[key]) assetGroups[key] = [];
+                      assetGroups[key].push(m);
+                    });
+                    return Object.entries(assetGroups).map(([assetId, tasks]) => {
+                      const assetName = getEntityName(tasks[0]);
+                      const pending = tasks.filter(t => t.status === 'PENDIENTE').length;
+                      const progress = tasks.filter(t => t.status === 'EN PROGRESO').length;
+                      const done = tasks.filter(t => t.status === 'COMPLETADO').length;
+                      return (
+                        <div key={assetId} onClick={() => {
+                          const assetTasks = scopeTickets.filter(m => (m.entityId || m.assetId || 'sin-activo') === assetId);
+                          const target = assetTasks.find(t => t.status !== 'COMPLETADO') || assetTasks[0];
+                          if (target) {
+                            closeModal();
+                            navigate(`/maintenances/view/${target.id}`);
+                          }
+                        }} style={{
+                          display: 'flex', alignItems: 'center', gap: '14px',
+                          padding: '14px 16px', borderRadius: '12px', cursor: 'pointer',
+                          background: '#fff', border: '1px solid #e2e8f022',
+                          borderLeft: `4px solid ${accentColor}`,
+                          transition: 'all 0.15s',
+                        }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = `${accentColor}08`; e.currentTarget.style.transform = 'translateX(2px)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.transform = 'none'; }}
+                        >
+                          <div style={{
+                            width: '42px', height: '42px', borderRadius: '10px',
+                            background: `${accentColor}14`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0,
+                          }}>
+                            <Box size={18} color={accentColor} />
                           </div>
-                        )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0f172a', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {assetName || assetId}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.73rem', flexWrap: 'wrap' }}>
+                              <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>{assetId}</span>
+                              <span style={{ color: '#94a3b8' }}>&middot;</span>
+                              <span style={{ color: '#64748b', fontWeight: 600 }}>{tasks.length} tarea{tasks.length !== 1 ? 's' : ''}</span>
+                              {pending > 0 && <span style={{ color: '#ef4444', fontWeight: 600 }}>{pending} pend.</span>}
+                              {progress > 0 && <span style={{ color: '#f59e0b', fontWeight: 600 }}>{progress} prog.</span>}
+                              {done > 0 && <span style={{ color: '#22c55e', fontWeight: 600 }}>{done} lista{done !== 1 ? 's' : ''}</span>}
+                            </div>
+                          </div>
+                          <ChevronRight size={15} color="#cbd5e1" />
+                        </div>
+                      );
+                    });
+                  })()
+                ) : (
+                  /* ── STEP 3: checklist agrupado por plan ── */
+                  (() => {
+                    const assetTasks = scopeTickets.filter(m => (m.entityId || m.assetId || 'sin-activo') === selectedAsset);
+                    // Agrupar por workOrderId
+                    const planGroups = {};
+                    assetTasks.forEach(m => {
+                      const key = m.workOrderId || 'direct';
+                      if (!planGroups[key]) planGroups[key] = [];
+                      planGroups[key].push(m);
+                    });
 
-                        {/* Bottom row: asset code | status | ticket id */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.73rem', color: '#94a3b8', fontFamily: 'monospace' }}>{m.assetId}</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{
-                              background: statusBg(m.status), color: statusColor(m.status),
-                              padding: '2px 8px', borderRadius: '6px',
-                              fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.02em',
-                            }}>{m.status}</span>
-                            <span style={{ fontSize: '0.68rem', color: '#cbd5e1', fontFamily: 'monospace' }}>{m.id}</span>
+                    return Object.entries(planGroups).map(([woId, tasks]) => {
+                      const completed = tasks.filter(t => t.status === 'COMPLETADO').length;
+                      const pct = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+                      // Derivar nombre del plan desde la descripción o workOrderId
+                      const planLabel = woId === 'direct' ? 'Tarea Directa'
+                        : (() => {
+                          const desc = tasks[0]?.description || '';
+                          const match = desc.match(/\[Sub-tarea de: (.+?)\]/);
+                          return match ? match[1] : woId;
+                        })();
+
+                      return (
+                        <div key={woId} style={{ marginBottom: '6px' }}>
+                          {/* Plan header */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '8px 12px', marginBottom: '6px',
+                            background: `${accentColor}08`, borderRadius: '8px',
+                            borderLeft: `3px solid ${accentColor}`,
+                          }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {planLabel}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '1px' }}>
+                                {completed}/{tasks.length} completada{tasks.length !== 1 ? 's' : ''} · {pct}%
+                              </div>
+                            </div>
+                            {/* Mini progress bar */}
+                            <div style={{ width: '50px', height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden', flexShrink: 0, marginLeft: '10px' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#22c55e' : accentColor, borderRadius: '2px', transition: 'width 0.3s' }} />
+                            </div>
+                          </div>
+
+                          {/* Task checklist */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {tasks.map(m => {
+                              const isDone = m.status === 'COMPLETADO';
+                              return (
+                                <div key={m.id} style={{
+                                  display: 'flex', alignItems: 'center', gap: '10px',
+                                  padding: '8px 12px', borderRadius: '8px',
+                                  background: isDone ? 'rgba(34,197,94,0.05)' : '#fff',
+                                  border: `1px solid ${isDone ? 'rgba(34,197,94,0.2)' : '#f1f5f9'}`,
+                                  transition: 'all 0.15s',
+                                }}>
+                                  {/* Checkbox */}
+                                  <div
+                                    onClick={(e) => { e.stopPropagation(); handleToggleStatus(m); }}
+                                    style={{
+                                      width: '20px', height: '20px', borderRadius: '5px',
+                                      border: `2px solid ${isDone ? '#22c55e' : '#cbd5e1'}`,
+                                      background: isDone ? '#22c55e' : 'transparent',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+                                    }}
+                                    title={isDone ? 'Marcar pendiente' : 'Marcar completado'}
+                                  >
+                                    {isDone && <Check size={12} color="#fff" strokeWidth={3} />}
+                                  </div>
+                                  {/* Title + status */}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{
+                                      fontSize: '0.84rem', fontWeight: 600, color: '#0f172a',
+                                      textDecoration: isDone ? 'line-through' : 'none',
+                                      opacity: isDone ? 0.6 : 1,
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>{m.title}</div>
+                                  </div>
+                                  <span style={{
+                                    background: statusBg(m.status), color: statusColor(m.status),
+                                    padding: '2px 6px', borderRadius: '4px',
+                                    fontSize: '0.62rem', fontWeight: 700, flexShrink: 0,
+                                  }}>{m.status || 'PENDIENTE'}</span>
+                                  {/* Link to details */}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/maintenances/view/${m.id}`); }}
+                                    style={{
+                                      background: 'transparent', border: 'none', cursor: 'pointer',
+                                      color: '#94a3b8', padding: '2px', flexShrink: 0,
+                                    }}
+                                    title="Ver detalles"
+                                  >
+                                    <ExternalLink size={13} />
+                                  </button>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    });
+                  })()
                 )}
               </div>
 

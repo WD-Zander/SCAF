@@ -32,7 +32,24 @@ export const createMovement = async (req, res, next) => {
 
     const prev = current.recordset[0];
 
-    // 2. Construir SET dinámico — solo actualizar campos que el usuario cambió
+    // 2. Resolver IDs de departamento y estado antes de construir el UPDATE
+    let resolvedDeptoId = null;
+    if (newDepartment !== undefined && newDepartment !== null && newDepartment !== '') {
+      const deptoResult = await db.request()
+        .input('dep', sql.NVarChar, newDepartment)
+        .query(`SELECT ID FROM UNIDAD_ORG WHERE NOMBRE = @dep LIMIT 1`);
+      resolvedDeptoId = deptoResult.recordset.length ? deptoResult.recordset[0].ID : null;
+    }
+
+    let resolvedEstadoId = null;
+    if (newStatus !== undefined && newStatus !== null) {
+      const estadoResult = await db.request()
+        .input('status', sql.VarChar, newStatus)
+        .query(`SELECT ID FROM ESTADO_ACTIVO WHERE NOMBRE = @status LIMIT 1`);
+      resolvedEstadoId = estadoResult.recordset.length ? estadoResult.recordset[0].ID : null;
+    }
+
+    // 3. Construir SET dinámico — solo actualizar campos que el usuario cambió
     const updates = [];
     const r = db.request().input('aid', sql.VarChar, assetId);
 
@@ -41,16 +58,16 @@ export const createMovement = async (req, res, next) => {
       r.input('loc', sql.NVarChar, newLocation);
     }
     if (newDepartment !== undefined && newDepartment !== null) {
-      updates.push('ID_DEPTO = (SELECT TOP 1 ID FROM UNIDAD_ORG WHERE @dep IS NOT NULL AND @dep != \'\' AND NOMBRE = @dep)');
-      r.input('dep', sql.NVarChar, newDepartment);
+      updates.push('ID_DEPTO = @depId');
+      r.input('depId', sql.Int, resolvedDeptoId);
     }
     if (newArea !== undefined && newArea !== null) {
       updates.push('AREA = @area');
       r.input('area', sql.NVarChar, newArea);
     }
     if (newStatus !== undefined && newStatus !== null) {
-      updates.push('ID_ESTADO = (SELECT TOP 1 ID FROM ESTADO_ACTIVO WHERE NOMBRE = @status)');
-      r.input('status', sql.VarChar, newStatus);
+      updates.push('ID_ESTADO = @estId');
+      r.input('estId', sql.Int, resolvedEstadoId);
     }
 
     if (updates.length > 0) {
@@ -58,7 +75,7 @@ export const createMovement = async (req, res, next) => {
       await r.query(`UPDATE ACTIVO SET ${updates.join(', ')} WHERE ID = @aid AND BORRADO = 0`);
     }
 
-    // 3. Insertar registro en MOVIMIENTO
+    // 4. Insertar registro en MOVIMIENTO
     const userId = req.user?.id || null;
     const userName = req.user?.name || req.user?.username || null;
 

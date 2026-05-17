@@ -33,6 +33,17 @@ import EmployeeForm from './pages/Employees/EmployeeForm';
 import Files from './pages/Files/Files';
 import AuditLogs from './pages/Audit/AuditLogs';
 import UsersList from './pages/Users/UsersList';
+import RolesList from './pages/Roles/RolesList';
+import InfrastructureManager from './pages/Infrastructure/InfrastructureManager';
+import FormsList from './pages/Forms/FormsList';
+import FormBuilder from './pages/Forms/FormBuilder';
+import FormFill from './pages/Forms/FormFill';
+import FormRecords from './pages/Forms/FormRecords';
+import FormViewRecords from './pages/Forms/FormViewRecords';
+import ReportsList from './pages/Reports/ReportsList';
+import ReportBuilder from './pages/Reports/ReportBuilder';
+import ReportView from './pages/Reports/ReportView';
+import Scanner from './pages/Scanner/Scanner';
 import { AppProvider } from './context/AppContext';
 
 function App() {
@@ -73,11 +84,7 @@ function App() {
             <Route path="maintenances/edit/:id" element={<MaintenanceForm />} />
             <Route path="maintenances/view/:id" element={<MaintenanceView />} />
             <Route path="calendar" element={<CalendarSchedule />} />
-            <Route path="maintenances/timeline" element={
-              <ScopeGate title="Cronograma" subtitle="Vista anual del cronograma de mantenimientos.">
-                <MaintenanceTimeline />
-              </ScopeGate>
-            } />
+            <Route path="maintenances/timeline" element={<MaintenanceTimeline />} />
             <Route path="maintenances/daily" element={
               <ScopeGate title="Mi Agenda Diaria" subtitle="Tareas y mantenimientos asignados para hoy.">
                 <OperatorDailySchedule />
@@ -95,11 +102,28 @@ function App() {
                 <MaintenanceRescheduled />
               </ScopeGate>
             } />
+            {/* FORMULARIOS */}
+            <Route path="forms" element={<FormsList />} />
+            <Route path="forms/new" element={<FormBuilder />} />
+            <Route path="forms/edit/:id" element={<FormBuilder />} />
+            <Route path="forms/records" element={<FormRecords />} />
+            <Route path="forms/fill/:id" element={<FormFill />} />
+            <Route path="forms/view/:id" element={<FormViewRecords />} />
+            {/* INFORMES */}
+            <Route path="reports" element={<ReportsList />} />
+            <Route path="reports/new" element={<ReportBuilder />} />
+            <Route path="reports/edit/:id" element={<ReportBuilder />} />
+            <Route path="reports/view/:id" element={<ReportView />} />
+            {/* INFRAESTRUCTURA */}
+            <Route path="infrastructure" element={<InfrastructureManager />} />
+            {/* ESCANER */}
+            <Route path="scanner" element={<Scanner />} />
             <Route path="employees" element={<EmployeesList />} />
             <Route path="employees/new" element={<EmployeeForm />} />
             <Route path="employees/edit/:id" element={<EmployeeForm />} />
             <Route path="assignments" element={<Assignments />} />
             <Route path="users" element={<UsersList />} />
+            <Route path="roles" element={<RolesList />} />
             <Route path="files" element={<Files />} />
             <Route path="audit" element={<AuditLogs />} />
             <Route path="settings" element={<ConfigEmpresa />} />

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SCAF — Sistema de Control de Activos Fijos</title>
+  <title>SCAF</title>
   <meta name="description"
     content="Plataforma ERP de gestión de activos fijos y mantenimiento preventivo. PWA offline, QR integrado, auditoría ISO 27001.">
   <link rel="icon" type="image/svg+xml"
@@ -66,6 +66,12 @@
       --radius-lg: 16px;
     }
 
+    html,
+    body {
+      overflow-x: hidden;
+      width: 100%;
+    }
+
     html {
       scroll-behavior: smooth;
       font-size: 16px;
@@ -76,7 +82,6 @@
       background: var(--bg-base);
       color: var(--text-secondary);
       line-height: 1.6;
-      overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
     }
 
@@ -687,12 +692,15 @@
       overflow: hidden;
       text-align: center;
     }
+
     .hook::before {
       content: '';
-      position: absolute; inset: 0;
+      position: absolute;
+      inset: 0;
       background: radial-gradient(ellipse at 50% 50%, rgba(239, 68, 68, 0.06) 0%, transparent 55%);
       pointer-events: none;
     }
+
     .hook-stat {
       font-family: var(--font-mono);
       font-size: clamp(3rem, 8vw, 5.5rem);
@@ -703,23 +711,36 @@
       position: relative;
       z-index: 1;
     }
-    .hook-stat .dollar { color: var(--text-muted); font-weight: 400; font-size: 0.6em; }
+
+    .hook-stat .dollar {
+      color: var(--text-muted);
+      font-weight: 400;
+      font-size: 0.6em;
+    }
+
     .hook-label {
       font-size: clamp(1rem, 2.5vw, 1.35rem);
       font-family: var(--font-heading);
       color: var(--text-primary);
       font-weight: 600;
       margin-bottom: 8px;
-      position: relative; z-index: 1;
+      position: relative;
+      z-index: 1;
     }
+
     .hook-sub {
       font-size: 0.92rem;
       color: var(--text-muted);
       max-width: 600px;
       margin: 0 auto;
-      position: relative; z-index: 1;
+      position: relative;
+      z-index: 1;
     }
-    .hook-sub strong { color: var(--text-secondary); }
+
+    .hook-sub strong {
+      color: var(--text-secondary);
+    }
+
     .hook-source {
       display: inline-block;
       margin-top: 16px;
@@ -729,18 +750,29 @@
       padding: 4px 12px;
       border: 1px solid var(--border);
       border-radius: 999px;
-      position: relative; z-index: 1;
+      position: relative;
+      z-index: 1;
     }
+
     .hook-divider {
-      width: 48px; height: 2px;
+      width: 48px;
+      height: 2px;
       background: linear-gradient(90deg, transparent, var(--status-red), transparent);
       margin: 24px auto 0;
-      position: relative; z-index: 1;
+      position: relative;
+      z-index: 1;
     }
 
     @keyframes countUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     /* ═══════════════════════════════════════════════════════════
@@ -829,9 +861,13 @@
       position: relative;
       overflow: hidden;
     }
+
     .pain-card::before {
       content: '';
-      position: absolute; top: 0; left: 0; right: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
       height: 3px;
       background: linear-gradient(90deg, transparent, var(--status-red), transparent);
       opacity: 0.6;
@@ -848,8 +884,10 @@
       justify-content: center;
       margin: 0 auto 18px;
     }
+
     .pain-icon svg {
-      width: 28px; height: 28px;
+      width: 28px;
+      height: 28px;
       stroke: var(--status-red);
       stroke-width: 1.5;
       fill: none;
@@ -865,6 +903,7 @@
       font-size: 0.85rem;
       line-height: 1.6;
     }
+
     .pain-stat {
       display: inline-block;
       margin-top: 14px;
@@ -1285,26 +1324,31 @@
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
     }
+
     .eco-header {
       text-align: center;
       max-width: 650px;
       margin: 0 auto 56px;
     }
+
     .eco-header h2 {
       font-size: clamp(1.6rem, 3vw, 2.2rem);
       font-weight: 700;
       margin-top: 12px;
     }
+
     .eco-header p {
       margin-top: 14px;
       font-size: 0.92rem;
       color: var(--text-secondary);
     }
+
     .eco-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 14px;
     }
+
     .eco-card {
       background: var(--glass-bg);
       border: 1px solid var(--border);
@@ -1312,15 +1356,18 @@
       padding: 20px 16px;
       transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
     }
+
     .eco-card:hover {
       border-color: var(--accent-amber-border);
       transform: translateY(-3px);
-      box-shadow: 0 12px 30px -8px rgba(0,0,0,0.3);
+      box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.3);
     }
+
     .eco-icon {
       font-size: 1.4rem;
       margin-bottom: 10px;
     }
+
     .eco-name {
       font-family: var(--font-heading);
       font-size: 0.88rem;
@@ -1328,6 +1375,7 @@
       color: var(--text-primary);
       margin-bottom: 4px;
     }
+
     .eco-desc {
       font-size: 0.76rem;
       line-height: 1.5;
@@ -1606,6 +1654,7 @@
       gap: 12px;
       margin-top: 28px;
     }
+
     .contact-card {
       display: flex;
       align-items: center;
@@ -1617,18 +1666,22 @@
       text-decoration: none;
       transition: transform 0.2s, border-color 0.25s, box-shadow 0.25s;
     }
+
     .contact-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px -6px rgba(0,0,0,0.3);
+      box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.3);
     }
+
     .contact-card.whatsapp:hover {
-      border-color: rgba(37,211,102,0.5);
-      box-shadow: 0 8px 24px -6px rgba(37,211,102,0.2);
+      border-color: rgba(37, 211, 102, 0.5);
+      box-shadow: 0 8px 24px -6px rgba(37, 211, 102, 0.2);
     }
+
     .contact-card.email:hover {
       border-color: var(--accent-amber-border);
-      box-shadow: 0 8px 24px -6px rgba(245,158,11,0.15);
+      box-shadow: 0 8px 24px -6px rgba(245, 158, 11, 0.15);
     }
+
     .contact-card-icon {
       width: 44px;
       height: 44px;
@@ -1639,18 +1692,22 @@
       flex-shrink: 0;
       font-size: 1.3rem;
     }
+
     .contact-card.whatsapp .contact-card-icon {
-      background: rgba(37,211,102,0.12);
+      background: rgba(37, 211, 102, 0.12);
       color: #25d366;
     }
+
     .contact-card.email .contact-card-icon {
       background: var(--accent-amber-glow);
       color: var(--accent-amber);
     }
+
     .contact-card-text {
       display: flex;
       flex-direction: column;
     }
+
     .contact-card-label {
       font-size: 0.72rem;
       color: var(--text-muted);
@@ -1658,6 +1715,7 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
+
     .contact-card-value {
       font-family: var(--font-heading);
       font-size: 1.05rem;
@@ -1665,6 +1723,7 @@
       color: var(--text-primary);
       letter-spacing: -0.01em;
     }
+
     .contact-card-hint {
       font-size: 0.72rem;
       color: var(--text-muted);
@@ -1686,20 +1745,23 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 6px 20px rgba(37,211,102,0.4), 0 2px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
       cursor: pointer;
       transition: transform 0.25s, box-shadow 0.25s;
       text-decoration: none;
     }
+
     .fab-whatsapp:hover {
       transform: scale(1.1) translateY(-2px);
-      box-shadow: 0 10px 30px rgba(37,211,102,0.5), 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 10px 30px rgba(37, 211, 102, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
     }
+
     .fab-whatsapp svg {
       width: 30px;
       height: 30px;
       fill: #fff;
     }
+
     .fab-whatsapp-pulse {
       position: fixed;
       bottom: 28px;
@@ -1712,9 +1774,17 @@
       animation: wa-pulse 2s ease-out infinite;
       pointer-events: none;
     }
+
     @keyframes wa-pulse {
-      0% { transform: scale(1); opacity: 0.5; }
-      100% { transform: scale(1.8); opacity: 0; }
+      0% {
+        transform: scale(1);
+        opacity: 0.5;
+      }
+
+      100% {
+        transform: scale(1.8);
+        opacity: 0;
+      }
     }
 
     /* ═══════════════════════════════════════════════════════════
@@ -1784,73 +1854,35 @@
     }
 
     /* ═══════════════════════════════════════════════════════════
-   RESPONSIVE — max-width: 768px
+   RESPONSIVE — max-width: 1024px (tablets)
    ═══════════════════════════════════════════════════════════ */
-    @media (max-width: 768px) {
-
-      .nav-links,
-      .nav-cta {
-        display: none;
-      }
-
-      .hamburger {
-        display: flex;
-      }
-
-      .hero {
-        padding: 100px 0 60px;
-      }
-
+    @media (max-width: 1024px) {
       .hero-inner {
         grid-template-columns: 1fr;
         text-align: center;
       }
 
-      .hero h1 {
-        font-size: clamp(1.5rem, 5.8vw, 2rem);
-        padding: 0 8px;
-      }
-
-      .hero-br {
-        display: none;
-      }
-
       .hero-sub {
         margin: 0 auto 28px;
-        font-size: 0.9rem;
-        max-width: 100%;
-        padding: 0 4px;
-      }
-
-      .hero-badge .eyebrow {
-        font-size: 0.6rem !important;
       }
 
       .hero-ctas {
         justify-content: center;
       }
 
-      .hero-ctas .btn {
-        font-size: 0.82rem;
-        padding: 12px 20px;
-      }
-
       .hero-micro {
         justify-content: center;
-        flex-wrap: wrap;
-        gap: 8px 14px;
-        font-size: 0.65rem;
       }
 
       .hero-mockup-wrap {
         animation: none;
         display: flex;
         justify-content: center;
-        margin-top: 20px;
+        margin-top: 24px;
       }
 
       .hero-mockup-wrap .mockup-frame {
-        max-width: 340px;
+        max-width: 400px;
         width: 100%;
         transform: none !important;
       }
@@ -1859,32 +1891,9 @@
         display: none;
       }
 
-      .trust-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-      }
-
-      .trust-item {
-        border-right: none;
-        padding: 10px 0;
-      }
-
-      .problem {
-        padding: 80px 0;
-      }
-
-      .pain-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .features {
-        padding: 80px 0;
-      }
-
       .feature-block {
         grid-template-columns: 1fr;
-        gap: 28px;
-        margin-bottom: 60px;
+        gap: 32px;
       }
 
       .feature-block.reverse .feature-text {
@@ -1898,10 +1907,205 @@
       .feature-mockup .mockup-frame,
       .feature-block.reverse .feature-mockup .mockup-frame {
         transform: none;
-        max-width: 380px;
+        max-width: 480px;
         margin: 0 auto;
       }
 
+      .eco-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .diff-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .cta-inner {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — max-width: 768px (mobile landscape / small tablets)
+   ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+
+      /* ── Global mobile fixes ─────────────────────── */
+      .container {
+        padding: 0 16px;
+      }
+
+      .nav-links,
+      .nav-cta {
+        display: none;
+      }
+
+      .hamburger {
+        display: flex;
+      }
+
+      /* ── Hero ─────────────────────────────────────── */
+      .hero {
+        padding: 90px 0 50px;
+      }
+
+      .hero-inner {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .hero h1 {
+        font-size: clamp(1.45rem, 5.5vw, 2rem);
+        padding: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+      }
+
+      .hero-br {
+        display: none;
+      }
+
+      .hero-sub {
+        margin: 0 auto 24px;
+        font-size: 0.88rem;
+        max-width: 100%;
+        padding: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
+      .hero-badge {
+        margin-bottom: 14px;
+      }
+
+      .hero-badge .eyebrow {
+        font-size: 0.58rem !important;
+      }
+
+      .hero-ctas {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .hero-ctas .btn {
+        font-size: 0.8rem;
+        padding: 11px 18px;
+      }
+
+      .hero-micro {
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        font-size: 0.62rem;
+      }
+
+      .hero-mockup-wrap {
+        animation: none;
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+      }
+
+      .hero-mockup-wrap .mockup-frame {
+        max-width: 100%;
+        width: 100%;
+        transform: none !important;
+      }
+
+      .hero-mockup-glow {
+        display: none;
+      }
+
+      /* ── Hook ─────────────────────────────────────── */
+      .hook {
+        padding: 60px 0;
+      }
+
+      .hook-sub {
+        font-size: 0.85rem;
+        padding: 0;
+      }
+
+      /* ── Trust ────────────────────────────────────── */
+      .trust-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+
+      .trust-item {
+        border-right: none;
+        padding: 8px 0;
+      }
+
+      .trust-number {
+        font-size: 1.3rem;
+      }
+
+      .trust-label {
+        font-size: 0.72rem;
+      }
+
+      /* ── Problem ──────────────────────────────────── */
+      .problem {
+        padding: 70px 0;
+      }
+
+      .pain-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .pain-card {
+        padding: 24px 20px;
+      }
+
+      .pain-card p {
+        font-size: 0.82rem;
+      }
+
+      /* ── Features ─────────────────────────────────── */
+      .features {
+        padding: 70px 0;
+      }
+
+      .feature-block {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        margin-bottom: 50px;
+      }
+
+      .feature-block.reverse .feature-text {
+        order: 1;
+      }
+
+      .feature-block.reverse .feature-mockup {
+        order: 2;
+      }
+
+      .feature-mockup .mockup-frame,
+      .feature-block.reverse .feature-mockup .mockup-frame {
+        transform: none;
+        max-width: 100%;
+        width: 100%;
+        margin: 0 auto;
+      }
+
+      .feature-text h3 {
+        font-size: 1.25rem;
+      }
+
+      .feature-text p {
+        font-size: 0.88rem;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
+      .feature-bullets li {
+        font-size: 0.82rem;
+      }
+
+      /* ── Ecosystem ────────────────────────────────── */
       .ecosystem {
         padding: 60px 0;
       }
@@ -1928,25 +2132,37 @@
         font-size: 0.7rem;
       }
 
+      /* ── Differentiators ──────────────────────────── */
       .diff-section {
-        padding: 80px 0;
+        padding: 70px 0;
       }
 
       .diff-grid {
         grid-template-columns: 1fr;
       }
 
+      .diff-card {
+        padding: 24px 20px;
+      }
+
       .diff-card.wide {
         grid-column: span 1;
       }
 
+      .diff-card p {
+        font-size: 0.84rem;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
+      /* ── How Section ──────────────────────────────── */
       .how-section {
-        padding: 80px 0;
+        padding: 70px 0;
       }
 
       .how-steps {
         grid-template-columns: 1fr;
-        gap: 40px;
+        gap: 36px;
       }
 
       .how-steps::before {
@@ -1963,39 +2179,76 @@
       .how-step {
         text-align: left;
         display: grid;
-        grid-template-columns: 72px 1fr;
-        gap: 16px;
+        grid-template-columns: 64px 1fr;
+        gap: 14px;
         align-items: start;
       }
 
       .how-number {
         margin: 0;
+        width: 64px;
+        height: 64px;
+        font-size: 1.5rem;
+      }
+
+      .how-step h3 {
+        font-size: 1.05rem;
       }
 
       .how-step p {
         max-width: none;
+        font-size: 0.84rem;
       }
 
+      /* ── CTA ──────────────────────────────────────── */
       .cta-section {
-        padding: 80px 0;
+        padding: 70px 0;
       }
 
       .cta-inner {
         grid-template-columns: 1fr;
-        gap: 40px;
+        gap: 32px;
       }
 
       .cta-text {
         text-align: center;
       }
 
+      .cta-text h2 {
+        font-size: clamp(1.4rem, 5vw, 1.8rem);
+      }
+
+      .cta-text p {
+        font-size: 0.9rem;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
       .cta-benefits {
         align-items: center;
+      }
+
+      .cta-benefits li {
+        font-size: 0.85rem;
+      }
+
+      .cta-form {
+        padding: 24px 20px;
+      }
+
+      .cta-form h3 {
+        font-size: 1.05rem;
+      }
+
+      /* ── Footer ───────────────────────────────────── */
+      .footer {
+        padding: 40px 0 20px;
       }
 
       .footer-grid {
         grid-template-columns: 1fr;
         text-align: center;
+        gap: 28px;
       }
 
       .footer-brand p {
@@ -2007,21 +2260,429 @@
         text-align: center;
       }
 
-      /* FAB position on mobile */
+      /* ── FAB position on mobile ──────────────────── */
       .fab-whatsapp,
       .fab-whatsapp-pulse {
         bottom: 18px;
         right: 18px;
-        width: 54px;
-        height: 54px;
+        width: 52px;
+        height: 52px;
       }
+
       .fab-whatsapp svg {
         width: 26px;
         height: 26px;
       }
 
       .contact-card-value {
-        font-size: 0.92rem;
+        font-size: 0.9rem;
+      }
+
+      /* ── Mockup internal overflow fixes ──────────── */
+      .mock-table {
+        table-layout: fixed;
+        width: 100%;
+      }
+
+      .mock-table td,
+      .mock-table th {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mock-audit-row {
+        grid-template-columns: 8px 1fr 50px 44px;
+        gap: 5px;
+      }
+
+      .mock-gantt-header {
+        grid-template-columns: 60px repeat(7, 1fr);
+        font-size: 5.5px;
+      }
+
+      .mock-gantt-row {
+        grid-template-columns: 60px 1fr;
+      }
+
+      .mock-gantt-label {
+        font-size: 6.5px;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — max-width: 480px (small phones)
+   ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 480px) {
+
+      .container {
+        padding: 0 12px;
+      }
+
+      /* ── Hero small phone ────────────────────────── */
+      .hero {
+        padding: 80px 0 40px;
+      }
+
+      .hero h1 {
+        font-size: clamp(1.25rem, 5.5vw, 1.65rem);
+        letter-spacing: -0.02em;
+      }
+
+      .hero-sub {
+        font-size: 0.82rem;
+        line-height: 1.6;
+      }
+
+      .hero-badge {
+        padding: 5px 12px;
+        margin-bottom: 12px;
+      }
+
+      .hero-badge .eyebrow {
+        font-size: 0.52rem !important;
+        letter-spacing: 0.1em;
+      }
+
+      .hero-ctas .btn {
+        font-size: 0.78rem;
+        padding: 10px 16px;
+        width: 100%;
+        justify-content: center;
+      }
+
+      .hero-ctas {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .hero-micro {
+        gap: 4px 10px;
+        font-size: 0.58rem;
+      }
+
+      /* ── Hook small ──────────────────────────────── */
+      .hook {
+        padding: 48px 0;
+      }
+
+      .hook-stat {
+        font-size: clamp(2.4rem, 12vw, 4rem);
+      }
+
+      .hook-label {
+        font-size: clamp(0.88rem, 3vw, 1.1rem);
+      }
+
+      .hook-sub {
+        font-size: 0.8rem;
+      }
+
+      /* ── Trust small ─────────────────────────────── */
+      .trust-bar {
+        padding: 24px 0;
+      }
+
+      .trust-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .trust-number {
+        font-size: 1.1rem;
+      }
+
+      .trust-label {
+        font-size: 0.68rem;
+      }
+
+      /* ── Problem small ───────────────────────────── */
+      .problem {
+        padding: 56px 0;
+      }
+
+      .pain-card {
+        padding: 20px 16px;
+      }
+
+      .pain-icon {
+        width: 52px;
+        height: 52px;
+        margin-bottom: 14px;
+      }
+
+      .pain-icon svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .pain-card h3 {
+        font-size: 0.95rem;
+      }
+
+      .pain-card p {
+        font-size: 0.78rem;
+      }
+
+      .pain-stat {
+        font-size: 0.65rem;
+      }
+
+      /* ── Features small ──────────────────────────── */
+      .features {
+        padding: 56px 0;
+      }
+
+      .features-header {
+        margin-bottom: 40px;
+      }
+
+      .feature-block {
+        margin-bottom: 40px;
+        gap: 20px;
+      }
+
+      .feature-text h3 {
+        font-size: 1.1rem;
+      }
+
+      .feature-text p {
+        font-size: 0.82rem;
+      }
+
+      .feature-bullets li {
+        font-size: 0.78rem;
+      }
+
+      /* ── Ecosystem small ─────────────────────────── */
+      .ecosystem {
+        padding: 48px 0;
+      }
+
+      .eco-header {
+        margin-bottom: 32px;
+      }
+
+      .eco-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .eco-card {
+        padding: 12px 10px;
+      }
+
+      .eco-icon {
+        font-size: 1rem;
+        margin-bottom: 4px;
+      }
+
+      .eco-name {
+        font-size: 0.72rem;
+      }
+
+      .eco-desc {
+        font-size: 0.62rem;
+        line-height: 1.4;
+      }
+
+      /* ── Differentiators small ────────────────────── */
+      .diff-section {
+        padding: 56px 0;
+      }
+
+      .diff-card {
+        padding: 20px 16px;
+      }
+
+      .diff-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+        margin-bottom: 12px;
+      }
+
+      .diff-card h3 {
+        font-size: 1rem;
+      }
+
+      .diff-card p {
+        font-size: 0.8rem;
+      }
+
+      /* ── How Section small ───────────────────────── */
+      .how-section {
+        padding: 56px 0;
+      }
+
+      .how-steps {
+        gap: 28px;
+      }
+
+      .how-step {
+        grid-template-columns: 52px 1fr;
+        gap: 12px;
+      }
+
+      .how-number {
+        width: 52px;
+        height: 52px;
+        font-size: 1.3rem;
+      }
+
+      .how-steps::before {
+        left: 25px;
+      }
+
+      .how-step h3 {
+        font-size: 0.95rem;
+      }
+
+      .how-step p {
+        font-size: 0.8rem;
+      }
+
+      /* ── CTA small ───────────────────────────────── */
+      .cta-section {
+        padding: 56px 0;
+      }
+
+      .cta-text h2 {
+        font-size: clamp(1.2rem, 5vw, 1.5rem);
+      }
+
+      .cta-text p {
+        font-size: 0.84rem;
+      }
+
+      .cta-benefits li {
+        font-size: 0.8rem;
+      }
+
+      .cta-form {
+        padding: 20px 16px;
+      }
+
+      .cta-form h3 {
+        font-size: 1rem;
+        margin-bottom: 18px;
+      }
+
+      .form-input,
+      .form-textarea {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+      }
+
+      .form-label {
+        font-size: 0.72rem;
+      }
+
+      .btn {
+        font-size: 0.84rem;
+        padding: 12px 20px;
+      }
+
+      /* ── Contact cards small ─────────────────────── */
+      .contact-card {
+        padding: 12px 14px;
+        gap: 10px;
+      }
+
+      .contact-card-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 1.1rem;
+      }
+
+      .contact-card-value {
+        font-size: 0.85rem;
+      }
+
+      .contact-card-label {
+        font-size: 0.65rem;
+      }
+
+      .contact-card-hint {
+        font-size: 0.65rem;
+      }
+
+      /* ── Footer small ────────────────────────────── */
+      .footer {
+        padding: 32px 0 16px;
+      }
+
+      .footer-grid {
+        gap: 20px;
+      }
+
+      .footer-brand .logo {
+        font-size: 1.5rem;
+      }
+
+      .footer-brand p {
+        font-size: 0.78rem;
+      }
+
+      .footer-col h4 {
+        font-size: 0.72rem;
+        margin-bottom: 10px;
+      }
+
+      .footer-col a {
+        font-size: 0.82rem;
+      }
+
+      .footer-bottom p {
+        font-size: 0.65rem;
+      }
+
+      /* ── FAB small phone ─────────────────────────── */
+      .fab-whatsapp,
+      .fab-whatsapp-pulse {
+        bottom: 14px;
+        right: 14px;
+        width: 48px;
+        height: 48px;
+      }
+
+      .fab-whatsapp svg {
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — max-width: 360px (extra small phones)
+   ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 360px) {
+      .container {
+        padding: 0 10px;
+      }
+
+      .hero h1 {
+        font-size: 1.2rem;
+      }
+
+      .hero-sub {
+        font-size: 0.78rem;
+      }
+
+      .hero-badge .eyebrow {
+        font-size: 0.48rem !important;
+      }
+
+      .eco-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .trust-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mock-kpi-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -2041,8 +2702,13 @@
         <li><a href="#diferenciadores">Diferenciadores</a></li>
         <li><a href="#contacto">Contacto</a></li>
       </ul>
-      <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20SCAF" target="_blank" rel="noopener" class="btn btn-sm nav-cta" style="background:rgba(37,211,102,0.12);color:#25d366;border:1px solid rgba(37,211,102,0.3);gap:6px;padding:8px 16px;">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20SCAF" target="_blank" rel="noopener"
+        class="btn btn-sm nav-cta"
+        style="background:rgba(37,211,102,0.12);color:#25d366;border:1px solid rgba(37,211,102,0.3);gap:6px;padding:8px 16px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="#25d366">
+          <path
+            d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
         WhatsApp
       </a>
       <a href="#contacto" class="btn btn-primary btn-sm nav-cta">Solicitar Demo</a>
@@ -2059,16 +2725,25 @@
     <a href="#diferenciadores">Diferenciadores</a>
     <a href="#contacto">Contacto</a>
     <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
-      <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20SCAF" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);border-radius:8px;color:#25d366;font-weight:600;font-size:0.9rem;">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20SCAF" target="_blank" rel="noopener"
+        style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);border-radius:8px;color:#25d366;font-weight:600;font-size:0.9rem;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#25d366">
+          <path
+            d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
         +58 412-498-2079
       </a>
-      <a href="mailto:info@scaf.app" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--accent-amber-glow);border:1px solid var(--accent-amber-border);border-radius:8px;color:var(--accent-amber);font-weight:600;font-size:0.9rem;">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      <a href="mailto:info@scaf.app"
+        style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--accent-amber-glow);border:1px solid var(--accent-amber-border);border-radius:8px;color:var(--accent-amber);font-weight:600;font-size:0.9rem;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+        </svg>
         info@scaf.app
       </a>
     </div>
-    <a href="#contacto" class="btn btn-primary" style="margin-top:12px;text-align:center;display:block;">Solicitar Demo</a>
+    <a href="#contacto" class="btn btn-primary" style="margin-top:12px;text-align:center;display:block;">Solicitar
+      Demo</a>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════
@@ -2084,10 +2759,12 @@
           <span class="eyebrow" style="margin:0;font-size:0.7rem;">Sistema ERP de Gestión de Activos</span>
         </div>
         <h1 class="reveal" style="transition-delay:0.1s;">
-          Control total de tus <span class="text-gradient">activos fijos.</span> <span class="hero-br"></span>Mantenimiento sin fricci&#243;n.
+          Control total de tus <span class="text-gradient">activos fijos.</span> <span
+            class="hero-br"></span>Mantenimiento sin fricci&#243;n.
         </h1>
         <p class="hero-sub reveal" style="transition-delay:0.2s;">
-          SCAF unifica inventario, mantenimiento preventivo, tickets, control de personal, proveedores, auditor&#237;a y operaciones en una sola plataforma — con acceso offline, QR integrado y 16+ m&#243;dulos interconectados.
+          SCAF unifica inventario, mantenimiento preventivo, tickets, control de personal, proveedores, auditor&#237;a y
+          operaciones en una sola plataforma — con acceso offline, QR integrado y 16+ m&#243;dulos interconectados.
         </p>
         <div class="hero-ctas reveal" style="transition-delay:0.3s;">
           <a href="#contacto" class="btn btn-primary">Solicitar Demo</a>
@@ -2103,7 +2780,7 @@
 
       <div class="hero-mockup-wrap reveal" style="transition-delay:0.3s;">
         <div class="hero-mockup-glow"></div>
-        <div class="mockup-frame" style="width:420px;max-width:100%;">
+        <div class="mockup-frame" style="max-width:100%;">
           <div class="mockup-titlebar">
             <span class="mockup-dot red"></span>
             <span class="mockup-dot yellow"></span>
@@ -2222,28 +2899,47 @@
         <div class="pain-card reveal">
           <div class="pain-icon">
             <!-- Spreadsheet with error -->
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="12" x2="19" y2="16" stroke-width="2"/><line x1="19" y1="12" x2="15" y2="16" stroke-width="2"/></svg>
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="3" y1="15" x2="21" y2="15" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <line x1="15" y1="12" x2="19" y2="16" stroke-width="2" />
+              <line x1="19" y1="12" x2="15" y2="16" stroke-width="2" />
+            </svg>
           </div>
           <h3>Inventarios en Excel</h3>
-          <p>Archivos desactualizados, versiones duplicadas, sin validaciones y sin control de quién modificó qué. Imposible escalar a +500 activos.</p>
+          <p>Archivos desactualizados, versiones duplicadas, sin validaciones y sin control de quién modificó qué.
+            Imposible escalar a +500 activos.</p>
           <span class="pain-stat">68% de empresas aún usan hojas de cálculo</span>
         </div>
         <div class="pain-card reveal" style="transition-delay:0.1s;">
           <div class="pain-icon">
             <!-- Eye with slash (no visibility) -->
-            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="1" y1="1" x2="23" y2="23" stroke-width="2"/></svg>
+            <svg viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+              <line x1="1" y1="1" x2="23" y2="23" stroke-width="2" />
+            </svg>
           </div>
           <h3>Sin historial de cambios</h3>
-          <p>Cuando algo falla, no hay forma de saber quién movió el activo, cuándo ni por qué. Cero auditoría, cero responsabilidad.</p>
+          <p>Cuando algo falla, no hay forma de saber quién movió el activo, cuándo ni por qué. Cero auditoría, cero
+            responsabilidad.</p>
           <span class="pain-stat">0% de trazabilidad = riesgo legal</span>
         </div>
         <div class="pain-card reveal" style="transition-delay:0.2s;">
           <div class="pain-icon">
             <!-- Gear with alert -->
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/><line x1="18" y1="2" x2="22" y2="6" stroke-width="2.5" stroke="rgba(239,68,68,0.7)"/></svg>
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+              <line x1="18" y1="2" x2="22" y2="6" stroke-width="2.5" stroke="rgba(239,68,68,0.7)" />
+            </svg>
           </div>
           <h3>Mantenimiento reactivo</h3>
-          <p>Sin programación preventiva, los equipos fallan sin aviso. Paros no planificados que paralizan la operación completa.</p>
+          <p>Sin programación preventiva, los equipos fallan sin aviso. Paros no planificados que paralizan la operación
+            completa.</p>
           <span class="pain-stat">Costo reactivo = 3-10x vs preventivo</span>
         </div>
       </div>
@@ -2257,7 +2953,8 @@
     <div class="container">
       <div class="features-header">
         <div class="eyebrow reveal">Módulos</div>
-        <h2 class="reveal" style="transition-delay:0.1s;">Activos, mantenimiento, personal y operaciones en un solo lugar</h2>
+        <h2 class="reveal" style="transition-delay:0.1s;">Activos, mantenimiento, personal y operaciones en un solo
+          lugar</h2>
       </div>
 
       <!-- Feature 1: Inventario -->
@@ -2265,7 +2962,9 @@
         <div class="feature-text">
           <div class="eyebrow">Inventario</div>
           <h3>Registro inteligente de activos</h3>
-          <p>Cada activo con su ciclo de vida completo: adquisici&#243;n, depreciaci&#243;n, fotos, facturas y asignaciones. B&#250;squeda server-side que escala a miles de registros. Movimientos con diff visual entre ubicaciones, departamentos y custodios.</p>
+          <p>Cada activo con su ciclo de vida completo: adquisici&#243;n, depreciaci&#243;n, fotos, facturas y
+            asignaciones. B&#250;squeda server-side que escala a miles de registros. Movimientos con diff visual entre
+            ubicaciones, departamentos y custodios.</p>
           <ul class="feature-bullets">
             <li>Paginaci&#243;n server-side escalable (+10K registros)</li>
             <li>Import/export masivo desde Excel</li>
@@ -2349,7 +3048,9 @@
         <div class="feature-text">
           <div class="eyebrow">Mantenimiento Multi-Scope</div>
           <h3>Tickets, rutinas y programaci&#243;n por m&#243;dulo</h3>
-          <p>Arquitectura &#250;nica: crea m&#243;dulos de mantenimiento din&#225;micos (&#193;rea, Habitaciones, Equipos, Flota...) cada uno con sus propios tickets, planes preventivos, frecuencias y checklist. Programa tareas desde plantillas y genera &#243;rdenes autom&#225;ticamente.</p>
+          <p>Arquitectura &#250;nica: crea m&#243;dulos de mantenimiento din&#225;micos (&#193;rea, Habitaciones,
+            Equipos, Flota...) cada uno con sus propios tickets, planes preventivos, frecuencias y checklist. Programa
+            tareas desde plantillas y genera &#243;rdenes autom&#225;ticamente.</p>
           <ul class="feature-bullets">
             <li>Scopes din&#225;micos personalizables con iconos y colores</li>
             <li>Planes preventivos con frecuencias (mensual a anual)</li>
@@ -2370,38 +3071,47 @@
               <div style="font-size:9px;font-weight:700;margin-bottom:6px;">M&#243;dulos de Mantenimiento</div>
               <!-- Scope selector cards -->
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px;">
-                <div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:4px;padding:5px;text-align:center;">
+                <div
+                  style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:4px;padding:5px;text-align:center;">
                   <div style="font-size:11px;">&#9881;</div>
                   <div style="font-size:6px;font-weight:700;color:#1d4ed8;">Equipos</div>
                   <div style="font-size:5px;color:#71717a;">24 tickets</div>
                 </div>
-                <div style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:4px;padding:5px;text-align:center;">
+                <div
+                  style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:4px;padding:5px;text-align:center;">
                   <div style="font-size:11px;">&#9978;</div>
                   <div style="font-size:6px;font-weight:700;color:#15803d;">&#193;reas</div>
                   <div style="font-size:5px;color:#71717a;">18 tickets</div>
                 </div>
-                <div style="background:#fefce8;border:1.5px solid #eab308;border-radius:4px;padding:5px;text-align:center;">
+                <div
+                  style="background:#fefce8;border:1.5px solid #eab308;border-radius:4px;padding:5px;text-align:center;">
                   <div style="font-size:11px;">&#9962;</div>
                   <div style="font-size:6px;font-weight:700;color:#a16207;">Habitaciones</div>
                   <div style="font-size:5px;color:#71717a;">12 tickets</div>
                 </div>
               </div>
               <!-- Ticket list -->
-              <div style="font-size:7px;font-weight:600;color:#71717a;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em;">Tickets activos — Equipos</div>
+              <div
+                style="font-size:7px;font-weight:600;color:#71717a;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em;">
+                Tickets activos — Equipos</div>
               <div style="display:flex;flex-direction:column;gap:3px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
+                <div
+                  style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
                   <span><strong>PM-312</strong> Lubricaci&#243;n compresor GA-90</span>
                   <span class="mock-badge green"><span class="mock-badge-dot"></span> Completado</span>
                 </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
+                <div
+                  style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
                   <span><strong>PM-314</strong> Cambio filtros generador 75kVA</span>
                   <span class="mock-badge amber"><span class="mock-badge-dot"></span> En Progreso</span>
                 </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
+                <div
+                  style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
                   <span><strong>PM-316</strong> Rev. hidr&#225;ulica carretilla Yale</span>
                   <span class="mock-badge red"><span class="mock-badge-dot"></span> Pendiente</span>
                 </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
+                <div
+                  style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#f4f4f5;border-radius:3px;font-size:7.5px;">
                   <span><strong>PM-318</strong> Calibraci&#243;n banco de pruebas</span>
                   <span class="mock-badge amber"><span class="mock-badge-dot"></span> En Progreso</span>
                 </div>
@@ -2409,7 +3119,9 @@
               <!-- Mini progress -->
               <div style="margin-top:6px;display:flex;align-items:center;gap:6px;">
                 <div style="flex:1;height:4px;background:#e4e4e7;border-radius:2px;overflow:hidden;">
-                  <div style="width:62%;height:100%;background:linear-gradient(90deg,#22c55e,#3b82f6);border-radius:2px;"></div>
+                  <div
+                    style="width:62%;height:100%;background:linear-gradient(90deg,#22c55e,#3b82f6);border-radius:2px;">
+                  </div>
                 </div>
                 <span style="font-size:6.5px;font-weight:700;color:#3b82f6;">62%</span>
               </div>
@@ -2476,7 +3188,9 @@
         <div class="feature-text">
           <div class="eyebrow">Programaci&#243;n y &#211;rdenes</div>
           <h3>Planifica tareas, asigna y ejecuta</h3>
-          <p>Crea planes de mantenimiento con frecuencias (mensual, trimestral, semestral, anual), asigna rutinas a activos espec&#237;ficos, y genera &#243;rdenes de trabajo con sub-tareas, barras Gantt, mini-calendario y progreso por t&#233;cnico. Reprograma con historial completo.</p>
+          <p>Crea planes de mantenimiento con frecuencias (mensual, trimestral, semestral, anual), asigna rutinas a
+            activos espec&#237;ficos, y genera &#243;rdenes de trabajo con sub-tareas, barras Gantt, mini-calendario y
+            progreso por t&#233;cnico. Reprograma con historial completo.</p>
           <ul class="feature-bullets">
             <li>Planes con checklist de tareas configurables</li>
             <li>Asignaci&#243;n de rutinas a activos con fecha inicio</li>
@@ -2594,7 +3308,9 @@
         <div class="feature-text">
           <div class="eyebrow">Personal y Proveedores</div>
           <h3>Control total de empleados, custodias y vendors</h3>
-          <p>Directorio completo de empleados con c&#233;dula, cargo, departamento y unidad organizacional. Gestiona asignaciones de activos con check-in/check-out, registra proveedores con contacto y contratos, y controla accesos con 15+ permisos granulares por rol.</p>
+          <p>Directorio completo de empleados con c&#233;dula, cargo, departamento y unidad organizacional. Gestiona
+            asignaciones de activos con check-in/check-out, registra proveedores con contacto y contratos, y controla
+            accesos con 15+ permisos granulares por rol.</p>
           <ul class="feature-bullets">
             <li>Directorio de empleados (CRUD, b&#250;squeda, departamentos)</li>
             <li>Asignaci&#243;n y custodia de equipos por empleado</li>
@@ -2659,11 +3375,13 @@
                 </tbody>
               </table>
               <!-- Assignment badge -->
-              <div style="margin-top:6px;padding:5px 6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:3px;display:flex;align-items:center;gap:6px;">
+              <div
+                style="margin-top:6px;padding:5px 6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:3px;display:flex;align-items:center;gap:6px;">
                 <span style="font-size:10px;">&#128100;</span>
                 <div>
                   <div style="font-size:7px;font-weight:600;color:#1d4ed8;">Custodia activa: Carlos L&#243;pez</div>
-                  <div style="font-size:6px;color:#71717a;">3 activos asignados &#183; &#250;ltimo check-out: 08/05/2026</div>
+                  <div style="font-size:6px;color:#71717a;">3 activos asignados &#183; &#250;ltimo check-out: 08/05/2026
+                  </div>
                 </div>
               </div>
             </div>
@@ -2681,7 +3399,8 @@
       <div class="eco-header">
         <div class="eyebrow reveal">Ecosistema Completo</div>
         <h2 class="reveal" style="transition-delay:0.1s;">16+ m&#243;dulos integrados en una sola plataforma</h2>
-        <p class="reveal" style="transition-delay:0.2s;">Cada m&#243;dulo se comunica con los dem&#225;s. No son herramientas aisladas — es un sistema de informaci&#243;n unificado.</p>
+        <p class="reveal" style="transition-delay:0.2s;">Cada m&#243;dulo se comunica con los dem&#225;s. No son
+          herramientas aisladas — es un sistema de informaci&#243;n unificado.</p>
       </div>
       <div class="eco-grid">
         <div class="eco-card reveal">
@@ -2692,7 +3411,8 @@
         <div class="eco-card reveal" style="transition-delay:0.05s;">
           <div class="eco-icon" style="color:#f59e0b;">&#9783;</div>
           <div class="eco-name">C&#243;digos QR</div>
-          <div class="eco-desc">Generaci&#243;n autom&#225;tica, escaneo m&#243;vil, acceso instant&#225;neo al historial</div>
+          <div class="eco-desc">Generaci&#243;n autom&#225;tica, escaneo m&#243;vil, acceso instant&#225;neo al
+            historial</div>
         </div>
         <div class="eco-card reveal" style="transition-delay:0.1s;">
           <div class="eco-icon" style="color:#8b5cf6;">&#8644;</div>
@@ -2801,32 +3521,39 @@
         <div class="glass-card diff-card reveal">
           <div class="diff-icon blue">&#9783;</div>
           <h3>PWA Nativa</h3>
-          <p>Instala SCAF como app nativa en iOS y Android. Sin App Store, sin actualizaciones. Service Worker con cache inteligente para funcionar 100% offline.</p>
+          <p>Instala SCAF como app nativa en iOS y Android. Sin App Store, sin actualizaciones. Service Worker con cache
+            inteligente para funcionar 100% offline.</p>
         </div>
         <div class="glass-card diff-card reveal" style="transition-delay:0.1s;">
           <div class="diff-icon amber">&#9638;</div>
           <h3>QR Integrado</h3>
-          <p>Cada activo recibe su etiqueta QR. Escanea con la c&#225;mara del m&#243;vil para acceder al historial completo, movimientos, estado y documentos.</p>
+          <p>Cada activo recibe su etiqueta QR. Escanea con la c&#225;mara del m&#243;vil para acceder al historial
+            completo, movimientos, estado y documentos.</p>
         </div>
         <div class="glass-card diff-card reveal" style="transition-delay:0.2s;">
           <div class="diff-icon green">&#9776;</div>
           <h3>Multi-Scope Din&#225;mico</h3>
-          <p>Crea m&#243;dulos de mantenimiento ilimitados: &#193;rea, Habitaciones, Equipos, Flota, Infraestructura... cada uno con su propio ecosistema de tickets, planes y calendario.</p>
+          <p>Crea m&#243;dulos de mantenimiento ilimitados: &#193;rea, Habitaciones, Equipos, Flota, Infraestructura...
+            cada uno con su propio ecosistema de tickets, planes y calendario.</p>
         </div>
         <div class="glass-card diff-card reveal" style="transition-delay:0.1s;">
           <div class="diff-icon blue">&#128101;</div>
           <h3>Control de Personal</h3>
-          <p>Directorio de empleados, asignaci&#243;n de equipos con custodia, proveedores, y RBAC con 15+ permisos granulares que controlan cada pantalla y acci&#243;n del sistema.</p>
+          <p>Directorio de empleados, asignaci&#243;n de equipos con custodia, proveedores, y RBAC con 15+ permisos
+            granulares que controlan cada pantalla y acci&#243;n del sistema.</p>
         </div>
         <div class="glass-card diff-card reveal" style="transition-delay:0.2s;">
           <div class="diff-icon green">&#128203;</div>
           <h3>Importaci&#243;n Masiva</h3>
-          <p>Importa activos, planes de mantenimiento y empleados desde Excel. Mapeo de columnas configurable. Migra desde tus hojas de c&#225;lculo en minutos, no semanas.</p>
+          <p>Importa activos, planes de mantenimiento y empleados desde Excel. Mapeo de columnas configurable. Migra
+            desde tus hojas de c&#225;lculo en minutos, no semanas.</p>
         </div>
         <div class="glass-card diff-card wide highlight reveal" style="transition-delay:0.3s;">
           <div class="diff-icon amber">&#9888;</div>
           <h3>Auditor&#237;a ISO 27001</h3>
-          <p>Registro inmutable de cada acci&#243;n del sistema. Retenci&#243;n de 7 a&#241;os configurable. Usuarios, timestamps, entidades y descripciones — todo listo para auditor&#237;as de cumplimiento externas. Exportable a CSV para evidencia documental.</p>
+          <p>Registro inmutable de cada acci&#243;n del sistema. Retenci&#243;n de 7 a&#241;os configurable. Usuarios,
+            timestamps, entidades y descripciones — todo listo para auditor&#237;as de cumplimiento externas. Exportable
+            a CSV para evidencia documental.</p>
         </div>
       </div>
     </div>
@@ -2846,21 +3573,24 @@
           <div class="how-number">1</div>
           <div>
             <h3>Registra</h3>
-            <p>Carga activos, empleados, proveedores y estructura organizacional. Importa masivamente desde Excel o registra uno a uno con fotos, documentos y QR.</p>
+            <p>Carga activos, empleados, proveedores y estructura organizacional. Importa masivamente desde Excel o
+              registra uno a uno con fotos, documentos y QR.</p>
           </div>
         </div>
         <div class="how-step reveal" style="transition-delay:0.15s;">
           <div class="how-number">2</div>
           <div>
             <h3>Programa</h3>
-            <p>Crea m&#243;dulos de mantenimiento por scope, define planes con frecuencias y tareas, asigna rutinas a activos y genera &#243;rdenes de trabajo autom&#225;ticamente.</p>
+            <p>Crea m&#243;dulos de mantenimiento por scope, define planes con frecuencias y tareas, asigna rutinas a
+              activos y genera &#243;rdenes de trabajo autom&#225;ticamente.</p>
           </div>
         </div>
         <div class="how-step reveal" style="transition-delay:0.3s;">
           <div class="how-number">3</div>
           <div>
             <h3>Controla</h3>
-            <p>Dashboard ejecutivo con KPIs, agenda del operador, auditor&#237;a ISO con 7 a&#241;os de retenci&#243;n, control de custodia y trazabilidad completa de cada activo y acci&#243;n.</p>
+            <p>Dashboard ejecutivo con KPIs, agenda del operador, auditor&#237;a ISO con 7 a&#241;os de retenci&#243;n,
+              control de custodia y trazabilidad completa de cada activo y acci&#243;n.</p>
           </div>
         </div>
       </div>
@@ -2887,9 +3617,13 @@
 
           <!-- Direct contact cards -->
           <div class="contact-direct">
-            <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20una%20demo%20de%20SCAF" target="_blank" rel="noopener" class="contact-card whatsapp reveal" style="transition-delay:0.1s;">
+            <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20una%20demo%20de%20SCAF" target="_blank"
+              rel="noopener" class="contact-card whatsapp reveal" style="transition-delay:0.1s;">
               <div class="contact-card-icon">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <path
+                    d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
               </div>
               <div class="contact-card-text">
                 <span class="contact-card-label">WhatsApp</span>
@@ -2899,7 +3633,11 @@
             </a>
             <a href="mailto:info@scaf.app" class="contact-card email reveal" style="transition-delay:0.2s;">
               <div class="contact-card-icon">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
               </div>
               <div class="contact-card-text">
                 <span class="contact-card-label">Correo Electr&#243;nico</span>
@@ -2938,7 +3676,8 @@
           </div>
           <div class="form-group">
             <label class="form-label">Mensaje</label>
-            <textarea name="mensaje" class="form-textarea" placeholder="Cu&#233;ntanos sobre tu operaci&#243;n y necesidades..."></textarea>
+            <textarea name="mensaje" class="form-textarea"
+              placeholder="Cu&#233;ntanos sobre tu operaci&#243;n y necesidades..."></textarea>
           </div>
           <button type="submit" class="btn btn-primary form-submit" id="formBtn">Enviar Solicitud</button>
           <p id="formStatus" style="text-align:center;font-size:0.82rem;margin-top:8px;display:none;"></p>
@@ -2955,7 +3694,8 @@
       <div class="footer-grid">
         <div class="footer-brand">
           <span class="logo">SC<span class="logo-accent">AF</span></span>
-          <p>Sistema de Control de Activos Fijos. Plataforma ERP para gesti&#243;n integral de inventario, mantenimiento preventivo, personal y operaciones.</p>
+          <p>Sistema de Control de Activos Fijos. Plataforma ERP para gesti&#243;n integral de inventario, mantenimiento
+            preventivo, personal y operaciones.</p>
         </div>
         <div class="footer-col">
           <h4>Plataforma</h4>
@@ -2966,12 +3706,19 @@
         </div>
         <div class="footer-col">
           <h4>Contacto directo</h4>
-          <a href="https://wa.me/584124982079" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          <a href="https://wa.me/584124982079" target="_blank" rel="noopener"
+            style="display:flex;align-items:center;gap:8px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="#25d366">
+              <path
+                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+            </svg>
             +58 412-498-2079
           </a>
           <a href="mailto:info@scaf.app" style="display:flex;align-items:center;gap:8px;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+            </svg>
             info@scaf.app
           </a>
         </div>
@@ -2985,8 +3732,12 @@
 
   <!-- Floating WhatsApp Button -->
   <div class="fab-whatsapp-pulse"></div>
-  <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20una%20demo%20de%20SCAF" target="_blank" rel="noopener" class="fab-whatsapp" aria-label="Contactar por WhatsApp">
-    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+  <a href="https://wa.me/584124982079?text=Hola%2C%20me%20interesa%20una%20demo%20de%20SCAF" target="_blank"
+    rel="noopener" class="fab-whatsapp" aria-label="Contactar por WhatsApp">
+    <svg viewBox="0 0 24 24">
+      <path
+        d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
   </a>
 
   <!-- ═══════════════════════════════════════════════════════════
@@ -3116,7 +3867,7 @@
         status.style.color = 'var(--status-green)';
         status.style.display = 'block';
         form.reset();
-        setTimeout(function() {
+        setTimeout(function () {
           btn.textContent = 'Enviar Solicitud';
           btn.style.background = '';
           btn.disabled = false;
@@ -3126,7 +3877,7 @@
       iframe.addEventListener('load', onLoad);
 
       // Timeout fallback (if iframe load doesn't fire in 10s)
-      setTimeout(function() {
+      setTimeout(function () {
         if (btn.disabled && btn.textContent === 'Enviando...') {
           iframe.removeEventListener('load', onLoad);
           btn.textContent = 'Error al enviar';
@@ -3135,7 +3886,7 @@
           status.textContent = 'Intenta de nuevo o escr\u00edbenos por WhatsApp.';
           status.style.color = 'var(--status-red)';
           status.style.display = 'block';
-          setTimeout(function() {
+          setTimeout(function () {
             btn.textContent = 'Enviar Solicitud';
             btn.style.background = '';
             btn.disabled = false;

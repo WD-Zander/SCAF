@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Search, Users } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../api';
 import ConfirmModal from '../../components/Common/ConfirmModal';
+import Pagination from '../../components/Common/Pagination';
 
 const EmployeesList = () => {
   const { employees, setEmployees, organizationalTree, hasPermission } = useAppContext();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, name: '' });
 
   // Flatten org tree to get all unit names
@@ -18,7 +21,7 @@ const EmployeesList = () => {
     return list;
   };
 
-  const filtered = employees.filter(e => {
+  const filtered = useMemo(() => employees.filter(e => {
     const q = search.toLowerCase();
     return (
       e.nombre?.toLowerCase().includes(q) ||
@@ -27,7 +30,10 @@ const EmployeesList = () => {
       e.cargo?.toLowerCase().includes(q) ||
       e.departamento?.toLowerCase().includes(q)
     );
-  });
+  }), [employees, search]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleDelete = async () => {
     await api.delete(`/api/employees/${confirmModal.id}`);
@@ -62,7 +68,7 @@ const EmployeesList = () => {
               placeholder="Buscar por nombre, cédula o cargo..."
               style={{ border: 'none', outline: 'none', width: '100%', background: 'transparent', fontSize: '0.9rem' }}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
             />
           </div>
         </div>
@@ -87,7 +93,7 @@ const EmployeesList = () => {
                     <p className="text-muted">No se encontraron empleados.</p>
                   </td>
                 </tr>
-              ) : filtered.map(emp => (
+              ) : paginatedItems.map(emp => (
                 <tr key={emp.id} style={{ borderBottom: '1px solid var(--glass-border)' }} className="table-row-hover">
                   <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{emp.id}</td>
                   <td style={{ padding: '14px 20px' }}>
@@ -125,6 +131,14 @@ const EmployeesList = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          onPageChange={setCurrentPage}
+          itemsPerPage={ITEMS_PER_PAGE}
+          label="empleados"
+        />
       </div>
 
       <ConfirmModal

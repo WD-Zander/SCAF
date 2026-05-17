@@ -6,7 +6,8 @@ export const getScopes = async (req, res) => {
   try {
     const db = await getPool();
     const result = await db.request().query(`
-      SELECT ID as id, NOMBRE as nombre, SLUG as slug, COLOR as color, ICONO as icono, ACTIVO as activo, ORDEN as orden
+      SELECT ID as id, NOMBRE as nombre, SLUG as slug, COLOR as color, ICONO as icono, ACTIVO as activo, ORDEN as orden,
+             ISNULL(TIPO_ENTIDAD, 'activo') as tipoEntidad
       FROM SCOPE_MANT
       ORDER BY ORDEN ASC, ID ASC
     `);
@@ -19,7 +20,7 @@ export const getScopes = async (req, res) => {
 // POST /api/maintenance-scopes
 export const createScope = async (req, res) => {
   try {
-    const { nombre, slug, color, icono, orden } = req.body;
+    const { nombre, slug, color, icono, orden, tipoEntidad } = req.body;
     if (!nombre?.trim() || !slug?.trim()) {
       return res.status(400).json({ error: 'Nombre y slug son obligatorios.' });
     }
@@ -43,10 +44,11 @@ export const createScope = async (req, res) => {
       .input('color',  sql.VarChar,  color || '#3b82f6')
       .input('icono',  sql.VarChar,  icono || 'Wrench')
       .input('orden',  sql.Int,      orden || 99)
+      .input('tipoEntidad', sql.VarChar, tipoEntidad || 'activo')
       .query(`
-        INSERT INTO SCOPE_MANT (NOMBRE, SLUG, COLOR, ICONO, ORDEN)
-        OUTPUT INSERTED.ID
-        VALUES (@nombre, @slug, @color, @icono, @orden)
+        INSERT INTO SCOPE_MANT (NOMBRE, SLUG, COLOR, ICONO, ORDEN, TIPO_ENTIDAD)
+        VALUES (@nombre, @slug, @color, @icono, @orden, @tipoEntidad)
+        RETURNING ID
       `);
 
     const newId = result.recordset[0].ID;
@@ -60,7 +62,7 @@ export const createScope = async (req, res) => {
 // PUT /api/maintenance-scopes/:id
 export const updateScope = async (req, res) => {
   try {
-    const { nombre, color, icono, orden, activo } = req.body;
+    const { nombre, color, icono, orden, activo, tipoEntidad } = req.body;
     const id = req.params.id;
 
     const db = await getPool();
@@ -71,9 +73,10 @@ export const updateScope = async (req, res) => {
       .input('icono',  sql.VarChar,  icono || 'Wrench')
       .input('orden',  sql.Int,      orden ?? 99)
       .input('activo', sql.Bit,      activo !== false ? 1 : 0)
+      .input('tipoEntidad', sql.VarChar, tipoEntidad || 'activo')
       .query(`
         UPDATE SCOPE_MANT
-        SET NOMBRE=@nombre, COLOR=@color, ICONO=@icono, ORDEN=@orden, ACTIVO=@activo
+        SET NOMBRE=@nombre, COLOR=@color, ICONO=@icono, ORDEN=@orden, ACTIVO=@activo, TIPO_ENTIDAD=@tipoEntidad
         WHERE ID=@id
       `);
 

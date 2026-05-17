@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, PackageOpen } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../api';
+import SearchableSelect from '../../components/Common/SearchableSelect';
 
 const MovementForm = () => {
   const navigate = useNavigate();
@@ -196,16 +197,13 @@ const MovementForm = () => {
                   </div>
                   <div className="input-group" style={{ margin: 0 }}>
                     <label style={{ fontSize: '0.8rem' }}>Sede Física — Nueva *</label>
-                    <select
-                      className="input-control"
+                    <SearchableSelect
                       value={formData.newLocation}
-                      onChange={e => setFormData(prev => ({ ...prev, newLocation: e.target.value, newDepartment: '', newArea: '' }))}
-                    >
-                      <option value="">-- Seleccionar --</option>
-                      {sedeOptions.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setFormData(prev => ({ ...prev, newLocation: value, newDepartment: '', newArea: '' }))}
+                      options={sedeOptions.map(s => ({ value: s.name, label: s.name }))}
+                      placeholder="-- Seleccionar --"
+                      clearable
+                    />
                   </div>
                 </div>
 
@@ -217,17 +215,14 @@ const MovementForm = () => {
                   </div>
                   <div className="input-group" style={{ margin: 0 }}>
                     <label style={{ fontSize: '0.8rem' }}>Departamento — Nuevo</label>
-                    <select
-                      className="input-control"
+                    <SearchableSelect
                       value={formData.newDepartment}
+                      onChange={(value) => setFormData(prev => ({ ...prev, newDepartment: value, newArea: '' }))}
+                      options={deptOptions.map(d => ({ value: d.name, label: d.name }))}
+                      placeholder="-- Seleccionar --"
                       disabled={!formData.newLocation}
-                      onChange={e => setFormData(prev => ({ ...prev, newDepartment: e.target.value, newArea: '' }))}
-                    >
-                      <option value="">-- Seleccionar --</option>
-                      {deptOptions.map(d => (
-                        <option key={d.id} value={d.name}>{d.name}</option>
-                      ))}
-                    </select>
+                      clearable
+                    />
                   </div>
                 </div>
 
@@ -239,17 +234,14 @@ const MovementForm = () => {
                   </div>
                   <div className="input-group" style={{ margin: 0 }}>
                     <label style={{ fontSize: '0.8rem' }}>Área — Nueva</label>
-                    <select
-                      className="input-control"
+                    <SearchableSelect
                       value={formData.newArea}
+                      onChange={(value) => setFormData(prev => ({ ...prev, newArea: value }))}
+                      options={areaOptions.map(a => ({ value: a.name, label: a.name }))}
+                      placeholder="-- Seleccionar --"
                       disabled={!formData.newDepartment}
-                      onChange={e => setFormData(prev => ({ ...prev, newArea: e.target.value }))}
-                    >
-                      <option value="">-- Seleccionar --</option>
-                      {areaOptions.map(a => (
-                        <option key={a.id} value={a.name}>{a.name}</option>
-                      ))}
-                    </select>
+                      clearable
+                    />
                   </div>
                 </div>
               </div>
@@ -264,16 +256,13 @@ const MovementForm = () => {
                   </div>
                   <div className="input-group" style={{ margin: 0 }}>
                     <label style={{ fontSize: '0.8rem' }}>Estado — Nuevo</label>
-                    <select
-                      className="input-control"
+                    <SearchableSelect
                       value={formData.newStatus}
-                      onChange={e => setFormData(prev => ({ ...prev, newStatus: e.target.value }))}
-                    >
-                      <option value="">-- Sin cambio --</option>
-                      {statusOptions.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setFormData(prev => ({ ...prev, newStatus: value }))}
+                      options={statusOptions.map(s => ({ value: s, label: s }))}
+                      placeholder="-- Sin cambio --"
+                      clearable
+                    />
                   </div>
                 </div>
               </div>
@@ -283,16 +272,13 @@ const MovementForm = () => {
                 <div className="form-section-title">Motivo del Movimiento</div>
                 <div className="input-group" style={{ margin: 0 }}>
                   <label style={{ fontSize: '0.85rem' }}>Seleccionar Motivo</label>
-                  <select
-                    className="input-control"
+                  <SearchableSelect
                     value={formData.motivoId}
-                    onChange={e => setFormData(prev => ({ ...prev, motivoId: e.target.value }))}
-                  >
-                    <option value="">-- Sin motivo específico --</option>
-                    {movementReasons.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData(prev => ({ ...prev, motivoId: value }))}
+                    options={movementReasons.map(m => ({ value: m.id, label: m.name }))}
+                    placeholder="-- Sin motivo específico --"
+                    clearable
+                  />
                 </div>
               </div>
 
