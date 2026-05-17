@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Building2, Database, Plug, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import ConfirmModal from '../../components/Common/ConfirmModal';
@@ -8,14 +8,61 @@ import { api } from '../../api';
 const ConfigEmpresa = () => {
   const { tenantName, setTenantName, setGlobalAlert } = useAppContext();
   const [localName, setLocalName] = useState(tenantName);
+  const [razonSocial, setRazonSocial] = useState('');
+  const [nit, setNit] = useState('');
+  const [correo, setCorreo] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [moneda, setMoneda] = useState('USD');
+  const [monedaSimbolo, setMonedaSimbolo] = useState('$');
+  const [diasAlerta, setDiasAlerta] = useState(15);
+  const [itemsPorPagina, setItemsPorPagina] = useState(50);
+  const [permitirBorrado, setPermitirBorrado] = useState(true);
   const [dbConfig, setDbConfig] = useState({ server: '', user: '', password: '', database: '' });
   const [isTesting, setIsTesting] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
 
+  // Cargar configuración desde la BD al montar
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const res = await api.get('/api/settings');
+        if (res?.ok) {
+          const s = await res.json();
+          setLocalName(s.name || s.Name || tenantName);
+          setRazonSocial(s.nit_razon || s.razonSocial || '');
+          setNit(s.nit || s.Nit || '');
+          setCorreo(s.email || s.Email || '');
+          setTelefono(s.phone || s.Phone || '');
+          setDireccion(s.address || s.Address || '');
+          setMoneda(s.currency || s.Currency || 'USD');
+          setMonedaSimbolo(s.currencysymbol || s.CurrencySymbol || '$');
+          setDiasAlerta(s.alertdays || s.AlertDays || 15);
+          setItemsPorPagina(s.itemsperpage || s.ItemsPerPage || 50);
+          setPermitirBorrado(s.allowdelete ?? s.AllowDelete ?? true);
+        }
+      } catch (err) {
+        console.error('Error cargando configuración:', err);
+      }
+    };
+    loadSettings();
+  }, []);
+
   const handleSave = async () => {
     try {
-      const res = await api.put('/api/settings', { Name: localName });
+      const res = await api.put('/api/settings', {
+        Name: localName,
+        Nit: nit,
+        Email: correo,
+        Phone: telefono,
+        Address: direccion,
+        Currency: moneda,
+        CurrencySymbol: monedaSimbolo,
+        AlertDays: diasAlerta,
+        ItemsPerPage: itemsPorPagina,
+        AllowDelete: permitirBorrado,
+      });
       if (res?.ok) {
         setTenantName(localName);
         setGlobalAlert({ isOpen: true, title: 'Éxito', message: 'Configuración guardada correctamente en el sistema.' });
@@ -32,15 +79,15 @@ const ConfigEmpresa = () => {
     setIsTesting(true);
     try {
       const res = await api.post('/api/db/test', dbConfig);
-      if (!res) { setIsTesting(false); return; } // sesión expirada — api.js ya redirige a /login
+      if (!res) { setIsTesting(false); return; }
       const data = await res.json();
       if (data.success) {
-        setGlobalAlert({ isOpen: true, title: 'Conexión Exitosa', message: '✅ Sistema conectado adecuadamente al Servidor SQL.' });
+        setGlobalAlert({ isOpen: true, title: 'Conexión Exitosa', message: 'Sistema conectado adecuadamente al Servidor SQL.' });
       } else {
-        setGlobalAlert({ isOpen: true, title: 'Fallo en la conexión SQL', message: `❌ ${data.error}` });
+        setGlobalAlert({ isOpen: true, title: 'Fallo en la conexión SQL', message: data.error });
       }
     } catch {
-      setGlobalAlert({ isOpen: true, title: 'Error de API', message: '❌ El Backend Node no responde de manera correcta.' });
+      setGlobalAlert({ isOpen: true, title: 'Error de API', message: 'El Backend Node no responde de manera correcta.' });
     }
     setIsTesting(false);
   };
@@ -51,12 +98,12 @@ const ConfigEmpresa = () => {
       if (!res) return;
       const data = await res.json();
       if (data.success) {
-        setGlobalAlert({ isOpen: true, title: 'Datos Guardados', message: "✅ Datos guardados con éxito en tu servidor.\n⚠️ Por favor, reinicia el backend para aplicar los cambios." });
+        setGlobalAlert({ isOpen: true, title: 'Datos Guardados', message: "Datos guardados con éxito en tu servidor.\nPor favor, reinicia el backend para aplicar los cambios." });
       } else {
-        setGlobalAlert({ isOpen: true, title: 'Error al guardar', message: "❌ Error: " + data.error });
+        setGlobalAlert({ isOpen: true, title: 'Error al guardar', message: "Error: " + data.error });
       }
     } catch {
-      setGlobalAlert({ isOpen: true, title: 'Aviso', message: "❌ Error de servidor local." });
+      setGlobalAlert({ isOpen: true, title: 'Aviso', message: "Error de servidor local." });
     }
   };
 
@@ -66,12 +113,12 @@ const ConfigEmpresa = () => {
       const res = await api.post('/api/factory-reset', {});
       const data = await res.json();
       if (res?.ok) {
-        setGlobalAlert({ isOpen: true, title: 'Puesta en Marcha Completada', message: '✅ ' + data.message + ' Refresca la página.' });
+        setGlobalAlert({ isOpen: true, title: 'Puesta en Marcha Completada', message: data.message + ' Refresca la página.' });
       } else {
-        setGlobalAlert({ isOpen: true, title: 'Acceso Denegado', message: '❌ ' + data.error });
+        setGlobalAlert({ isOpen: true, title: 'Acceso Denegado', message: data.error });
       }
     } catch {
-      setGlobalAlert({ isOpen: true, title: 'Error de API', message: '❌ Error de comunicación con el servidor.' });
+      setGlobalAlert({ isOpen: true, title: 'Error de API', message: 'Error de comunicación con el servidor.' });
     }
   };
 
@@ -103,12 +150,20 @@ const ConfigEmpresa = () => {
                 <input type="text" className="input-control" value={localName} onChange={(e) => setLocalName(e.target.value)} />
               </div>
               <div className="input-group">
-                <label>Razón Social</label>
-                <input type="text" className="input-control" defaultValue="Soluciones Tecnológicas S.A." />
+                <label>Correo Electrónico</label>
+                <input type="email" className="input-control" placeholder="empresa@ejemplo.com" value={correo} onChange={(e) => setCorreo(e.target.value)} />
               </div>
               <div className="input-group">
                 <label>RUC / NIT / RFC</label>
-                <input type="text" className="input-control" defaultValue="0992384723001" />
+                <input type="text" className="input-control" placeholder="Ej. 0992384723001" value={nit} onChange={(e) => setNit(e.target.value)} />
+              </div>
+              <div className="input-group">
+                <label>Teléfono</label>
+                <input type="text" className="input-control" placeholder="Ej. +593 4 123 4567" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+              </div>
+              <div className="input-group">
+                <label>Dirección</label>
+                <input type="text" className="input-control" placeholder="Dirección de la empresa" value={direccion} onChange={(e) => setDireccion(e.target.value)} />
               </div>
             </div>
 

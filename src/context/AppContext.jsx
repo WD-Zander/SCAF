@@ -86,7 +86,7 @@ export const AppProvider = ({ children }) => {
       if (setRes?.ok) {
         setDbConnected(true);
         const settings = await setRes.json();
-        if (settings.Name) setTenantName(settings.Name);
+        if (settings.name || settings.NAME) setTenantName(settings.name || settings.NAME);
       } else if (setRes) {
         // El backend responde pero la BD está caída (error 500)
         setDbConnected(false);

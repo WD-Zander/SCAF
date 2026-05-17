@@ -62,25 +62,24 @@ export const saveDb = async (req, res) => {
 };
 
 export const getSettings = async (req, res) => {
-  const DEFAULTS = { Name: 'Mi Empresa S.A.', AlertDays: 15, ItemsPerPage: 50, CurrencySymbol: '$', AllowDelete: true };
+  const DEFAULTS = { name: 'Mi Empresa S.A.', alertdays: 15, itemsperpage: 50, currencysymbol: '$', allowdelete: true };
   try {
     const db = await getPool();
     try {
       const result = await db.request().query(`
         SELECT
-          ID as Id, NOMBRE as Name, NIT as Nit, CORREO as Email, TEL as Phone,
-          DIR as Address, MONEDA as Currency, TEMA as Theme,
-          ISNULL(DIAS_ALERTA_MANT, 15) as AlertDays,
-          ISNULL(ITEMS_POR_PAGINA, 50) as ItemsPerPage,
-          ISNULL(MONEDA_SIMBOLO, '$') as CurrencySymbol,
-          ISNULL(PERMITIR_BORRADO, 1) as AllowDelete
+          ID as id, NOMBRE as name, NIT as nit, CORREO as email, TEL as phone,
+          DIR as address, MONEDA as currency, TEMA as theme,
+          COALESCE(DIAS_ALERTA_MANT, 15) as alertdays,
+          COALESCE(ITEMS_POR_PAGINA, 50) as itemsperpage,
+          COALESCE(MONEDA_SIMBOLO, '$') as currencysymbol,
+          COALESCE(PERMITIR_BORRADO, TRUE) as allowdelete
         FROM CONFIG_EMP WHERE ID=1
       `);
       return res.json(result.recordset[0] ?? DEFAULTS);
     } catch {
-      // Columnas opcionales aún no existen — query básica con defaults en código
       const result = await db.request().query(
-        `SELECT ID as Id, NOMBRE as Name, NIT as Nit, CORREO as Email, TEL as Phone, DIR as Address, MONEDA as Currency, TEMA as Theme FROM CONFIG_EMP WHERE ID=1`
+        `SELECT ID as id, NOMBRE as name, NIT as nit, CORREO as email, TEL as phone, DIR as address, MONEDA as currency, TEMA as theme FROM CONFIG_EMP WHERE ID=1`
       );
       return res.json({ ...DEFAULTS, ...(result.recordset[0] ?? {}) });
     }
