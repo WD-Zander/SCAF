@@ -14,23 +14,27 @@ export const factoryReset = async (req, res) => {
     }
 
     const db = await getPool();
-    await db.request().query(`
-      DELETE FROM AUDITORIA;
-      DELETE FROM REPROGRAMACION;
-      DELETE FROM MOVIMIENTO;
-      DELETE FROM TAREA_TICKET;
-      DELETE FROM TICKET_MANT;
-      DELETE FROM ORDEN_TRAB;
-      DELETE FROM TAREA_PLAN;
-      DELETE FROM PLAN_MANT;
-      DELETE FROM ACTIVO;
-      DELETE FROM CATEGORIA;
-      DELETE FROM UNIDAD_ORG;
-      DELETE FROM TIPO_MANT;
-      DELETE FROM PROVEEDOR;
-      DELETE FROM USUARIO WHERE ID_ROL != 'SUPERADMIN';
-      DELETE FROM ROL WHERE ID != 'SUPERADMIN';
-    `);
+    // PostgreSQL no soporta múltiples statements en un solo query()
+    const tables = [
+      'DELETE FROM AUDITORIA',
+      'DELETE FROM REPROGRAMACION',
+      'DELETE FROM MOVIMIENTO',
+      'DELETE FROM TAREA_TICKET',
+      'DELETE FROM TICKET_MANT',
+      'DELETE FROM ORDEN_TRAB',
+      'DELETE FROM TAREA_PLAN',
+      'DELETE FROM PLAN_MANT',
+      'DELETE FROM ACTIVO',
+      'DELETE FROM CATEGORIA',
+      'DELETE FROM UNIDAD_ORG',
+      'DELETE FROM TIPO_MANT',
+      'DELETE FROM PROVEEDOR',
+      `DELETE FROM USUARIO WHERE ID_ROL != 'SUPERADMIN'`,
+      `DELETE FROM ROL WHERE ID != 'SUPERADMIN'`,
+    ];
+    for (const stmt of tables) {
+      await db.request().query(stmt);
+    }
 
     await logAudit(req, 'RESET', 'Sistema', 'ALL', 'Software inicializado a 0 por el Super Administrador (Puesta en marcha)');
     res.json({ success: true, message: 'El software ha sido inicializado a 0 exitosamente.' });

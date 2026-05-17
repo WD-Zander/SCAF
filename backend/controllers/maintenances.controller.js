@@ -17,8 +17,13 @@ export const getMaintenances = async (req, res) => {
         r.input('to',   sql.Date, to);
         dateFilter = 'AND m.FECHA_INICIO >= @from AND m.FECHA_INICIO <= @to';
       } else {
-        dateFilter = `AND m.FECHA_INICIO >= DATEADD(month, -12, GETDATE())
-                      AND m.FECHA_INICIO <= DATEADD(month, 18, GETDATE())`;
+        const defaultFrom = new Date();
+        defaultFrom.setMonth(defaultFrom.getMonth() - 12);
+        const defaultTo = new Date();
+        defaultTo.setMonth(defaultTo.getMonth() + 18);
+        r.input('from', sql.Date, defaultFrom);
+        r.input('to',   sql.Date, defaultTo);
+        dateFilter = 'AND m.FECHA_INICIO >= @from AND m.FECHA_INICIO <= @to';
       }
     }
 
@@ -54,9 +59,18 @@ export const getMaintenances = async (req, res) => {
     } catch {
       // Fallback: columnas de scope aún no existen (migración pendiente)
       const r2 = db.request();
-      if (from && to) {
-        r2.input('from', sql.Date, from);
-        r2.input('to',   sql.Date, to);
+      if (!all) {
+        if (from && to) {
+          r2.input('from', sql.Date, from);
+          r2.input('to',   sql.Date, to);
+        } else {
+          const defaultFrom2 = new Date();
+          defaultFrom2.setMonth(defaultFrom2.getMonth() - 12);
+          const defaultTo2 = new Date();
+          defaultTo2.setMonth(defaultTo2.getMonth() + 18);
+          r2.input('from', sql.Date, defaultFrom2);
+          r2.input('to',   sql.Date, defaultTo2);
+        }
       }
       result = await r2.query(`
         SELECT
@@ -442,7 +456,7 @@ export const updateMaintenanceTask = async (req, res) => {
       .input('completed', sql.Bit, isCompleted ? 1 : 0)
       .query(`
         UPDATE TAREA_TICKET
-        SET COMPLETADO = @completed, FECHA_COMP = CASE WHEN @completed = 1 THEN GETDATE() ELSE NULL END
+        SET COMPLETADO = @completed, FECHA_COMP = CASE WHEN @completed = TRUE THEN NOW() ELSE NULL END
         WHERE ID = @id
       `);
     res.json({ success: true });
