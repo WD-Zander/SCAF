@@ -31,7 +31,8 @@ const InventoryList = () => {
   const [selectedAssetForQR, setSelectedAssetForQR] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, idToDelete: null });
   const [expandedId, setExpandedId] = useState(null);
-  const [batchPrint, setBatchPrint] = useState({ open: false, from: '', to: '', loading: false, labelSize: '50x30' });
+  const [batchPrint, setBatchPrint] = useState({ open: false, from: '', to: '', loading: false, labelSize: '50x30', mode: 'range', category: '' });
+  const [categories, setCategories] = useState([]);
 
   const loadPage = async (page, search, sort) => {
     setLoadingTable(true);
@@ -159,9 +160,21 @@ const InventoryList = () => {
     else { navigate(`/inventory/view/${id}`); }
   };
 
+  const loadCategories = async () => {
+    try {
+      const res = await api.get('/api/assets?limit=5000');
+      if (!res?.ok) return;
+      const json = await res.json();
+      const all = Array.isArray(json) ? json : (json.data ?? []);
+      const unique = [...new Set(all.map(a => a.category).filter(Boolean))].sort();
+      setCategories(unique);
+    } catch (e) { console.error(e); }
+  };
+
   const handleBatchPrint = async () => {
-    const { from, to, labelSize } = batchPrint;
-    if (!from || !to) return alert('Ingresa el rango de códigos (ej: ACT-0001 a ACT-0050)');
+    const { from, to, labelSize, mode, category } = batchPrint;
+    if (mode === 'range' && (!from || !to)) return alert('Ingresa el rango de códigos (ej: ACT-0001 a ACT-0050)');
+    if (mode === 'category' && !category) return alert('Selecciona una categoría');
     setBatchPrint(p => ({ ...p, loading: true }));
     try {
       const res = await api.get(`/api/assets?limit=5000`);
@@ -169,20 +182,26 @@ const InventoryList = () => {
       const json = await res.json();
       const all = Array.isArray(json) ? json : (json.data ?? []);
 
-      const numFrom = parseInt(from.replace(/\D/g, ''), 10);
-      const numTo = parseInt(to.replace(/\D/g, ''), 10);
-      if (isNaN(numFrom) || isNaN(numTo)) { alert('Códigos inválidos'); return; }
+      let filtered;
+      if (mode === 'range') {
+        const numFrom = parseInt(from.replace(/\D/g, ''), 10);
+        const numTo = parseInt(to.replace(/\D/g, ''), 10);
+        if (isNaN(numFrom) || isNaN(numTo)) { alert('Códigos inválidos'); return; }
+        filtered = all.filter(a => {
+          const num = parseInt((a.id || '').replace(/\D/g, ''), 10);
+          return !isNaN(num) && num >= numFrom && num <= numTo;
+        });
+      } else {
+        filtered = all.filter(a => a.category === category);
+      }
 
-      const filtered = all.filter(a => {
-        const num = parseInt((a.id || '').replace(/\D/g, ''), 10);
-        return !isNaN(num) && num >= numFrom && num <= numTo;
-      }).sort((a, b) => {
-        const na = parseInt(a.id.replace(/\D/g, ''), 10);
-        const nb = parseInt(b.id.replace(/\D/g, ''), 10);
+      filtered.sort((a, b) => {
+        const na = parseInt((a.id || '').replace(/\D/g, ''), 10) || 0;
+        const nb = parseInt((b.id || '').replace(/\D/g, ''), 10) || 0;
         return na - nb;
       });
 
-      if (filtered.length === 0) { alert('No se encontraron activos en ese rango'); return; }
+      if (filtered.length === 0) { alert('No se encontraron activos con ese filtro'); return; }
 
       // Label sizes in mm: [width, height]
       const sizes = { '50x30': [50, 30], '60x40': [60, 40], '70x40': [70, 40], '80x50': [80, 50] };
@@ -194,7 +213,8 @@ const InventoryList = () => {
         return `<div class="label"><img src="${qrUrl}" /><div class="info"><strong class="id">${a.id}</strong><span class="name">${a.name}</span><span class="extra">${a.brand || ''}${a.model ? ' · ' + a.model : ''}</span></div></div>`;
       }).join('');
 
-      const html = `<!DOCTYPE html><html><head><title>Etiquetas ${from} - ${to}</title>
+      const title = mode === 'range' ? `Etiquetas ${from} - ${to}` : `Etiquetas - ${category}`;
+      const html = `<!DOCTYPE html><html><head><title>${title}</title>
 <style>
 @page { size: ${lw}mm ${lh}mm; margin: 0; }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -278,7 +298,7 @@ if(total===0)window.print();
             </>
           )}
           <Button variant="secondary" icon={Download} onClick={handleExportExcel}>Exportar</Button>
-          <Button variant="secondary" icon={Printer} onClick={() => setBatchPrint({ open: true, from: '', to: '', loading: false, labelSize: '50x30' })}>
+          <Button variant="secondary" icon={Printer} onClick={() => { setBatchPrint({ open: true, from: '', to: '', loading: false, labelSize: '50x30', mode: 'range', category: '' }); loadCategories(); }}>
             {isMobile ? 'Etiquetas' : 'Imprimir Etiquetas'}
           </Button>
           {hasPermission('inventory') && (
@@ -499,28 +519,60 @@ if(total===0)window.print();
               style={{ position: 'absolute', top: 16, right: 16, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
               <X size={24} />
             </button>
-            <h3 style={{ marginBottom: 4 }}>Imprimir Etiquetas por Rango</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20 }}>
-              Genera etiquetas adhesivas con QR para un rango de activos.
+            <h3 style={{ marginBottom: 4 }}>Imprimir Etiquetas</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>
+              Genera etiquetas adhesivas con QR para imprimir.
             </p>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>DESDE</label>
-                <Field
-                  placeholder="ACT-0001"
-                  value={batchPrint.from}
-                  onChange={e => setBatchPrint(p => ({ ...p, from: e.target.value }))}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>HASTA</label>
-                <Field
-                  placeholder="ACT-0050"
-                  value={batchPrint.to}
-                  onChange={e => setBatchPrint(p => ({ ...p, to: e.target.value }))}
-                />
-              </div>
+            {/* Mode tabs */}
+            <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+              {[{ key: 'range', label: 'Por Rango' }, { key: 'category', label: 'Por Categoría' }].map(tab => (
+                <button key={tab.key} onClick={() => setBatchPrint(p => ({ ...p, mode: tab.key }))}
+                  style={{
+                    flex: 1, padding: '8px 12px', border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600,
+                    background: batchPrint.mode === tab.key ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                    color: batchPrint.mode === tab.key ? '#fff' : 'var(--text-muted)',
+                  }}>
+                  {tab.label}
+                </button>
+              ))}
             </div>
+            {/* Range fields */}
+            {batchPrint.mode === 'range' && (
+              <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>DESDE</label>
+                  <Field
+                    placeholder="ACT-0001"
+                    value={batchPrint.from}
+                    onChange={e => setBatchPrint(p => ({ ...p, from: e.target.value }))}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>HASTA</label>
+                  <Field
+                    placeholder="ACT-0050"
+                    value={batchPrint.to}
+                    onChange={e => setBatchPrint(p => ({ ...p, to: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+            {/* Category selector */}
+            {batchPrint.mode === 'category' && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>CATEGORÍA</label>
+                <select
+                  value={batchPrint.category}
+                  onChange={e => setBatchPrint(p => ({ ...p, category: e.target.value }))}
+                  style={{
+                    width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)',
+                    background: 'var(--bg-secondary)', color: 'var(--text-main)', fontSize: '0.88rem',
+                  }}>
+                  <option value="">-- Seleccionar categoría --</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
             <div style={{ marginBottom: 20 }}>
               <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>TAMAÑO DE ETIQUETA</label>
               <select
