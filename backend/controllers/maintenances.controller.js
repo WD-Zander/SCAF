@@ -442,7 +442,7 @@ export const getMaintenanceTasks = async (req, res) => {
     const db = await getPool();
     const result = await db.request()
       .input('ticketId', sql.VarChar, req.params.id)
-      .query('SELECT ID as Id, ID_TICKET as TicketId, DESCRIPCION as TaskDescription, COMPLETADO as IsCompleted, FECHA_COMP as CompletedAt FROM TAREA_TICKET WHERE ID_TICKET = @ticketId');
+      .query('SELECT ID as "Id", ID_TICKET as "TicketId", DESCRIPCION as "TaskDescription", COMPLETADO as "IsCompleted", FECHA_COMP as "CompletedAt" FROM TAREA_TICKET WHERE ID_TICKET = @ticketId');
     res.json(result.recordset);
   } catch(e) { res.status(500).json({error: e.message}); }
 };

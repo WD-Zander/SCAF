@@ -11,11 +11,11 @@ export const getMaintenancePlans = async (req, res) => {
     try {
       plansResult = await db.request().query(`
         SELECT
-          p.ID as Id, p.CODIGO as Code, p.DESCRIPCION as Description,
-          p.SUBFAM as SubFamily, p.CATEGORIA as Category, p.FRECUENCIA as PlanFrequency,
-          p.ACTIVO as IsActive,
-          p.ID_CATEGORIA as CategoryId, p.ID_FAMILIA as FamilyId, p.FAM_NOMBRE as FamilyName,
-          p.ID_SCOPE as scopeId, sc.SLUG as scope
+          p.ID as "Id", p.CODIGO as "Code", p.DESCRIPCION as "Description",
+          p.SUBFAM as "SubFamily", p.CATEGORIA as "Category", p.FRECUENCIA as "PlanFrequency",
+          p.ACTIVO as "IsActive",
+          p.ID_CATEGORIA as "CategoryId", p.ID_FAMILIA as "FamilyId", p.FAM_NOMBRE as "FamilyName",
+          p.ID_SCOPE as "scopeId", sc.SLUG as scope
         FROM PLAN_MANT p
         LEFT JOIN SCOPE_MANT sc ON p.ID_SCOPE = sc.ID
       `);
@@ -24,27 +24,27 @@ export const getMaintenancePlans = async (req, res) => {
       try {
         plansResult = await db.request().query(`
           SELECT
-            ID as Id, CODIGO as Code, DESCRIPCION as Description,
-            SUBFAM as SubFamily, CATEGORIA as Category, FRECUENCIA as PlanFrequency,
-            ACTIVO as IsActive,
-            ID_CATEGORIA as CategoryId, ID_FAMILIA as FamilyId, FAM_NOMBRE as FamilyName,
-            NULL as scopeId, NULL as scope
+            ID as "Id", CODIGO as "Code", DESCRIPCION as "Description",
+            SUBFAM as "SubFamily", CATEGORIA as "Category", FRECUENCIA as "PlanFrequency",
+            ACTIVO as "IsActive",
+            ID_CATEGORIA as "CategoryId", ID_FAMILIA as "FamilyId", FAM_NOMBRE as "FamilyName",
+            NULL as "scopeId", NULL as scope
           FROM PLAN_MANT
         `);
       } catch {
         plansResult = await db.request().query(`
           SELECT
-            ID as Id, CODIGO as Code, DESCRIPCION as Description,
-            SUBFAM as SubFamily, CATEGORIA as Category, FRECUENCIA as PlanFrequency,
-            ACTIVO as IsActive,
-            NULL as scopeId, NULL as scope
+            ID as "Id", CODIGO as "Code", DESCRIPCION as "Description",
+            SUBFAM as "SubFamily", CATEGORIA as "Category", FRECUENCIA as "PlanFrequency",
+            ACTIVO as "IsActive",
+            NULL as "scopeId", NULL as scope
           FROM PLAN_MANT
         `);
       }
     }
 
     const tasksResult = await db.request().query(
-      'SELECT ID as Id, ID_PLAN as PlanId, DESCRIPCION as TaskDescription, FRECUENCIA as Frequency FROM TAREA_PLAN'
+      'SELECT ID as "Id", ID_PLAN as "PlanId", DESCRIPCION as "TaskDescription", FRECUENCIA as "Frequency" FROM TAREA_PLAN'
     );
 
     const plans = plansResult.recordset.map(plan => ({
@@ -230,7 +230,7 @@ export const deleteMaintenancePlan = async (req, res) => {
           WHERE t.ID_PLAN = @id AND t.BORRADO = 0) as reprogramados,
         (SELECT COUNT(*) FROM TICKET_MANT t
           JOIN TAREA_TICKET tt ON tt.ID_TICKET = t.ID
-          WHERE t.ID_PLAN = @id AND t.BORRADO = 0 AND tt.COMPLETADO = 1) as tareasCompletadas
+          WHERE t.ID_PLAN = @id AND t.BORRADO = FALSE AND tt.COMPLETADO = TRUE) as tareasCompletadas
     `);
 
     const { completados, reprogramados, tareasCompletadas } = refs.recordset[0];
@@ -253,7 +253,7 @@ export const deleteMaintenancePlan = async (req, res) => {
 
     // Cascade: soft-delete tickets pendientes vinculados al plan
     await db.request().input('id', sql.VarChar, planId)
-      .query(`UPDATE TICKET_MANT SET BORRADO=1 WHERE ID_PLAN = @id AND BORRADO = 0`);
+      .query(`UPDATE TICKET_MANT SET BORRADO=TRUE WHERE ID_PLAN = @id AND BORRADO = FALSE`);
 
     // Eliminar ORDEN_TRAB vinculadas al plan
     await db.request().input('id', sql.VarChar, planId)
@@ -335,7 +335,7 @@ export const generateBatchSchedule = async (req, res) => {
     if (!plan) throw new Error("Plan no encontrado");
 
     const allTasksRes = await db.request().input('pid', sql.VarChar, planId)
-      .query('SELECT ID as Id, DESCRIPCION as TaskDescription, FRECUENCIA as Frequency FROM TAREA_PLAN WHERE ID_PLAN = @pid ORDER BY FRECUENCIA');
+      .query('SELECT ID as "Id", DESCRIPCION as "TaskDescription", FRECUENCIA as "Frequency" FROM TAREA_PLAN WHERE ID_PLAN = @pid ORDER BY FRECUENCIA');
     const allTasks = allTasksRes.recordset;
 
     const maxRes = await db.request()
