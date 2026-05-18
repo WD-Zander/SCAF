@@ -110,14 +110,30 @@ const Scanner = () => {
             style={{
               width: '100%',
               maxWidth: '360px',
+              minHeight: scanning ? '320px' : '0',
               margin: '0 auto',
               borderRadius: '12px',
               overflow: 'hidden',
               background: scanning ? '#000' : 'var(--bg-primary)',
-              minHeight: scanning ? '300px' : '0',
               display: scanning ? 'block' : 'none',
+              position: 'relative',
             }}
           />
+          {/* Force video element to fill container */}
+          {scanning && (
+            <style>{`
+              #scanner-region video {
+                width: 100% !important;
+                height: auto !important;
+                min-height: 300px !important;
+                object-fit: cover !important;
+                display: block !important;
+              }
+              #scanner-region img[alt="Scanner Paused"] {
+                display: none !important;
+              }
+            `}</style>
+          )}
 
           {!scanning && !scannedCode && (
             <div style={{ padding: '40px 20px' }}>
