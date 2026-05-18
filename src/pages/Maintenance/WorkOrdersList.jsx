@@ -1,38 +1,34 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Layers, Calendar as CalendarIcon, ChevronDown, ChevronUp, Check, ExternalLink, Wrench, Trash2 } from 'lucide-react';
+import {
+  Plus, Search, Layers, Calendar as CalendarIcon,
+  ChevronDown, ChevronUp, Check, ExternalLink, Wrench,
+  Trash2, ChevronLeft, ChevronRight, Activity, User,
+} from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../api';
+import { Button, Badge, Card, Field } from '../../components/UI';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import ConfirmModal from '../../components/Common/ConfirmModal';
-import Pagination from '../../components/Common/Pagination';
 
-const StatusBadge = ({ status, progress }) => {
-  const isDone = progress === 100 || status === 'COMPLETADO';
-  return (
-    <span style={{
-      padding: '3px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap',
-      background: isDone ? 'var(--success-bg)' : status === 'EN PROGRESO' ? 'var(--warning-bg)' : 'var(--bg-tertiary)',
-      color: isDone ? 'var(--success)' : status === 'EN PROGRESO' ? 'var(--warning)' : 'var(--text-muted)'
-    }}>
-      {isDone ? 'COMPLETADO' : status || 'PENDIENTE'}
-    </span>
-  );
-};
+const ITEMS_PER_PAGE = 15;
 
 const WorkOrdersList = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const scope = searchParams.get('scope');
   const asset = searchParams.get('asset');
   const date = searchParams.get('date');
   const { setGlobalAlert, hasPermission, maintenances, maintenanceScopes } = useAppContext();
-  const scopeLabel = maintenanceScopes.find(s => s.slug === scope)?.nombre || '';
+  const scopeMeta = maintenanceScopes.find(s => s.slug === scope);
+  const scopeLabel = scopeMeta?.nombre || '';
+  const scopeColor = scopeMeta?.color || 'var(--accent-primary)';
 
   const [workOrders, setWorkOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 15;
   const [expandedId, setExpandedId] = useState(null);
   const [woTickets, setWoTickets] = useState({});
   const [loadingTickets, setLoadingTickets] = useState({});
@@ -43,11 +39,8 @@ const WorkOrdersList = () => {
     setLoading(true);
     try {
       const res = await api.get('/api/work-orders');
-      if (res?.ok) {
-        setWorkOrders(await res.json());
-      } else {
-        throw new Error('Error al cargar Planes en Marcha');
-      }
+      if (res?.ok) setWorkOrders(await res.json());
+      else throw new Error('Error al cargar Planes en Marcha');
     } catch (e) {
       setGlobalAlert({ isOpen: true, title: 'Error', message: e.message });
     }
@@ -66,7 +59,7 @@ const WorkOrdersList = () => {
         if (expandedId === idToDelete) setExpandedId(null);
       } else {
         const data = await res.json();
-        setGlobalAlert({ isOpen: true, title: 'No se puede eliminar', message: data.error || 'Error al eliminar el plan en marcha.' });
+        setGlobalAlert({ isOpen: true, title: 'Error', message: data.error || 'Error al eliminar.' });
       }
     } catch (e) {
       setGlobalAlert({ isOpen: true, title: 'Error', message: e.message });
@@ -74,43 +67,28 @@ const WorkOrdersList = () => {
   };
 
   const toggleExpand = async (woId) => {
-    if (expandedId === woId) {
-      setExpandedId(null);
-      return;
-    }
+    if (expandedId === woId) { setExpandedId(null); return; }
     setExpandedId(woId);
-
-    // Si ya tenemos los tickets cargados, no volver a buscar
     if (woTickets[woId]) return;
-
     setLoadingTickets(prev => ({ ...prev, [woId]: true }));
     try {
-      // Primero buscar en el contexto (tickets con workOrderId)
       const fromContext = maintenances.filter(m => m.workOrderId === woId);
       if (fromContext.length > 0) {
         setWoTickets(prev => ({ ...prev, [woId]: fromContext }));
       } else {
-        // Fallback: traer todos los maintenances y filtrar
         const res = await api.get('/api/maintenances');
         if (res?.ok) {
           const all = await res.json();
           setWoTickets(prev => ({ ...prev, [woId]: all.filter(m => m.workOrderId === woId) }));
         }
       }
-    } catch (e) {
-      console.error('Error cargando tickets del plan', e);
-    }
+    } catch (e) { console.error(e); }
     setLoadingTickets(prev => ({ ...prev, [woId]: false }));
   };
 
   const filteredOrders = useMemo(() => workOrders.filter(w => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch = (
-      w.Id?.toLowerCase().includes(term) ||
-      w.PlanName?.toLowerCase().includes(term) ||
-      w.AssetName?.toLowerCase().includes(term) ||
-      w.AssetSerial?.toLowerCase().includes(term)
-    );
+    const matchesSearch = [w.Id, w.PlanName, w.AssetName, w.AssetSerial].some(v => (v || '').toLowerCase().includes(term));
     const matchesScope = !scope || w.Scope === scope;
     const matchesAsset = !asset || w.AssetId === asset || w.AssetSerial === asset;
     return matchesSearch && matchesScope && matchesAsset;
@@ -119,7 +97,6 @@ const WorkOrdersList = () => {
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
   const paginatedOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Auto-expand first matching work order when navigating from calendar
   useEffect(() => {
     if (asset && !loading && filteredOrders.length > 0 && !autoExpandedRef.current) {
       autoExpandedRef.current = true;
@@ -127,28 +104,17 @@ const WorkOrdersList = () => {
     }
   }, [asset, loading, filteredOrders.length]);
 
-  const ticketStatusColor = (status) => {
-    if (status === 'COMPLETADO') return 'var(--success)';
-    if (status === 'EN PROGRESO') return 'var(--warning)';
-    return 'var(--danger)';
-  };
-
   const handleToggleTicketStatus = async (ticket) => {
     const newStatus = ticket.status === 'COMPLETADO' ? 'PENDIENTE' : 'COMPLETADO';
     try {
-      const res = await api.put(`/api/maintenances/${ticket.id}`, {
-        ...ticket,
-        status: newStatus,
-      });
+      const res = await api.put(`/api/maintenances/${ticket.id}`, { ...ticket, status: newStatus });
       if (res?.ok) {
-        // Actualizar en local
         setWoTickets(prev => ({
           ...prev,
           [ticket.workOrderId]: (prev[ticket.workOrderId] || []).map(t =>
             t.id === ticket.id ? { ...t, status: newStatus } : t
           ),
         }));
-        // Actualizar contadores de la work order
         setWorkOrders(prev => prev.map(w => {
           if (w.Id !== ticket.workOrderId) return w;
           const delta = newStatus === 'COMPLETADO' ? 1 : -1;
@@ -156,276 +122,267 @@ const WorkOrdersList = () => {
         }));
       } else {
         const data = await res?.json().catch(() => ({}));
-        setGlobalAlert({ isOpen: true, title: 'Error', message: data.error || 'No se pudo actualizar el ticket.' });
+        setGlobalAlert({ isOpen: true, title: 'Error', message: data.error || 'No se pudo actualizar.' });
       }
     } catch (e) {
       setGlobalAlert({ isOpen: true, title: 'Error', message: e.message });
     }
   };
 
+  // Stats
+  const stats = useMemo(() => {
+    let completed = 0, inProgress = 0, pending = 0;
+    filteredOrders.forEach(w => {
+      const p = w.TotalTasks ? Math.round((w.CompletedTasks || 0) / w.TotalTasks * 100) : 0;
+      if (p === 100) completed++;
+      else if (p > 0) inProgress++;
+      else pending++;
+    });
+    return { completed, inProgress, pending };
+  }, [filteredOrders]);
+
+  const getPageNumbers = () => {
+    const delta = 3;
+    const range = [];
+    for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) range.push(i);
+    return range;
+  };
+
+  const renderWOCard = (w) => {
+    const total = w.TotalTasks || 0;
+    const completed = w.CompletedTasks || 0;
+    const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+    const isExpanded_ = expandedId === w.Id;
+    const allTickets = woTickets[w.Id] || [];
+    const tickets = date ? allTickets.filter(t => t.startDate?.startsWith(date)) : allTickets;
+    const isLoadingT = loadingTickets[w.Id];
+
+    return (
+      <Card key={w.Id} padded={false} style={{ overflow: 'hidden' }}>
+        {/* Main row */}
+        <div onClick={() => toggleExpand(w.Id)} style={{
+          padding: isMobile ? '14px' : '16px 20px', cursor: 'pointer', transition: 'background 0.15s',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(37,99,235,0.02)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="code-font" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                {w.Id}
+              </div>
+              <div style={{ fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.3 }}>{w.PlanName}</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 3 }}>
+                {w.AssetName || w.AssetId}
+                {w.AssetSerial && <span className="code-font" style={{ marginLeft: 6, fontSize: '0.74rem' }}>SN: {w.AssetSerial}</span>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <Badge tone={progress === 100 ? 'success' : progress > 0 ? 'warning' : 'neutral'} dot>
+                {progress === 100 ? 'COMPLETADO' : w.Status || 'PENDIENTE'}
+              </Badge>
+              {isExpanded_ ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
+            </div>
+          </div>
+
+          {/* Info row */}
+          <div style={{ display: 'flex', gap: isMobile ? 10 : 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              <CalendarIcon size={13} />
+              <span>{w.StartDate?.split('T')[0]}</span>
+              <span style={{ opacity: 0.5 }}>→</span>
+              <span>{w.EndDate?.split('T')[0]}</span>
+            </div>
+            {w.AssignedTo && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                <User size={12} /> {w.AssignedTo}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <div style={{ width: isMobile ? 60 : 100, height: 5, background: 'var(--bg-tertiary)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', width: `${progress}%`, borderRadius: 3,
+                  background: progress === 100 ? 'var(--success)' : 'var(--accent-primary)',
+                  transition: 'width 0.3s',
+                }} />
+              </div>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, minWidth: 30 }}>{progress}%</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{completed}/{total}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Expanded tickets */}
+        {isExpanded_ && (
+          <div style={{
+            borderTop: '1px solid var(--glass-border)',
+            background: 'var(--bg-tertiary)',
+            padding: isMobile ? '12px 14px' : '16px 20px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {date ? `Tareas del ${date}` : 'Tickets del plan'}
+              </span>
+              {hasPermission('maintenances_delete') && (
+                <button onClick={e => { e.stopPropagation(); setConfirmModal({ isOpen: true, idToDelete: w.Id, name: w.PlanName }); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5, background: 'none',
+                    border: '1px solid var(--danger)', borderRadius: 6, padding: '4px 10px',
+                    color: 'var(--danger)', fontSize: '0.76rem', fontWeight: 600, cursor: 'pointer',
+                  }}>
+                  <Trash2 size={13} /> Eliminar
+                </button>
+              )}
+            </div>
+
+            {isLoadingT ? (
+              <div style={{ padding: 20, textAlign: 'center' }}>
+                <Activity size={18} style={{ color: 'var(--accent-primary)', animation: 'pulse 1.5s infinite' }} />
+              </div>
+            ) : tickets.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '12px 0' }}>
+                No hay tickets vinculados a este plan.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {tickets.map(t => {
+                  const isDone = t.status === 'COMPLETADO';
+                  return (
+                    <div key={t.id} style={{
+                      display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12,
+                      padding: isMobile ? '8px 10px' : '10px 14px',
+                      background: isDone ? 'rgba(34,197,94,0.04)' : 'var(--bg-secondary)',
+                      border: `1px solid ${isDone ? 'rgba(34,197,94,0.2)' : 'var(--glass-border)'}`,
+                      borderRadius: 'var(--radius-sm)', transition: 'all 0.15s',
+                    }}>
+                      <div onClick={e => { e.stopPropagation(); handleToggleTicketStatus(t); }}
+                        style={{
+                          width: 20, height: 20, borderRadius: 5, flexShrink: 0, cursor: 'pointer',
+                          border: `2px solid ${isDone ? 'var(--success)' : '#cbd5e1'}`,
+                          background: isDone ? 'var(--success)' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'all 0.15s',
+                        }}
+                        title={isDone ? 'Marcar como pendiente' : 'Marcar como completado'}
+                      >
+                        {isDone && <Check size={12} color="#fff" strokeWidth={3} />}
+                      </div>
+                      {!isMobile && <span className="code-font" style={{ fontSize: '0.74rem', color: 'var(--text-muted)', flexShrink: 0 }}>{t.id}</span>}
+                      <span style={{
+                        flex: 1, fontSize: '0.85rem', fontWeight: 500,
+                        textDecoration: isDone ? 'line-through' : 'none',
+                        opacity: isDone ? 0.6 : 1,
+                      }}>{t.title}</span>
+                      {!isMobile && <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', flexShrink: 0 }}>{t.startDate}</span>}
+                      <Badge tone={isDone ? 'success' : t.status === 'EN PROGRESO' ? 'warning' : 'danger'}>
+                        {t.status || 'PENDIENTE'}
+                      </Badge>
+                      <button onClick={e => { e.stopPropagation(); navigate(`/maintenances/view/${t.id}`); }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, flexShrink: 0 }}
+                        title="Ver detalles">
+                        <ExternalLink size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+    );
+  };
+
   return (
-    <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
-      <div className="flex-between" style={{ marginBottom: '32px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            Planes en Marcha
-            {scopeLabel && <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent-primary)', fontWeight: 600 }}>{scopeLabel}</span>}
-          </h1>
-          <p className="text-muted">Supervisión de planes generales y su progreso.</p>
+          <div className="eyebrow" style={{ marginBottom: 6, color: scopeColor }}>{scopeLabel || 'Operaciones'}</div>
+          <h1 style={{ margin: 0 }}>Planes en Marcha</h1>
+          <p style={{ color: 'var(--text-muted)', margin: '4px 0 0', fontSize: '0.9rem' }}>
+            <strong style={{ color: 'var(--text-main)' }}>{filteredOrders.length}</strong> plan{filteredOrders.length !== 1 ? 'es' : ''}
+            {stats.completed > 0 && <> · <strong style={{ color: 'var(--success)' }}>{stats.completed}</strong> completado{stats.completed !== 1 ? 's' : ''}</>}
+            {stats.inProgress > 0 && <> · <strong style={{ color: 'var(--warning)' }}>{stats.inProgress}</strong> en progreso</>}
+          </p>
           {(asset || date) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-              {asset && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
-                  background: 'var(--accent-light)', color: 'var(--accent-primary)',
-                }}>
-                  Activo: {workOrders.find(w => w.AssetId === asset)?.AssetName || asset}
-                </span>
-              )}
-              {date && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
-                  background: '#fffbeb', color: '#d97706',
-                }}>
-                  Fecha: {date}
-                </span>
-              )}
-              <button
-                onClick={() => navigate(`/maintenances/work-orders${scope ? `?scope=${scope}` : ''}`)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: '0.78rem', color: 'var(--text-muted)', textDecoration: 'underline',
-                }}
-              >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {asset && <Badge tone="neutral">{workOrders.find(w => w.AssetId === asset)?.AssetName || asset}</Badge>}
+              {date && <Badge tone="warning">Fecha: {date}</Badge>}
+              <button onClick={() => navigate(`/maintenances/work-orders${scope ? `?scope=${scope}` : ''}`)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-muted)', textDecoration: 'underline' }}>
                 Ver todos
               </button>
             </div>
           )}
         </div>
         {hasPermission('maintenances_create') && (
-          <button className="btn-primary" onClick={() => navigate(`/maintenances/routines${scope ? `?scope=${scope}` : ''}`)}>
-            <Plus size={20} /> NUEVO PLAN
-          </button>
+          <Button variant="primary" icon={Plus} onClick={() => navigate(`/maintenances/routines${scope ? `?scope=${scope}` : ''}`)}>
+            {isMobile ? 'Nuevo' : 'Nuevo Plan'}
+          </Button>
         )}
       </div>
 
-      <div className="glass-panel" style={{ padding: 0 }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--glass-border)' }}>
-          <div className="input-control" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Search size={18} className="text-muted" />
-            <input
-              type="text"
-              placeholder="Buscar por ID, Plan o Activo..."
-              style={{ border: 'none', outline: 'none', width: '100%', background: 'transparent' }}
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            />
-          </div>
-        </div>
-
-        {/* Column headers */}
-        <div className="wo-table-header" style={{
-          display: 'grid',
-          gridTemplateColumns: '105px 1fr 155px 125px 185px 110px 36px',
-          gap: '0 12px',
-          padding: '10px 20px',
-          borderBottom: '1px solid var(--glass-border)'
-        }}>
-          {['WORK ORDER', 'PLAN / ACTIVO', 'FECHAS', 'ASIGNADO', 'PROGRESO', 'ESTADO', ''].map(h => (
-            <span key={h} style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</span>
-          ))}
-        </div>
-
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '48px' }} className="text-muted">
-            Cargando planes en marcha...
-          </div>
-        ) : filteredOrders.length > 0 ? (
-          paginatedOrders.map((w) => {
-            const total = w.TotalTasks || 0;
-            const completed = w.CompletedTasks || 0;
-            const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
-            const isExpanded = expandedId === w.Id;
-            const allTickets = woTickets[w.Id] || [];
-            const tickets = date ? allTickets.filter(t => t.startDate?.startsWith(date)) : allTickets;
-            const isLoadingT = loadingTickets[w.Id];
-
-            return (
-              <div key={w.Id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                {/* Main row */}
-                <div
-                  className="wo-list-row"
-                  onClick={() => toggleExpand(w.Id)}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '105px 1fr 155px 125px 185px 110px 36px',
-                    gap: '0 12px',
-                    padding: '14px 20px',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(47,129,247,0.04)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span className="code-font wo-id" style={{ fontWeight: 600, fontSize: '0.85rem' }}>{w.Id}</span>
-
-                  <div className="wo-plan">
-                    <div style={{ fontWeight: 600 }}>{w.PlanName}</div>
-                    <div className="text-muted" style={{ fontSize: '0.78rem', marginTop: '3px' }}>
-                      {w.AssetName || w.AssetId} · <span style={{ fontFamily: 'monospace' }}>{w.AssetSerial || 'N/A'}</span>
-                    </div>
-                  </div>
-
-                  <div className="wo-dates">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.82rem' }}>
-                      <CalendarIcon size={13} className="text-muted" />
-                      <span>{w.StartDate?.split('T')[0]}</span>
-                    </div>
-                    <div className="text-muted" style={{ fontSize: '0.82rem', paddingLeft: '18px' }}>→ {w.EndDate?.split('T')[0]}</div>
-                  </div>
-
-                  <div className="wo-assigned" style={{ fontSize: '0.85rem', color: w.AssignedTo ? 'inherit' : 'var(--text-muted)' }}>
-                    {w.AssignedTo || 'Sin asignar'}
-                  </div>
-
-                  <div className="wo-progress">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ flex: 1, height: '5px', background: 'var(--bg-tertiary)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${progress}%`, background: progress === 100 ? 'var(--success)' : 'var(--accent-primary)', borderRadius: '3px' }}></div>
-                      </div>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 600, minWidth: '30px' }}>{progress}%</span>
-                    </div>
-                    <div className="text-muted" style={{ fontSize: '0.72rem', marginTop: '3px' }}>{completed} de {total} tareas</div>
-                  </div>
-
-                  <div className="wo-status">
-                    <StatusBadge status={w.Status} progress={progress} />
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </div>
-
-                {/* Expanded panel: tickets del plan */}
-                {isExpanded && (
-                  <div style={{
-                    background: 'var(--bg-tertiary)',
-                    borderTop: '1px solid var(--glass-border)',
-                    padding: '16px 20px 20px',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                      <Wrench size={15} className="text-muted" />
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {date ? `Tareas del ${date}` : 'Tickets del plan'}
-                      </span>
-                    </div>
-
-                    {hasPermission('maintenances_delete') && (
-                      <div style={{ marginBottom: '12px' }}>
-                        <button
-                          className="btn-secondary"
-                          style={{ color: 'var(--danger)', borderColor: 'var(--danger)', fontSize: '0.8rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                          onClick={(e) => { e.stopPropagation(); setConfirmModal({ isOpen: true, idToDelete: w.Id, name: w.PlanName }); }}
-                        >
-                          <Trash2 size={14} /> Eliminar plan en marcha
-                        </button>
-                      </div>
-                    )}
-
-                    {isLoadingT ? (
-                      <p className="text-muted" style={{ fontSize: '0.85rem' }}>Cargando tickets...</p>
-                    ) : tickets.length === 0 ? (
-                      <p className="text-muted" style={{ fontSize: '0.85rem' }}>
-                        No hay tickets vinculados a este plan en marcha.
-                      </p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {tickets.map(t => {
-                          const isDone = t.status === 'COMPLETADO';
-                          return (
-                            <div
-                              key={t.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                                padding: '10px 14px',
-                                background: isDone ? 'rgba(34,197,94,0.03)' : 'var(--bg-secondary)',
-                                border: `1px solid ${isDone ? 'rgba(34,197,94,0.2)' : 'var(--glass-border)'}`,
-                                borderRadius: '8px',
-                                transition: 'all 0.2s',
-                              }}
-                            >
-                              {/* Checkbox interactivo */}
-                              <div
-                                onClick={(e) => { e.stopPropagation(); handleToggleTicketStatus(t); }}
-                                style={{
-                                  width: '22px', height: '22px', borderRadius: '6px',
-                                  border: `2px solid ${isDone ? 'var(--success)' : '#cbd5e1'}`,
-                                  background: isDone ? 'var(--success)' : 'transparent',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
-                                }}
-                                title={isDone ? 'Marcar como pendiente' : 'Marcar como completado'}
-                              >
-                                {isDone && <Check size={14} color="#fff" strokeWidth={3} />}
-                              </div>
-                              <span className="code-font" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{t.id}</span>
-                              <span style={{
-                                flex: 1, fontSize: '0.88rem', fontWeight: 500,
-                                textDecoration: isDone ? 'line-through' : 'none',
-                                opacity: isDone ? 0.6 : 1,
-                              }}>{t.title}</span>
-                              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{t.startDate}</span>
-                              <span style={{
-                                padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0,
-                                color: ticketStatusColor(t.status),
-                                background: isDone ? 'var(--success-bg)' : t.status === 'EN PROGRESO' ? 'var(--warning-bg)' : 'rgba(248,81,73,0.1)',
-                              }}>
-                                {t.status || 'PENDIENTE'}
-                              </span>
-                              <button
-                                className="btn-secondary"
-                                style={{ padding: '4px 8px', fontSize: '0.78rem', flexShrink: 0 }}
-                                onClick={(e) => { e.stopPropagation(); navigate(`/maintenances/view/${t.id}`); }}
-                                title="Ver detalles"
-                              >
-                                <ExternalLink size={13} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        ) : (
-          <div style={{ textAlign: 'center', padding: '48px' }} className="text-muted">
-            <Layers size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-            <p>No hay planes en marcha registrados.</p>
-          </div>
-        )}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filteredOrders.length}
-          onPageChange={setCurrentPage}
-          itemsPerPage={ITEMS_PER_PAGE}
-          label="planes"
+      {/* Search */}
+      <Card padded={false} style={{ padding: '12px 14px' }}>
+        <Field
+          icon={Search}
+          value={searchTerm}
+          onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+          placeholder="Buscar por ID, plan o activo..."
         />
-      </div>
+      </Card>
+
+      {/* Work orders list */}
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '30vh', flexDirection: 'column', gap: 16 }}>
+          <Activity size={28} style={{ color: 'var(--accent-primary)', animation: 'pulse 1.5s infinite' }} />
+          <p style={{ color: 'var(--text-muted)' }}>Cargando planes en marcha...</p>
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <Card padded={false} style={{ padding: 60, textAlign: 'center' }}>
+          <Layers size={32} style={{ color: 'var(--text-muted)', opacity: 0.3, margin: '0 auto 12px', display: 'block' }} />
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>No hay planes en marcha registrados.</p>
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {paginatedOrders.map(renderWOCard)}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: isMobile ? 12 : 4, padding: '8px 0' }}>
+          {isMobile ? (
+            <>
+              <Button variant="ghost" style={{ padding: '6px 10px' }} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                <ChevronLeft size={16} />
+              </Button>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{currentPage} / {totalPages}</span>
+              <Button variant="ghost" style={{ padding: '6px 10px' }} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                <ChevronRight size={16} />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" style={{ padding: '4px 8px' }} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                <ChevronLeft size={16} />
+              </Button>
+              {getPageNumbers().map(n => (
+                <Button key={n} variant={currentPage === n ? 'primary' : 'ghost'} style={{ padding: '4px 10px', fontSize: '0.8rem' }} onClick={() => setCurrentPage(n)}>{n}</Button>
+              ))}
+              <Button variant="ghost" style={{ padding: '4px 8px' }} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                <ChevronRight size={16} />
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         title="Eliminar Plan en Marcha"
-        message={`¿Estás seguro de que deseas eliminar "${confirmModal.name}" (${confirmModal.idToDelete})? Los tickets pendientes vinculados también serán eliminados. Esta acción no se puede deshacer.`}
+        message={`¿Estás seguro de eliminar "${confirmModal.name}" (${confirmModal.idToDelete})? Los tickets pendientes también serán eliminados.`}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setConfirmModal({ isOpen: false, idToDelete: null, name: '' })}
       />

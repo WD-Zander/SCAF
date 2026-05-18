@@ -84,12 +84,6 @@ const MovementsList = () => {
           <p className="text-muted">Trazabilidad de traslados, cambios de ubicación y estados.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div className="glass-panel header-stats-panel">
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Total Registros</div>
-              <strong style={{ fontSize: '1.3rem' }}>{total}</strong>
-            </div>
-          </div>
           <button className="btn-primary" onClick={() => navigate('/movements/new')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Plus size={18} /> Nuevo Movimiento
           </button>

@@ -1,7 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Search, Edit, Trash2, Wrench, ArrowUpDown, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import {
+  Search, Edit2, Trash2, Wrench, ArrowUpDown, Plus, Activity,
+  ChevronLeft, ChevronRight, Calendar, User, ExternalLink,
+} from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { Button, Badge, Card, Field } from '../../components/UI';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import ConfirmModal from '../../components/Common/ConfirmModal';
 
 const SCOPE_LABELS = {
@@ -10,330 +15,319 @@ const SCOPE_LABELS = {
   activo: 'Mantenimiento de Activos',
 };
 
+const ITEMS_PER_PAGE = 20;
+
 const MaintenanceList = () => {
   const { maintenances, setMaintenances, removeMaintenance, updateMaintenance, assets, hasPermission, maintenanceScopes } = useAppContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { scope } = useParams();
-  const scopeLabel = maintenanceScopes.find(s => s.slug === scope)?.nombre || SCOPE_LABELS[scope] || 'Mantenimientos';
+  const scopeMeta = maintenanceScopes.find(s => s.slug === scope);
+  const scopeLabel = scopeMeta?.nombre || SCOPE_LABELS[scope] || 'Mantenimientos';
+  const scopeColor = scopeMeta?.color || 'var(--accent-primary)';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS');
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, idToDelete: null });
   const [expandedId, setExpandedId] = useState(null);
 
-  const getAssetDetails = (assetId) => {
-    return assets.find(a => a.id === assetId) || { name: 'Activo no encontrado', serial: '' };
-  };
+  const getAssetDetails = (assetId) => assets.find(a => a.id === assetId) || { name: 'Activo no encontrado', serial: '' };
 
   const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
+    const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
     setSortConfig({ key, direction });
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'COMPLETADO': return 'var(--success)';
-      case 'EN PROGRESO': return 'var(--warning)';
-      case 'PENDIENTE': return '#b91c1c';
-      case 'CANCELADO': return 'var(--text-muted)';
-      default: return 'var(--accent-primary)';
-    }
-  };
-
-  const getStatusBg = (status) => {
-    switch (status) {
-      case 'COMPLETADO': return 'var(--success-bg)';
-      case 'EN PROGRESO': return 'var(--warning-bg)';
-      case 'PENDIENTE': return '#fee2e2';
-      case 'CANCELADO': return 'var(--bg-tertiary)';
-      default: return 'var(--accent-light)';
-    }
+  const statusTone = (status) => {
+    if (status === 'COMPLETADO') return 'success';
+    if (status === 'EN PROGRESO') return 'warning';
+    if (status === 'PENDIENTE') return 'danger';
+    return 'neutral';
   };
 
   const handleStatusChange = async (item, newStatus) => {
-    try {
-      await updateMaintenance({ ...item, status: newStatus });
-    } catch(err) {
-      console.error(err);
-    }
+    try { await updateMaintenance({ ...item, status: newStatus }); } catch (e) { console.error(e); }
   };
 
-  const sortedAndFilteredMaintenances = useMemo(() => {
+  const sorted = useMemo(() => {
     let filtered = maintenances.filter(m => {
-        // Filter by scope if set
-        if (scope && m.scope !== scope) return false;
-        const assetName = getAssetDetails(m.assetId).name.toLowerCase();
-        const assetSerial = getAssetDetails(m.assetId).serial?.toLowerCase() || '';
-        const searchLow = searchTerm.toLowerCase();
-        
-        const searchMatch = (
-          (m.id?.toLowerCase() || '').includes(searchLow) || 
-          (m.assetId?.toLowerCase() || '').includes(searchLow) ||
-          assetName.includes(searchLow) ||
-          assetSerial.includes(searchLow) ||
-          (m.type?.toLowerCase() || '').includes(searchLow) ||
-          (m.status?.toLowerCase() || '').includes(searchLow) ||
-          (m.provider?.toLowerCase() || '').includes(searchLow) ||
-          (m.assignedTo?.toLowerCase() || '').includes(searchLow)
-        );
-        
-        const statusMatch = statusFilter === 'TODOS' || m.status === statusFilter;
-        return searchMatch && statusMatch;
+      if (scope && m.scope !== scope) return false;
+      const asset = getAssetDetails(m.assetId);
+      const s = searchTerm.toLowerCase();
+      const searchMatch = !s || [m.id, m.assetId, asset.name, asset.serial, m.type, m.status, m.provider, m.assignedTo, m.title]
+        .some(v => (v || '').toLowerCase().includes(s));
+      const statusMatch = statusFilter === 'TODOS' || m.status === statusFilter;
+      return searchMatch && statusMatch;
     });
-
     filtered.sort((a, b) => {
-      let aVal = a[sortConfig.key];
-      let bVal = b[sortConfig.key];
-      
-      // Handle special sorting
-      if (sortConfig.key === 'assetName') {
-        aVal = getAssetDetails(a.assetId).name;
-        bVal = getAssetDetails(b.assetId).name;
-      }
-      
+      let aVal = sortConfig.key === 'assetName' ? getAssetDetails(a.assetId).name : a[sortConfig.key];
+      let bVal = sortConfig.key === 'assetName' ? getAssetDetails(b.assetId).name : b[sortConfig.key];
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-
     return filtered;
   }, [maintenances, searchTerm, statusFilter, sortConfig, assets, scope]);
 
-  // Pagination
-  const totalPages = Math.ceil(sortedAndFilteredMaintenances.length / itemsPerPage);
-  const paginatedMaintenances = sortedAndFilteredMaintenances.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const handleDeleteClick = (id) => {
-    setConfirmModal({ isOpen: true, idToDelete: id });
-  };
+  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+  const paginated = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const confirmDelete = () => {
-    if (confirmModal.idToDelete) {
-      removeMaintenance(confirmModal.idToDelete);
-    }
+    if (confirmModal.idToDelete) removeMaintenance(confirmModal.idToDelete);
     setConfirmModal({ isOpen: false, idToDelete: null });
   };
 
-  const handleRowClick = (e, id) => {
-    if (window.innerWidth <= 1024) {
-      setExpandedId(expandedId === id ? null : id);
-    } else {
-      navigate(`/maintenances/view/${id}`);
-    }
+  // Stats
+  const counts = useMemo(() => {
+    const c = { PENDIENTE: 0, 'EN PROGRESO': 0, COMPLETADO: 0, total: sorted.length };
+    sorted.forEach(m => { if (c[m.status] !== undefined) c[m.status]++; });
+    return c;
+  }, [sorted]);
+
+  const getPageNumbers = () => {
+    const delta = 3;
+    const range = [];
+    for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) range.push(i);
+    return range;
   };
 
   return (
-    <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
-      {/* Header Area */}
-      <div className="flex-between" style={{ marginBottom: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button className="btn-secondary" onClick={() => navigate(-1)} style={{ padding: '8px', borderRadius: '50%' }} title="Volver">
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 style={{ marginBottom: '8px' }}>{scopeLabel}</h1>
-            <p className="text-muted">Gestión de tareas de mantenimiento preventivo y correctivo.</p>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 6, color: scopeColor }}>{scope ? `Módulo: ${scopeLabel}` : 'Operaciones'}</div>
+          <h1 style={{ margin: 0 }}>Tickets de Mantenimiento</h1>
+          <p style={{ color: 'var(--text-muted)', margin: '4px 0 0', fontSize: '0.9rem' }}>
+            <strong style={{ color: 'var(--text-main)' }}>{counts.total}</strong> ticket{counts.total !== 1 ? 's' : ''} registrado{counts.total !== 1 ? 's' : ''}
+            {counts.PENDIENTE > 0 && <> · <strong style={{ color: 'var(--danger)' }}>{counts.PENDIENTE}</strong> pendiente{counts.PENDIENTE !== 1 ? 's' : ''}</>}
+          </p>
         </div>
         {hasPermission('maintenances_create') && (
-          <button
-            className="btn-primary"
-            onClick={() => navigate('/maintenances/new', { state: { scope } })}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          >
-            + Nuevo Mantenimiento
-          </button>
+          <Button variant="primary" icon={Plus} onClick={() => navigate('/maintenances/new', { state: { scope } })}>
+            {isMobile ? 'Nuevo' : 'Nuevo Mantenimiento'}
+          </Button>
         )}
       </div>
 
-      {/* Main Panel */}
-      <div className="glass-panel">
-        <div style={{ padding: '24px', borderBottom: '1px solid var(--glass-border)', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="input-control" style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '250px', maxWidth: '400px', cursor: 'text' }}>
-            <Search size={18} className="text-muted" />
-            <input 
-              type="text" 
-              placeholder="Buscar por TKT, Serie, Activo o Filtro..." 
-              style={{ border: 'none', outline: 'none', width: '100%', background: 'transparent' }} 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <select 
-            style={{ 
-              padding: '10px 16px', 
-              borderRadius: 'var(--radius-sm)', 
-              border: '1px solid var(--glass-border)',
-              background: '#ffffff',
-              color: 'var(--text-main)',
-              fontSize: '0.85rem',
-              fontWeight: 500,
-              minWidth: '180px',
-              cursor: 'pointer',
-              outline: 'none'
-            }}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="TODOS">Todos los Estados</option>
-            <option value="PENDIENTE">PENDIENTE</option>
-            <option value="EN PROGRESO">EN PROGRESO</option>
-            <option value="COMPLETADO">COMPLETADO</option>
-            <option value="CANCELADO">CANCELADO</option>
-          </select>
-        </div>
+      {/* Status pills */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {[
+          { key: 'TODOS', label: 'Todos', count: counts.total },
+          { key: 'PENDIENTE', label: 'Pendientes', count: counts.PENDIENTE },
+          { key: 'EN PROGRESO', label: 'En Progreso', count: counts['EN PROGRESO'] },
+          { key: 'COMPLETADO', label: 'Completados', count: counts.COMPLETADO },
+        ].map(f => (
+          <button key={f.key} onClick={() => { setStatusFilter(f.key); setCurrentPage(1); }} style={{
+            padding: '6px 14px', borderRadius: 100, fontSize: '0.8rem', fontWeight: 600,
+            border: '1px solid var(--glass-border)', cursor: 'pointer',
+            background: statusFilter === f.key ? (f.key === 'TODOS' ? 'var(--accent-primary)' : 'var(--bg-tertiary)') : 'transparent',
+            color: statusFilter === f.key ? (f.key === 'TODOS' ? '#fff' : 'var(--text-main)') : 'var(--text-muted)',
+            transition: 'all 0.15s',
+          }}>
+            {f.label} <span style={{ opacity: 0.7 }}>({f.count})</span>
+          </button>
+        ))}
+      </div>
 
-        <div className="table-container">
-          <table>
+      {/* Search */}
+      <Card padded={false} style={{ padding: '12px 14px' }}>
+        <Field
+          icon={Search}
+          value={searchTerm}
+          onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+          placeholder="Buscar por ticket, activo, serial, tipo..."
+        />
+      </Card>
+
+      {/* Desktop table */}
+      {!isMobile && (
+        <Card padded={false} style={{ overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th onClick={() => handleSort('id')} style={{ cursor: 'pointer' }}>TICKET <ArrowUpDown size={12} className="text-muted" style={{ display: 'inline' }} /></th>
-                <th onClick={() => handleSort('assetName')} style={{ cursor: 'pointer' }}>ACTIVO (ID) <ArrowUpDown size={12} className="text-muted" style={{ display: 'inline' }} /></th>
-                <th onClick={() => handleSort('type')} style={{ cursor: 'pointer' }}>TIPO <ArrowUpDown size={12} className="text-muted" style={{ display: 'inline' }} /></th>
-                <th onClick={() => handleSort('startDate')} style={{ cursor: 'pointer' }}>FECHAS <ArrowUpDown size={12} className="text-muted" style={{ display: 'inline' }} /></th>
-                <th onClick={() => handleSort('assignedTo')} style={{ cursor: 'pointer' }}>ASIGNADO / PROV <ArrowUpDown size={12} className="text-muted" style={{ display: 'inline' }} /></th>
-                <th onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>ESTADO <ArrowUpDown size={12} className="text-muted" style={{ display: 'inline' }} /></th>
-                <th>ACCIONES</th>
+                {[
+                  { label: 'Ticket', key: 'id' },
+                  { label: 'Activo', key: 'assetName' },
+                  { label: 'Tipo', key: 'type' },
+                  { label: 'Fechas', key: 'startDate' },
+                  { label: 'Asignado', key: 'assignedTo' },
+                  { label: 'Estado', key: 'status' },
+                  { label: 'Acciones', key: null },
+                ].map((h, i) => (
+                  <th key={i} onClick={h.key ? () => handleSort(h.key) : undefined} style={{
+                    textAlign: i === 6 ? 'center' : 'left',
+                    fontSize: '0.66rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase',
+                    color: 'var(--text-muted)', padding: '11px 14px',
+                    background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--glass-border)',
+                    cursor: h.key ? 'pointer' : 'default',
+                  }}>
+                    {h.label}
+                    {h.key && <ArrowUpDown size={10} style={{ display: 'inline', marginLeft: 4, opacity: 0.5 }} />}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {paginatedMaintenances.length > 0 ? (
-                paginatedMaintenances.map((item) => {
-                  const assetDetails = getAssetDetails(item.assetId);
-                  return (
-                  <tr 
-                    key={item.id} 
-                    className={`clickable-row mobile-list-format ${expandedId === item.id ? 'is-expanded' : ''}`} 
-                    onClick={(e) => handleRowClick(e, item.id)}
+              {paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: 60, textAlign: 'center' }}>
+                    <Wrench size={32} style={{ color: 'var(--text-muted)', opacity: 0.3, marginBottom: 12 }} />
+                    <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+                      {searchTerm ? 'Sin resultados para esta búsqueda.' : 'No hay tickets de mantenimiento registrados.'}
+                    </p>
+                  </td>
+                </tr>
+              ) : paginated.map((item, i) => {
+                const asset = getAssetDetails(item.assetId);
+                return (
+                  <tr key={item.id}
+                    onClick={() => navigate(`/maintenances/view/${item.id}`)}
+                    style={{ borderBottom: i < paginated.length - 1 ? '1px solid var(--glass-border)' : 'none', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(37,99,235,0.02)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    <td data-label="TICKET" className="code-font">{item.id}</td>
-                    <td data-label="ACTIVO (ID)">
-                      <strong>{assetDetails.name}</strong> <span className="text-muted">({item.assetId})</span>
-                      <div className="text-muted" style={{ fontSize: '0.8rem', marginTop: '4px', fontFamily: 'JetBrains Mono, monospace' }}>
-                        SN: {assetDetails.serial || 'N/A'}
+                    <td style={{ padding: '11px 14px', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 500 }}>{item.id}</td>
+                    <td style={{ padding: '11px 14px', fontSize: '0.85rem' }}>
+                      <div style={{ fontWeight: 600 }}>{asset.name}</div>
+                      <div className="code-font" style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 2 }}>
+                        {item.assetId} · SN: {asset.serial || 'N/A'}
                       </div>
-                      <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '4px' }}>{item.title}</p>
+                      {item.title && <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: 3 }}>{item.title}</div>}
                     </td>
-                    <td data-label="TIPO">{item.type}</td>
-                    <td data-label="FECHAS">
-                      <p>{item.startDate}</p>
-                      <p className="text-muted" style={{ fontSize: '0.75rem' }}>{item.endDate ? `hasta ${item.endDate}` : 'Sin cierre'}</p>
+                    <td style={{ padding: '11px 14px', fontSize: '0.84rem' }}>{item.type || '--'}</td>
+                    <td style={{ padding: '11px 14px', fontSize: '0.84rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Calendar size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                        <span>{item.startDate || '--'}</span>
+                      </div>
+                      {item.endDate && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', paddingLeft: 17 }}>→ {item.endDate}</div>}
                     </td>
-                    <td data-label="ASIGNADO / PROV">
-                      <p>{item.assignedTo}</p>
-                      <p className="text-muted" style={{ fontSize: '0.75rem' }}>{item.provider}</p>
+                    <td style={{ padding: '11px 14px', fontSize: '0.84rem' }}>
+                      <div>{item.assignedTo || <span style={{ color: 'var(--text-muted)' }}>Sin asignar</span>}</div>
+                      {item.provider && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{item.provider}</div>}
                     </td>
-                    <td data-label="ESTADO" onClick={(e) => e.stopPropagation()}>
+                    <td style={{ padding: '11px 14px' }} onClick={e => e.stopPropagation()}>
                       {(hasPermission('maintenances_status') || hasPermission('maintenances_edit')) ? (
-                        <select 
-                          value={item.status} 
-                          onChange={(e) => handleStatusChange(item, e.target.value)}
-                          style={{
-                            background: getStatusBg(item.status),
-                            color: getStatusColor(item.status),
-                            border: 'none',
-                            padding: '6px 20px 6px 12px',
-                            borderRadius: '20px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            outline: 'none',
-                            fontFamily: 'Outfit, sans-serif'
-                          }}
-                        >
-                          <option value="PENDIENTE" style={{ background: '#ffffff', color: '#0f172a' }}>PENDIENTE</option>
-                          <option value="EN PROGRESO" style={{ background: '#ffffff', color: '#0f172a' }}>EN PROGRESO</option>
-                          <option value="COMPLETADO" style={{ background: '#ffffff', color: '#0f172a' }}>COMPLETADO</option>
-                          <option value="CANCELADO" style={{ background: '#ffffff', color: '#0f172a' }}>CANCELADO</option>
+                        <select value={item.status} onChange={e => handleStatusChange(item, e.target.value)} style={{
+                          padding: '4px 10px', borderRadius: 100, fontSize: '0.72rem', fontWeight: 700,
+                          border: 'none', cursor: 'pointer', outline: 'none',
+                          background: statusTone(item.status) === 'success' ? 'var(--success-bg)' :
+                                     statusTone(item.status) === 'warning' ? 'var(--warning-bg)' :
+                                     statusTone(item.status) === 'danger' ? 'var(--danger-bg)' : 'var(--bg-tertiary)',
+                          color: statusTone(item.status) === 'success' ? 'var(--success)' :
+                                 statusTone(item.status) === 'warning' ? 'var(--warning)' :
+                                 statusTone(item.status) === 'danger' ? 'var(--danger)' : 'var(--text-muted)',
+                        }}>
+                          <option value="PENDIENTE">PENDIENTE</option>
+                          <option value="EN PROGRESO">EN PROGRESO</option>
+                          <option value="COMPLETADO">COMPLETADO</option>
+                          <option value="CANCELADO">CANCELADO</option>
                         </select>
                       ) : (
-                        <span style={{
-                          background: getStatusBg(item.status),
-                          color: getStatusColor(item.status),
-                          padding: '6px 16px',
-                          borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700
-                        }}>{item.status}</span>
+                        <Badge tone={statusTone(item.status)} dot>{item.status}</Badge>
                       )}
                     </td>
-                    <td data-label="ACCIONES" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex-center gap-2">
+                    <td style={{ padding: '11px 14px' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
                         {hasPermission('maintenances_edit') && (
-                          <button className="action-btn" onClick={() => navigate(`/maintenances/edit/${item.id}`)} title="Editar"><Edit size={16} /></button>
+                          <button onClick={() => navigate(`/maintenances/edit/${item.id}`)} title="Editar"
+                            style={{ color: 'var(--text-muted)', padding: 6, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'transparent' }}>
+                            <Edit2 size={15} />
+                          </button>
                         )}
                         {hasPermission('maintenances_delete') && (
-                          <button className="action-btn" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteClick(item.id)} title="Eliminar"><Trash2 size={16} /></button>
+                          <button onClick={() => setConfirmModal({ isOpen: true, idToDelete: item.id })} title="Eliminar"
+                            style={{ color: 'var(--danger)', padding: 6, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'transparent' }}>
+                            <Trash2 size={15} />
+                          </button>
                         )}
                       </div>
                     </td>
                   </tr>
-                )})
-              ) : (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '40px' }} className="text-muted">
-                    <Wrench size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                    <p>No hay tareas de mantenimiento registradas.</p>
-                  </td>
-                </tr>
-              )}
+                );
+              })}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div style={{ padding: '16px 24px', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="text-muted" style={{ fontSize: '0.85rem' }}>
-              Mostrando página {currentPage} de {totalPages}
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                className="btn-secondary" 
-                style={{ padding: '6px 12px' }} 
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {Array.from({ length: totalPages }).map((_, idx) => (
-                  <button
-                    key={idx}
-                    className={currentPage === idx + 1 ? 'btn-primary' : 'btn-secondary'}
-                    style={{ padding: '4px 10px', fontSize: '0.85rem' }}
-                    onClick={() => setCurrentPage(idx + 1)}
-                  >
-                    {idx + 1}
-                  </button>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{
+              padding: '14px 18px', borderTop: '1px solid var(--glass-border)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
+            }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Página {currentPage} de {totalPages} ({sorted.length} tickets)
+              </span>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <Button variant="ghost" style={{ padding: '4px 8px' }} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                  <ChevronLeft size={16} />
+                </Button>
+                {getPageNumbers().map(n => (
+                  <Button key={n} variant={currentPage === n ? 'primary' : 'ghost'} style={{ padding: '4px 10px', fontSize: '0.8rem' }} onClick={() => setCurrentPage(n)}>{n}</Button>
                 ))}
+                <Button variant="ghost" style={{ padding: '4px 8px' }} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                  <ChevronRight size={16} />
+                </Button>
               </div>
-              <button 
-                className="btn-secondary" 
-                style={{ padding: '6px 12px' }} 
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
-              >
-                <ChevronRight size={16} />
-              </button>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </Card>
+      )}
 
-      <ConfirmModal 
+      {/* Mobile cards */}
+      {isMobile && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {paginated.length === 0 ? (
+            <Card padded={false} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+              <Wrench size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
+              <p>No hay tickets de mantenimiento.</p>
+            </Card>
+          ) : paginated.map(item => {
+            const asset = getAssetDetails(item.assetId);
+            return (
+              <Card key={item.id} padded={false} style={{ padding: '14px 14px 12px', cursor: 'pointer' }}
+                onClick={() => navigate(`/maintenances/view/${item.id}`)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="code-font" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 2 }}>
+                      {item.id} · {item.type || 'Sin tipo'}
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: '0.92rem', lineHeight: 1.25 }}>{asset.name}</div>
+                    {item.title && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 3 }}>{item.title}</div>}
+                  </div>
+                  <Badge tone={statusTone(item.status)} dot>{item.status}</Badge>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 6, fontSize: '0.78rem' }}>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Fecha · </span>{item.startDate || '--'}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Asignado · </span>{item.assignedTo || 'N/A'}</div>
+                </div>
+              </Card>
+            );
+          })}
+
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '12px 0' }}>
+              <Button variant="ghost" style={{ padding: '6px 10px' }} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                <ChevronLeft size={16} />
+              </Button>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{currentPage} / {totalPages}</span>
+              <Button variant="ghost" style={{ padding: '6px 10px' }} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <ConfirmModal
         isOpen={confirmModal.isOpen}
-        title="Cancelar Mantenimiento"
-        message={`¿Estás seguro de que deseas eliminar permanentemente el ticket de mantenimiento ${confirmModal.idToDelete}? Esta acción no se puede deshacer.`}
+        title="Eliminar Ticket"
+        message={`¿Estás seguro de eliminar el ticket ${confirmModal.idToDelete}? Esta acción no se puede deshacer.`}
         onConfirm={confirmDelete}
         onCancel={() => setConfirmModal({ isOpen: false, idToDelete: null })}
       />

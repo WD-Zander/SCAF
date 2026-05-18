@@ -291,12 +291,6 @@ if(total===0)window.print();
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="secondary" icon={Download} onClick={handleDownloadTemplate}>Plantilla</Button>
-          {hasPermission('inventory') && (
-            <>
-              <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
-              <Button variant="secondary" icon={Upload} onClick={() => fileInputRef.current?.click()}>Importar</Button>
-            </>
-          )}
           <Button variant="secondary" icon={Download} onClick={handleExportExcel}>Exportar</Button>
           <Button variant="secondary" icon={Printer} onClick={() => { setBatchPrint({ open: true, from: '', to: '', loading: false, labelSize: '50x30', mode: 'range', category: '' }); loadCategories(); }}>
             {isMobile ? 'Etiquetas' : 'Imprimir Etiquetas'}
