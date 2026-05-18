@@ -84,27 +84,46 @@ export const createWorkOrder = async (req, res, next) => {
     const { id, name, assetId, startDate, endDate, assignedTo, notes, scope, entityType, entityId } = req.body;
     const db = await getPool();
 
+    const resolvedEntityType = entityType || 'activo';
+    const resolvedEntityId = entityId || assetId;
+
+    // Resolve assignedTo user ID in JS to avoid PostgreSQL parameter type ambiguity
+    let resolvedAssignedId = null;
+    if (assignedTo) {
+      const userSearch = await db.request()
+        .input('assignedTo', sql.VarChar, assignedTo)
+        .query(`SELECT ID FROM USUARIO WHERE NOMBRE = @assignedTo LIMIT 1`);
+      if (userSearch.recordset.length > 0) {
+        resolvedAssignedId = userSearch.recordset[0].ID;
+      }
+    }
+
+    // Resolve scope ID
+    let resolvedScopeId = null;
     try {
-      const resolvedEntityType = entityType || 'activo';
-      const resolvedEntityId = entityId || assetId;
+      const scopeSearch = await db.request()
+        .input('scope', sql.VarChar, scope || 'activo')
+        .query(`SELECT ID FROM SCOPE_MANT WHERE SLUG = @scope LIMIT 1`);
+      if (scopeSearch.recordset.length > 0) {
+        resolvedScopeId = scopeSearch.recordset[0].ID;
+      }
+    } catch { /* SCOPE_MANT may not exist yet */ }
+
+    try {
       await db.request()
         .input('id', sql.VarChar, id)
         .input('name', sql.VarChar, name)
         .input('assetId', sql.VarChar, resolvedEntityType === 'activo' ? resolvedEntityId : null)
         .input('start', sql.Date, startDate)
         .input('end', sql.Date, endDate)
-        .input('assigned', sql.VarChar, assignedTo || '')
+        .input('assignedId', sql.VarChar, resolvedAssignedId)
         .input('notes', sql.NVarChar, notes || '')
-        .input('scope', sql.VarChar, scope || 'activo')
+        .input('scopeId', sql.Int, resolvedScopeId)
         .input('entityType', sql.VarChar, resolvedEntityType)
         .input('entityId', sql.VarChar, resolvedEntityId)
         .query(`
           INSERT INTO ORDEN_TRAB (ID, TITULO, ID_ACTIVO, FECHA_INICIO, FECHA_FIN, ID_ASIGNADO, NOTAS, ID_SCOPE, TIPO_ENTIDAD, ID_ENTIDAD)
-          VALUES (@id, @name, @assetId, @start, @end,
-            (SELECT ID FROM USUARIO WHERE @assigned IS NOT NULL AND @assigned != '' AND NOMBRE = @assigned LIMIT 1),
-            @notes,
-            (SELECT ID FROM SCOPE_MANT WHERE SLUG = @scope LIMIT 1),
-            @entityType, @entityId)
+          VALUES (@id, @name, @assetId, @start, @end, @assignedId, @notes, @scopeId, @entityType, @entityId)
         `);
     } catch {
       // Fallback: ID_SCOPE column doesn't exist yet
@@ -114,13 +133,11 @@ export const createWorkOrder = async (req, res, next) => {
         .input('assetId', sql.VarChar, assetId)
         .input('start', sql.Date, startDate)
         .input('end', sql.Date, endDate)
-        .input('assigned', sql.VarChar, assignedTo || '')
+        .input('assignedId', sql.VarChar, resolvedAssignedId)
         .input('notes', sql.NVarChar, notes || '')
         .query(`
           INSERT INTO ORDEN_TRAB (ID, TITULO, ID_ACTIVO, FECHA_INICIO, FECHA_FIN, ID_ASIGNADO, NOTAS)
-          VALUES (@id, @name, @assetId, @start, @end,
-            (SELECT ID FROM USUARIO WHERE @assigned IS NOT NULL AND @assigned != '' AND NOMBRE = @assigned LIMIT 1),
-            @notes)
+          VALUES (@id, @name, @assetId, @start, @end, @assignedId, @notes)
         `);
     }
 

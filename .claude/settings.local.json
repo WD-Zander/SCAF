@@ -20,7 +20,8 @@
       "Bash(node force_reset.js)",
       "Bash(node -e ':*)",
       "Bash(git commit -m ':*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(node -c backend/controllers/workOrders.controller.js)"
     ]
   }
 }
