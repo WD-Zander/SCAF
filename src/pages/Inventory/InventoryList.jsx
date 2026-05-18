@@ -431,14 +431,18 @@ const InventoryList = () => {
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/inventory/view/' + selectedAssetForQR.id)}`} alt="QR" width={200} height={200} />
             </div>
             <Button variant="primary" icon={Printer} className="no-print"
-              style={{ marginTop: 24, width: '100%' }} onClick={() => window.print()}>
+              style={{ marginTop: 24, width: '100%' }} onClick={() => {
+                const a = selectedAssetForQR;
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/inventory/view/' + a.id)}`;
+                const win = window.open('', '_blank', 'width=400,height=600');
+                win.document.write(`<!DOCTYPE html><html><head><title>Etiqueta ${a.id}</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:32px;margin:0}h2{margin:0 0 4px}p{color:#555;margin:0 0 20px;font-size:14px}.qr{padding:16px;display:inline-block}small{font-size:12px;color:#888}</style></head><body><h2>Etiqueta de Activo</h2><p><strong>${a.name}</strong><br/>ID: ${a.id}<br/><small>${a.brand || ''} ${a.model ? '- ' + a.model : ''}</small></p><div class="qr"><img src="${qrUrl}" width="200" height="200" /></div><script>var img=document.querySelector("img");img.onload=function(){window.print();};img.onerror=function(){window.print();};<\/script></body></html>`);
+                win.document.close();
+              }}>
               Imprimir Etiqueta
             </Button>
           </Card>
         </div>
       )}
-
-      <style dangerouslySetInnerHTML={{__html: `@media print{body *{visibility:hidden;position:static}html,body{height:auto;overflow:visible}.sidebar,.topbar,[class*="BottomNav"]{display:none!important}.print-overlay{visibility:visible!important;position:absolute!important;left:0;top:0;width:100%;height:auto;background:transparent!important;backdrop-filter:none!important;display:block!important}.print-card{visibility:visible!important;position:relative!important;box-shadow:none!important;border:none!important;margin:0 auto;width:350px}.print-card *{visibility:visible!important}.print-card img{display:inline-block!important}.no-print{display:none!important}}`}} />
     </div>
   );
 };
