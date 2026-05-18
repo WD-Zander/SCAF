@@ -31,6 +31,7 @@ const InventoryList = () => {
   const [selectedAssetForQR, setSelectedAssetForQR] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, idToDelete: null });
   const [expandedId, setExpandedId] = useState(null);
+  const [batchPrint, setBatchPrint] = useState({ open: false, from: '', to: '', loading: false, labelSize: '50x30' });
 
   const loadPage = async (page, search, sort) => {
     setLoadingTable(true);
@@ -158,6 +159,78 @@ const InventoryList = () => {
     else { navigate(`/inventory/view/${id}`); }
   };
 
+  const handleBatchPrint = async () => {
+    const { from, to, labelSize } = batchPrint;
+    if (!from || !to) return alert('Ingresa el rango de códigos (ej: ACT-0001 a ACT-0050)');
+    setBatchPrint(p => ({ ...p, loading: true }));
+    try {
+      const res = await api.get(`/api/assets?limit=5000`);
+      if (!res?.ok) { alert('Error al obtener activos'); return; }
+      const json = await res.json();
+      const all = Array.isArray(json) ? json : (json.data ?? []);
+
+      const numFrom = parseInt(from.replace(/\D/g, ''), 10);
+      const numTo = parseInt(to.replace(/\D/g, ''), 10);
+      if (isNaN(numFrom) || isNaN(numTo)) { alert('Códigos inválidos'); return; }
+
+      const filtered = all.filter(a => {
+        const num = parseInt((a.id || '').replace(/\D/g, ''), 10);
+        return !isNaN(num) && num >= numFrom && num <= numTo;
+      }).sort((a, b) => {
+        const na = parseInt(a.id.replace(/\D/g, ''), 10);
+        const nb = parseInt(b.id.replace(/\D/g, ''), 10);
+        return na - nb;
+      });
+
+      if (filtered.length === 0) { alert('No se encontraron activos en ese rango'); return; }
+
+      // Label sizes in mm: [width, height]
+      const sizes = { '50x30': [50, 30], '60x40': [60, 40], '70x40': [70, 40], '80x50': [80, 50] };
+      const [lw, lh] = sizes[labelSize] || sizes['50x30'];
+
+      const origin = window.location.origin;
+      const labels = filtered.map(a => {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(origin + '/inventory/view/' + a.id)}`;
+        return `<div class="label"><img src="${qrUrl}" /><div class="info"><strong class="id">${a.id}</strong><span class="name">${a.name}</span><span class="extra">${a.brand || ''}${a.model ? ' · ' + a.model : ''}</span></div></div>`;
+      }).join('');
+
+      const html = `<!DOCTYPE html><html><head><title>Etiquetas ${from} - ${to}</title>
+<style>
+@page { size: ${lw}mm ${lh}mm; margin: 0; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif}
+.label{width:${lw}mm;height:${lh}mm;display:flex;align-items:center;padding:1.5mm;page-break-after:always;overflow:hidden}
+.label img{width:${lh - 4}mm;height:${lh - 4}mm;flex-shrink:0;image-rendering:pixelated}
+.info{margin-left:2mm;display:flex;flex-direction:column;justify-content:center;overflow:hidden;min-width:0}
+.id{font-size:${lh >= 40 ? 9 : 7}pt;font-weight:700;font-family:monospace;white-space:nowrap}
+.name{font-size:${lh >= 40 ? 7.5 : 6}pt;line-height:1.2;margin-top:0.5mm;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.extra{font-size:${lh >= 40 ? 6 : 5}pt;color:#555;margin-top:0.3mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media print{.label{page-break-after:always}}
+</style></head><body>${labels}
+<script>
+var imgs=document.querySelectorAll("img"),loaded=0,total=imgs.length;
+function check(){loaded++;if(loaded>=total){window.print();window.onafterprint=function(){window.close();}}}
+imgs.forEach(function(i){if(i.complete)check();else{i.onload=check;i.onerror=check;}});
+if(total===0)window.print();
+<\/script></body></html>`;
+
+      let iframe = document.getElementById('print-iframe');
+      if (iframe) iframe.remove();
+      iframe = document.createElement('iframe');
+      iframe.id = 'print-iframe';
+      iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:800px;height:600px;border:none;';
+      document.body.appendChild(iframe);
+      iframe.contentDocument.open();
+      iframe.contentDocument.write(html);
+      iframe.contentDocument.close();
+    } catch (e) {
+      console.error(e);
+      alert('Error al generar etiquetas');
+    } finally {
+      setBatchPrint(p => ({ ...p, loading: false }));
+    }
+  };
+
   const statusTone = (status) => {
     if (status === 'Activo' || status === 'ACTIVO') return 'success';
     if (status === 'En Mantenimiento' || status === 'EN MANTENIMIENTO') return 'warning';
@@ -205,6 +278,9 @@ const InventoryList = () => {
             </>
           )}
           <Button variant="secondary" icon={Download} onClick={handleExportExcel}>Exportar</Button>
+          <Button variant="secondary" icon={Printer} onClick={() => setBatchPrint({ open: true, from: '', to: '', loading: false, labelSize: '50x30' })}>
+            {isMobile ? 'Etiquetas' : 'Imprimir Etiquetas'}
+          </Button>
           {hasPermission('inventory') && (
             <Button variant="primary" icon={Plus} onClick={() => navigate('/inventory/new')}>
               {isMobile ? 'Nuevo' : 'Registrar Activo'}
@@ -410,6 +486,68 @@ const InventoryList = () => {
         onConfirm={confirmDelete}
         onCancel={() => setConfirmModal({ isOpen: false, idToDelete: null })}
       />
+
+      {/* Batch print modal */}
+      {batchPrint.open && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(3px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999,
+        }}>
+          <Card padded={false} style={{ padding: 32, width: 420, position: 'relative', background: '#fff', maxWidth: '95vw' }}>
+            <button onClick={() => setBatchPrint(p => ({ ...p, open: false }))}
+              style={{ position: 'absolute', top: 16, right: 16, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <X size={24} />
+            </button>
+            <h3 style={{ marginBottom: 4 }}>Imprimir Etiquetas por Rango</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20 }}>
+              Genera etiquetas adhesivas con QR para un rango de activos.
+            </p>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>DESDE</label>
+                <Field
+                  placeholder="ACT-0001"
+                  value={batchPrint.from}
+                  onChange={e => setBatchPrint(p => ({ ...p, from: e.target.value }))}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>HASTA</label>
+                <Field
+                  placeholder="ACT-0050"
+                  value={batchPrint.to}
+                  onChange={e => setBatchPrint(p => ({ ...p, to: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>TAMAÑO DE ETIQUETA</label>
+              <select
+                value={batchPrint.labelSize}
+                onChange={e => setBatchPrint(p => ({ ...p, labelSize: e.target.value }))}
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)',
+                  background: 'var(--bg-secondary)', color: 'var(--text-main)', fontSize: '0.88rem',
+                }}>
+                <option value="50x30">50 x 30 mm (estándar pequeña)</option>
+                <option value="60x40">60 x 40 mm (mediana)</option>
+                <option value="70x40">70 x 40 mm (mediana-grande)</option>
+                <option value="80x50">80 x 50 mm (grande)</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="secondary" style={{ flex: 1 }} onClick={() => setBatchPrint(p => ({ ...p, open: false }))}>
+                Cancelar
+              </Button>
+              <Button variant="primary" icon={Printer} style={{ flex: 1 }} disabled={batchPrint.loading}
+                onClick={handleBatchPrint}>
+                {batchPrint.loading ? 'Generando...' : 'Imprimir'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {selectedAssetForQR && (
         <div className="print-overlay" style={{
