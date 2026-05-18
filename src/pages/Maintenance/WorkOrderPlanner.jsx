@@ -216,7 +216,7 @@ const WorkOrderPlanner = () => {
     collectIds(scopeCategories);
 
     let baseAssets = scopeCatIds.size > 0
-      ? assets.filter(a => scopeCatIds.has(a.categoryId || a.CategoryId || ''))
+      ? assets.filter(a => scopeCatIds.has(a.categoryId || a.CategoryId || '') || scopeCatIds.has(a.sectionId || '') || scopeCatIds.has(a.familyId || '') || scopeCatIds.has(a.subFamilyId || ''))
       : assets;
 
     // Si hay plan con categoría específica, filtrar más
@@ -225,20 +225,45 @@ const WorkOrderPlanner = () => {
     const famId = plan.FamilyId;
     if (!catId) return baseAssets;
 
+    // Recopilar todos los IDs descendientes de la categoría del plan
+    const planCatIds = new Set([catId]);
+    const collectDescendants = (nodes) => {
+      for (const n of nodes) {
+        if (planCatIds.has(n.id)) {
+          // Agregar todos los hijos recursivamente
+          const addAll = (children) => {
+            for (const c of children) { planCatIds.add(c.id); if (c.children) addAll(c.children); }
+          };
+          if (n.children) addAll(n.children);
+        }
+        if (n.children) collectDescendants(n.children);
+      }
+    };
+    collectDescendants(scopeCategories.length > 0 ? scopeCategories : assetCategoriesTree);
+
     return baseAssets.filter(asset => {
-      const catMatch = asset.categoryId
-        ? asset.categoryId === catId
-        : (asset.category || '').toLowerCase().trim() === (plan.Category || '').toLowerCase().trim();
+      // Verificar si la categoría, sección, familia o subfamilia del activo coincide con la categoría del plan o sus descendientes
+      const assetCat = asset.categoryId || asset.CategoryId || '';
+      const assetSec = asset.sectionId || '';
+      const assetFam = asset.familyId || '';
+      const assetSub = asset.subFamilyId || '';
+
+      const catMatch = planCatIds.has(assetCat) || planCatIds.has(assetSec) || planCatIds.has(assetFam) || planCatIds.has(assetSub)
+        || (asset.category || '').toLowerCase().trim() === (plan.Category || '').toLowerCase().trim();
+
       if (!catMatch) return false;
 
       if (famId) {
-        if (asset.familyId) return asset.familyId === famId;
+        // La "familia" del plan puede corresponder a familyId O sectionId del activo
+        if (asset.familyId === famId || asset.sectionId === famId || asset.subFamilyId === famId) return true;
         const famName = (plan.FamilyName || plan.SubFamily || '').toLowerCase().trim();
-        return (asset.family || '').toLowerCase().trim() === famName;
+        return (asset.family || '').toLowerCase().trim() === famName
+          || (asset.sectionName || '').toLowerCase().trim() === famName
+          || (asset.subFamily || '').toLowerCase().trim() === famName;
       }
       return true;
     });
-  }, [assets, plan, currentScope, getCategoriesForScope, isAssetScope, entityInfo.items]);
+  }, [assets, plan, currentScope, getCategoriesForScope, isAssetScope, entityInfo.items, assetCategoriesTree]);
 
   // El tipo por defecto es el primero de la lista filtrada
   const defaultType = availableTypes[0] || null;
@@ -914,7 +939,7 @@ const WorkOrderPlanner = () => {
               <SearchableSelect
                 value={copyTarget}
                 onChange={(value) => setCopyTarget(value)}
-                options={filteredAssets.filter(a => a.id !== generalTask.assetId).map(a => ({ value: a.id, label: `${a.id} — ${a.name}` }))}
+                options={filteredEntities.filter(a => a.id !== generalTask.assetId).map(a => ({ value: a.id, label: `${a.id} — ${a.name}` }))}
                 placeholder="— Seleccionar —"
                 clearable={true}
               />

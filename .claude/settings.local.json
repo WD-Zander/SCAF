@@ -18,7 +18,9 @@
       "Bash(node backend/force_reset.js)",
       "Bash(node backend/create-superadmin.js)",
       "Bash(node force_reset.js)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(git commit -m ':*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }
