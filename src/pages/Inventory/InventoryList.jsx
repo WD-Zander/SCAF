@@ -438,7 +438,7 @@ const InventoryList = () => {
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{__html: `@media print{body *{visibility:hidden}.sidebar,.topbar{display:none!important}.print-overlay,.print-card,.print-card *{visibility:visible}.print-overlay{position:absolute;left:0;top:0;background:transparent!important;backdrop-filter:none!important}.print-card{box-shadow:none!important;border:none!important}.no-print{display:none!important}}`}} />
+      <style dangerouslySetInnerHTML={{__html: `@media print{body *{visibility:hidden;position:static}html,body{height:auto;overflow:visible}.sidebar,.topbar,[class*="BottomNav"]{display:none!important}.print-overlay{visibility:visible!important;position:absolute!important;left:0;top:0;width:100%;height:auto;background:transparent!important;backdrop-filter:none!important;display:block!important}.print-card{visibility:visible!important;position:relative!important;box-shadow:none!important;border:none!important;margin:0 auto;width:350px}.print-card *{visibility:visible!important}.print-card img{display:inline-block!important}.no-print{display:none!important}}`}} />
     </div>
   );
 };

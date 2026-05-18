@@ -57,7 +57,19 @@ const Scanner = () => {
         (decodedText) => {
           // On success
           stopScanner();
-          lookupAsset(decodedText);
+          // Extract asset code from URL if QR contains a full URL
+          let code = decodedText;
+          try {
+            const url = new URL(decodedText);
+            const segments = url.pathname.split('/').filter(Boolean);
+            // Expected path: /inventory/view/ACT-1719
+            if (segments.length >= 1) {
+              code = segments[segments.length - 1];
+            }
+          } catch {
+            // Not a URL, use raw value (e.g. "ACT-1719")
+          }
+          lookupAsset(code);
         },
         () => {} // ignore errors during scanning
       );
