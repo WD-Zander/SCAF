@@ -434,9 +434,30 @@ const InventoryList = () => {
               style={{ marginTop: 24, width: '100%' }} onClick={() => {
                 const a = selectedAssetForQR;
                 const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/inventory/view/' + a.id)}`;
-                const win = window.open('', '_blank', 'width=400,height=600');
-                win.document.write(`<!DOCTYPE html><html><head><title>Etiqueta ${a.id}</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:32px;margin:0}h2{margin:0 0 4px}p{color:#555;margin:0 0 20px;font-size:14px}.qr{padding:16px;display:inline-block}small{font-size:12px;color:#888}</style></head><body><h2>Etiqueta de Activo</h2><p><strong>${a.name}</strong><br/>ID: ${a.id}<br/><small>${a.brand || ''} ${a.model ? '- ' + a.model : ''}</small></p><div class="qr"><img src="${qrUrl}" width="200" height="200" /></div><script>var img=document.querySelector("img");img.onload=function(){window.print();};img.onerror=function(){window.print();};<\/script></body></html>`);
-                win.document.close();
+                const html = `<!DOCTYPE html><html><head><title>Etiqueta ${a.id}</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:32px;margin:0}h2{margin:0 0 4px}p{color:#555;margin:0 0 20px;font-size:14px}.qr{padding:16px;display:inline-block}small{font-size:12px;color:#888}</style></head><body><h2>Etiqueta de Activo</h2><p><strong>${a.name}</strong><br/>ID: ${a.id}<br/><small>${a.brand || ''} ${a.model ? '- ' + a.model : ''}</small></p><div class="qr"><img src="${qrUrl}" width="200" height="200" /></div></body></html>`;
+                // Use hidden iframe to print
+                let iframe = document.getElementById('print-iframe');
+                if (iframe) iframe.remove();
+                iframe = document.createElement('iframe');
+                iframe.id = 'print-iframe';
+                iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:400px;height:600px;border:none;';
+                document.body.appendChild(iframe);
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(html);
+                iframe.contentDocument.close();
+                const img = iframe.contentDocument.querySelector('img');
+                const doPrint = () => {
+                  iframe.contentWindow.focus();
+                  iframe.contentWindow.print();
+                };
+                if (img) {
+                  img.onload = doPrint;
+                  img.onerror = doPrint;
+                  // Fallback if image takes too long
+                  setTimeout(doPrint, 3000);
+                } else {
+                  doPrint();
+                }
               }}>
               Imprimir Etiqueta
             </Button>
