@@ -188,6 +188,15 @@ function adaptSql(sqlInput) {
   // Patrón complejo: IF NOT EXISTS (...) BEGIN ... END ELSE BEGIN ... END
   // Estos requieren reescritura manual en controllers
 
+  // ── Auto-quote camelCase aliases so PostgreSQL preserves casing ──
+  // Matches: AS/as word (not already quoted) — quotes it if word has mixed case
+  s = s.replace(/\b[Aa][Ss]\s+(?!")([A-Za-z_]\w*)/g, (match, alias) => {
+    if (/[a-z]/.test(alias) && /[A-Z]/.test(alias)) {
+      return match.replace(alias, `"${alias}"`);
+    }
+    return match;
+  });
+
   return s;
 }
 

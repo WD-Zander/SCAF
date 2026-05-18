@@ -21,7 +21,9 @@
       "Bash(node -e ':*)",
       "Bash(git commit -m ':*)",
       "Bash(npx eslint:*)",
-      "Bash(node -c backend/controllers/workOrders.controller.js)"
+      "Bash(node -c backend/controllers/workOrders.controller.js)",
+      "Bash(node -c backend/controllers/maintenances.controller.js)",
+      "Bash(node -c backend/db.js)"
     ]
   }
 }

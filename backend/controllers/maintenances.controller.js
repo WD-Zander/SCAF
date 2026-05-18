@@ -33,18 +33,18 @@ export const getMaintenances = async (req, res) => {
     try {
       result = await r.query(`
         SELECT
-          m.ID as id, m.ID_ACTIVO as assetId,
-          ISNULL(m.TIPO_ENTIDAD, 'activo') as entityType,
-          ISNULL(m.ID_ENTIDAD, m.ID_ACTIVO) as entityId,
+          m.ID as id, m.ID_ACTIVO as "assetId",
+          ISNULL(m.TIPO_ENTIDAD, 'activo') as "entityType",
+          ISNULL(m.ID_ENTIDAD, m.ID_ACTIVO) as "entityId",
           m.TITULO as title,
-          m.ID_TIPO_MANT as typeId, t.NOMBRE as type,
-          m.ID_PROVEEDOR as providerId, ISNULL(s.NOMBRE, 'Interno') as provider,
-          u.NOMBRE as assignedTo,
-          FORMAT(m.FECHA_INICIO, 'yyyy-MM-dd') as startDate, FORMAT(m.FECHA_FIN, 'yyyy-MM-dd') as endDate,
+          m.ID_TIPO_MANT as "typeId", t.NOMBRE as type,
+          m.ID_PROVEEDOR as "providerId", ISNULL(s.NOMBRE, 'Interno') as provider,
+          u.NOMBRE as "assignedTo",
+          FORMAT(m.FECHA_INICIO, 'yyyy-MM-dd') as "startDate", FORMAT(m.FECHA_FIN, 'yyyy-MM-dd') as "endDate",
           m.ESTADO as status, m.COSTO as cost, m.DESCRIPCION as description,
-          m.ID_PLAN as planId, m.ID_ORDEN_TRAB as workOrderId,
-          m.ID_SCOPE as scopeId, sc.SLUG as scope,
-          COALESCE(a.NOMBRE, inf.NOMBRE) as entityName
+          m.ID_PLAN as "planId", m.ID_ORDEN_TRAB as "workOrderId",
+          m.ID_SCOPE as "scopeId", sc.SLUG as scope,
+          COALESCE(a.NOMBRE, inf.NOMBRE) as "entityName"
         FROM TICKET_MANT m
         LEFT JOIN TIPO_MANT t ON m.ID_TIPO_MANT = t.ID
         LEFT JOIN PROVEEDOR s ON m.ID_PROVEEDOR = s.ID
@@ -74,14 +74,14 @@ export const getMaintenances = async (req, res) => {
       }
       result = await r2.query(`
         SELECT
-          m.ID as id, m.ID_ACTIVO as assetId, m.TITULO as title,
-          m.ID_TIPO_MANT as typeId, t.NOMBRE as type,
-          m.ID_PROVEEDOR as providerId, ISNULL(s.NOMBRE, 'Interno') as provider,
-          u.NOMBRE as assignedTo,
-          FORMAT(m.FECHA_INICIO, 'yyyy-MM-dd') as startDate, FORMAT(m.FECHA_FIN, 'yyyy-MM-dd') as endDate,
+          m.ID as id, m.ID_ACTIVO as "assetId", m.TITULO as title,
+          m.ID_TIPO_MANT as "typeId", t.NOMBRE as type,
+          m.ID_PROVEEDOR as "providerId", ISNULL(s.NOMBRE, 'Interno') as provider,
+          u.NOMBRE as "assignedTo",
+          FORMAT(m.FECHA_INICIO, 'yyyy-MM-dd') as "startDate", FORMAT(m.FECHA_FIN, 'yyyy-MM-dd') as "endDate",
           m.ESTADO as status, m.COSTO as cost, m.DESCRIPCION as description,
-          m.ID_PLAN as planId, m.ID_ORDEN_TRAB as workOrderId,
-          NULL as scopeId, 'activo' as scope
+          m.ID_PLAN as "planId", m.ID_ORDEN_TRAB as "workOrderId",
+          NULL as "scopeId", 'activo' as scope
         FROM TICKET_MANT m
         LEFT JOIN TIPO_MANT t ON m.ID_TIPO_MANT = t.ID
         LEFT JOIN PROVEEDOR s ON m.ID_PROVEEDOR = s.ID
@@ -244,7 +244,7 @@ export const updateMaintenance = async (req, res) => {
 
     const current = await db.request()
       .input('id', sql.VarChar, ticketId)
-      .query(`SELECT FORMAT(FECHA_INICIO,'yyyy-MM-dd') as startDate, FORMAT(FECHA_FIN,'yyyy-MM-dd') as endDate FROM TICKET_MANT WHERE ID=@id`);
+      .query(`SELECT FORMAT(FECHA_INICIO,'yyyy-MM-dd') as "startDate", FORMAT(FECHA_FIN,'yyyy-MM-dd') as "endDate" FROM TICKET_MANT WHERE ID=@id`);
 
     const prev = current.recordset[0] || {};
     const dateChanged = prev.startDate !== startDate || prev.endDate !== (endDate || null);
@@ -382,17 +382,17 @@ export const getRescheduled = async (req, res) => {
     const result = await db.request().query(`
       SELECT
         r.ID as id,
-        r.ID_TICKET as ticketId,
+        r.ID_TICKET as "ticketId",
         m.TITULO as title,
-        a.NOMBRE as assetName,
-        a.ID as assetId,
-        FORMAT(r.FECHA_INI_ORI, 'yyyy-MM-dd') as originalStart,
-        FORMAT(r.FECHA_FIN_ORI, 'yyyy-MM-dd') as originalEnd,
-        FORMAT(r.FECHA_INI_NUE, 'yyyy-MM-dd') as newStart,
-        FORMAT(r.FECHA_FIN_NUE, 'yyyy-MM-dd') as newEnd,
+        a.NOMBRE as "assetName",
+        a.ID as "assetId",
+        FORMAT(r.FECHA_INI_ORI, 'yyyy-MM-dd') as "originalStart",
+        FORMAT(r.FECHA_FIN_ORI, 'yyyy-MM-dd') as "originalEnd",
+        FORMAT(r.FECHA_INI_NUE, 'yyyy-MM-dd') as "newStart",
+        FORMAT(r.FECHA_FIN_NUE, 'yyyy-MM-dd') as "newEnd",
         r.MOTIVO as reason,
-        FORMAT(r.FECHA_CREA, 'yyyy-MM-dd HH:mm') as changedAt,
-        r.NOMBRE_USUARIO as changedBy
+        FORMAT(r.FECHA_CREA, 'yyyy-MM-dd HH:mm') as "changedAt",
+        r.NOMBRE_USUARIO as "changedBy"
       FROM REPROGRAMACION r
       LEFT JOIN TICKET_MANT m ON r.ID_TICKET = m.ID
       LEFT JOIN ACTIVO a ON m.ID_ACTIVO = a.ID
